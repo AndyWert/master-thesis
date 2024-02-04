@@ -1,0 +1,285 @@
+\chapter{Parabolic optimal control problems}
+
+\section{Introduction to the problem}
+Our optimization problem is based on the one presented in \cite{doi:10.1137/070694016}. We consider a state variable $u$ and a control variable $q$, defined on $(0,T)\times\Omega$ with $T\in\mathbb{R}$ and $\Omega\subset\mathbb{R}^n$. Our goal is to minimize the function
+\begin{subequations}
+\label{conProb}
+\begin{gather}
+J(q,u)=\frac{1}{2}\int_0^T\int_\Omega(u(t,x)-\hat{u}(t,x))^2\,\mathrm{d}x\,\mathrm{d}t+\frac{\alpha}{2}\int_0^T\int_\Omega q(t,x)^2\,\mathrm{d}x\,\mathrm{d}t\label{objFun}\\
+%\end{equation}
+\intertext{subject to the constraints}
+%\begin{equation}
+\begin{aligned}
+	\partial_tu-\Delta x&=f+q&\text{ in }(0,T)\times\Omega,\\
+	u(0)&=u_0&\text{ in }\Omega,
+\end{aligned}
+\label{constraints}
+\end{gather}
+\end{subequations}
+with homogeneous Dirichlet boundary conditions on $(0,T)\times\partial\Omega$.
+
+Let $V=H_0^1(\Omega)$, $H=L^2(\Omega)$ and $I=(0,T)$. We define our state space as
+\begin{displaymath}
+X:=\{v\mid v\in L^2(I,V)\text{ and }\partial_tv\in L^2(I,V^*)\}
+\end{displaymath}
+and the control space as
+\begin{displaymath}
+Q=L^2(I,L^2(\Omega)).
+\end{displaymath}
+We define the notion of the inner norms on $L^2(\Omega)$ and $L^2(I,L^2(\Omega))$ as
+\begin{align*}
+(v,w)&:=(v,w)_{L^2(\Omega)},&(v,w)_I&:=(v,w)_{L^2(I,L^2(\Omega))}\\
+\|v\|&:=\|v\|_{L^2(\Omega)},&\|v\|_I&:=\|v\|_{L^2(I,L^2(\Omega))}
+\end{align*}
+to describe the weak formulation of the state equations \eqref{constraints} for $q,f\in Q$ and $u_0\in V$. The state $u\in X$ should satisfy
+\begin{equation}
+\label{weakEq}
+\begin{aligned}
+	(\partial_tu,\phi)+(\nabla u,\nabla\phi)&=(f+q,\phi)&\forall\phi\in X,\\
+	u(0)&=u_0&\text{ in }\Omega.
+\end{aligned}
+\end{equation}
+With the weak state equations \eqref{weakEq}, we define the weak formulation of the optimal control problem \eqref{conProb} as
+\begin{equation}
+\label{weakProb}
+\text{Minimize }J(q,u):=\frac{1}{2}\|u-\hat{u}\|_I^2+\frac{\alpha}{2}\|q\|_I^2\text{ subject to \eqref{weakEq} and }(q,u)\in Q\times X.
+\end{equation}
+
+Now, we cite two results of the problems \eqref{weakEq} and \eqref{weakProb}.
+
+\begin{prop}[\cite{doi:10.1137/070694016}]
+\label{uniqueU}
+For fixed $q,f\in Q$, and $u_0\in V$ there exists a unique solution $u\in X$ of problem \eqref{weakEq}. Moreover, the solution exhibits the improved regularity
+\begin{displaymath}
+u\in L^2(I,H^2(\Omega)\cap V)\cap H^1(I,L^2(\Omega))\hookrightarrow C(\bar{I},V).
+\end{displaymath}
+It holds the stability estimate
+\begin{displaymath}
+\|\partial_tu\|_I+\|\nabla^2u\|_I\leq C\{\|f+q\|_I+\|\nabla u_0\|\}.
+\end{displaymath}
+\end{prop}
+
+%evtl rauslassen
+\begin{prop}[\cite{doi:10.1137/070694016}]
+For given $f,\hat{u}\in L^2(I,H)$, $u_0\in $, and $\alpha>0$, the optimal control Problem \eqref{weakProb} admits a unique solution $(\bar{q},\bar{u})\in Q\times X$. The optimal control $\bar{q}$ posesses the regularity
+\begin{displaymath}
+q\in L^2(I,H^2(\Omega))\cap H^1(I,L^2(\Omega)).
+\end{displaymath}
+\end{prop}
+
+Due to the existence and uniqueness results from Proposition \ref{uniqueU}, we define $u(q)$ as the unique solution of \eqref{weakEq} with respect to some $q\in Q$. This enables us to define a reduced cost funcitonal $j:Q\to \mathbb{R}$ that is only dependent on the control $q$ as
+\begin{displaymath}
+j(q):=J(q,u(q)).
+\end{displaymath}
+From now on, the optimal control problem that we examine is:
+\begin{equation}
+\label{redProb}
+\text{Minimize }j(q)\text{ subject to }q\in Q.
+\end{equation}
+
+\section{Finite element discretization}
+In order to solve our optimization problem \eqref{weakProb} numerically, we discuss now the discretization of this model. We begin with the presentation of the discretization in space with a n-D continuous Galerkin method. Then, we look at the discretization in time, which is done with a 1D continuous Galerkin method.
+
+\subsection{Discretization in space}
+We begin by describing the discretization in a 2-dimensional rectangular space $\Omega\subset\mathbb{R}^2$ with linear finite elements. We assume that we have a vertex set $\mathcal{V}=(x_1,\dotsc,x_N)\in(\mathbb{R}^2)^N$ with a convex hull that is equal  to $\bar{\Omega}$ and $x_i\neq x_j$ for all $i\neq j$ in $\{1,\dotsc,N\}$. Let $\hat{T}=\{(x_1,x_2)\in[0,1]^2\mid x_2 \leq 1-x_1\}$ be the reference triangle. Then,
+\begin{displaymath}
+\theta_l(\xi)=x_{l_1} + D\theta_l \begin{pmatrix} \xi_1 \\ \xi_2 \end{pmatrix} \text{ with } D\theta_l = \begin{pmatrix} x_{l_2}-x_{l_1} & x_{l_3}-x_{l_1} \end{pmatrix}
+\end{displaymath}
+is a transformation from the reference triangle $\hat{T}$ to some other triangle $T_l$ with corners $x_{l_1}, x_{l_2}, x_{l_3}$.
+
+We define now a mesh $\mathcal{T}=\{T_l\}$ which consists of triangles $T_l=\theta_l(\hat{T})$, where $T_l\cap T_m$ for $T_l,T_m\in\mathcal{T}$ is either a common side/corner or empty and where $\bar{\Omega}=\cup_{T_l\in\mathcal{T}}T_l$.
+
+Let $\mathcal{P}_1(\hat{T}, \mathbb{R})$ be the space of polynomials up to order 1 in $\hat{T}$. Then, $\{\psi_1, \psi_2, \psi_3\}$ with $\psi_1(\xi)=1-\xi_1-\xi_2, \psi_2(\xi)=\xi_1, \psi_3(\xi)=\xi_2$ defines a basis of $\mathcal{P}_1(\hat{T}, \mathbb{R})$.
+%Therefore, $\{\phi_1, \phi_2, \phi_3\}$ with $\phi_{l_m}= \psi_m \circ \theta_l^{-1}$ for $m=1, 2, 3$ defines a basis of $\mathcal{P}_1(T, \mathbb{R})$.
+Using this basis, we set
+\begin{displaymath}
+%V_s=\{v\in C(\Omega)\mid  v|_{T_l}\in\operatorname*{span}\{\phi_{l_1}, \phi_{l_2}, \phi_{l_3}\}\forall T_l\in\mathcal{T}\}
+V_s=\operatorname*{span}\{\phi_i, i=0,\dotsc,N\}\cap V
+\end{displaymath}
+as the finite element space of our state variables and
+\begin{displaymath}
+%V_c=\{v\in C(\Omega)\mid  v|_{T_l}\in\operatorname*{span}\{\phi_{l_1}, \phi_{l_2}, \phi_{l_3}\}\forall T_l\in\mathcal{T}\}
+V_c=\operatorname*{span}\{\phi_i, i=0,\dotsc,N\}
+\end{displaymath}
+as the finite element space of our control variables with
+\begin{displaymath}
+\phi_i|_{T_l}=\begin{cases}
+0 & \text{ if $x_i\notin T_l$}\\
+\psi_1 \circ \theta_l^{-1} & \text{ if $\theta_l\left(\begin{pmatrix} 0 \\ 0 \end{pmatrix}\right)=x_i$}\\
+\psi_2 \circ \theta_l^{-1} & \text{ if $\theta_l\left(\begin{pmatrix} 1 \\ 0 \end{pmatrix}\right)=x_i$}\\
+\psi_3 \circ \theta_l^{-1} & \text{ if $\theta_l\left(\begin{pmatrix} 0 \\ 1 \end{pmatrix}\right)=x_i$}
+\end{cases} 
+\end{displaymath}
+for all $T_l\in\mathcal{T}$ and $i=1,\dotsc,N$. By the construction of the basis, every $u\in V_c$ (and therefore also every $u\in V_s$ ) is uniquely defined by
+\begin{displaymath}
+u=\sum_{i=1}^NU_i\phi_i
+\end{displaymath}
+with $U_i=u(x_i)$.\\
+
+We want now to calculate $\int_\Omega u \cdot v \,\mathrm{d}x$ and $\int_\Omega \nabla u \cdot \nabla v \,\mathrm{d}x$ for all $u,v\in  V_c$. In order to do that, we set the mass matrix $M_n = \left(\int_\Omega \phi_i \cdot \phi_j \,\mathrm{d}x\right)_{i,j=1,\dotsc,N}$ and the stiffness matrix $L_n = \left(\int_\Omega \nabla\phi_i \cdot \nabla\phi_j \,\mathrm{d}x\right)_{i,j=1,\dotsc,N}$. Let%We calculate these integrals by taking the sum of the integrals over all triangles $T_l\in\mathcal{T}$ where $\phi_i$ and $\phi_j$ are not zero, so all triangles $T_l$ with $x_i,x_j\in T_l$
+\begin{displaymath}
+U=\begin{pmatrix} U_1 \\ \vdots \\ U_n \end{pmatrix}\text{ and }V=\begin{pmatrix} V_1 \\ \vdots \\ V_n \end{pmatrix}.
+\end{displaymath}
+Then we have
+\begin{displaymath}
+\int_\Omega u \cdot v \,\mathrm{d}x=U^TM_nV\text{ and }\int_\Omega \nabla v \cdot \nabla u \,\mathrm{d}x=U^TL_nV.
+\end{displaymath}
+
+
+\subsection{Discretization in time}
+At first, we partition the time interval $\bar{I}=[0,T]$ as
+\begin{displaymath}
+\bar{I}=\{0\}\cup I_1\cup I_2\cup\dotsb\cup I_M,
+\end{displaymath}
+with subintervals $I_m=(t_{m-1},t_m]$, where $t_m=m\frac{T}{M}$ for $m=0,\dotsc, M$ and $M\in\mathbb{N}$. We want that the discretizations of our functions are continuous in $\bar{I}$ and piecewise polynomial of order 1 in all subintervals $I_m$, so our discretization space is
+\begin{displaymath}
+X_{k,s}:=\{v\in C(\bar{I},H)\mid v |_{I_m}\in\mathcal{P}_1(I_m,V_s),m=1,2,\dotsc,M\}
+\end{displaymath}
+for our state variables and
+\begin{displaymath}
+X_{k,c}:=\{v\in C(\bar{I},H)\mid v |_{I_m}\in\mathcal{P}_1(I_m,V_c),m=1,2,\dotsc,M\}\supset X_{k,s}
+\end{displaymath}
+for our control variables, where $\mathcal{P}_1(I_m,V)$ denotes the space of polynomials up to order 1 defined on $I_m$ with values in $V$.
+
+By using the Lagrange basis of $\mathcal{P}_1(I_m,\mathbb{R})$, we can write every function $v\in X_{k,c}$ as
+\begin{displaymath}
+v(t,\cdot)=\left(m-t\frac{M}{T}\right) v_{t_{m-1}}(\cdot)+\left(t\frac{M}{T}-m+1\right) v_{t_m}(\cdot)\text{ for }t\in I_m,
+\end{displaymath}
+where $v_{t_m}(\cdot)=v(t_m,\cdot)$.
+
+
+\subsection{Crank-Nicolson scheme}
+We want to solve now the weak state equations \eqref{weakEq} for the state $U\in X_{k,s}$ and $f,q\in X_{k,c}$. For $m=0$ we set:
+\begin{displaymath}
+U_0=\begin{pmatrix} U_{0,1} \\ \vdots \\ U_{0,n} \end{pmatrix}
+\end{displaymath}
+For $m=1,\dotsc,M$ we get with the Crank-Nicolson scheme that for all $\phi\in V_s$:
+\begin{eqnarray*}
+(U_m,\phi) + \frac{T}{2M}(\nabla U_m, \nabla \phi) & = &(U_{m-1},\phi) - \frac{T}{2M}(\nabla U_{m-1}, \nabla \phi)\\
+&& + \frac{T}{2M}(f_{m-1} + q_{m-1}, \phi) + \frac{T}{2M}(f_m + q_m, \phi).
+\end{eqnarray*}
+To solve that, we define the matrix $\tilde{M}_n\in\mathbb{R}^{N\times N}$ as
+\begin{displaymath}
+\left(\tilde{M}_n\right)_{i,j}=\begin{cases}
+0 & \text{ if $x_j$ in $\partial\Omega$}\\
+\left(M_n\right)_{i,j} & \text{ else,}
+\end{cases}
+\end{displaymath}
+so that $(V_n,W_n)=V_n^T\tilde{M}_nW_n$ for $V_n\in V_c$ and $W_n\in V_s$. Now we solve
+%sqrt(M^TM)?
+\begin{eqnarray*}
+\tilde{M}_n^TU_m + \frac{T}{2M} L_n^T U_m &=& \tilde{M}_n^TU_{m-1} - \frac{T}{2M} L_n^T U_{m-1}\\
+&& + \frac{T}{2M} \tilde{M}_n^T (f_{m-1} + q_{m-1}) + \frac{T}{2M} \tilde{M}_n^T (f_m + q_m)
+\end{eqnarray*}
+\begin{multline}
+\label{crank_nicolson}
+\implies U_m = \left(\tilde{M}_n^T + \frac{T}{2M} L_n^T\right)^{-1} \bigg( \tilde{M}_n^TU_{m-1} - \frac{T}{2M} L_n^T U_{m-1}\\
+ + \frac{T}{2M} \tilde{M}_n^T (f_{m-1} + q_{m-1}) + \frac{T}{2M} \tilde{M}_n^T (f_m + q_m)\bigg)
+\end{multline}
+
+\subsection{Calculation of the objective function value}
+For fixed $\hat{u},f\in X_{k,c}$, we define $u=u(q)$ for all $q\in X_{k,c}$ so that it satisfies \eqref{crank_nicolson}. We calculate $j(q)$ now in the following way
+\begin{eqnarray*}
+j(q) =& \frac{1}{2}\sum_{m=1}^M\int_{t_{m-1}}^{t_m}&\bigg(\left(m-t\frac{M}{T}\right) \left(u_{t_{m-1}}-\hat{u}_{t_{m-1}}\right)+\left(t\frac{M}{T}-m+1\right) \left(u_{t_{m}}-\hat{u}_{t_{m}}\right),\\
+&&\left(m-t\frac{M}{T}\right) \left(u_{t_{m-1}}-\hat{u}_{t_{m-1}}\right)+\left(t\frac{M}{T}-m+1\right) \left(u_{t_{m}}-\hat{u}_{t_{m}}\right)\bigg)\,\mathrm{d}t\\
+&+ \frac{\alpha}{2}\sum_{m=1}^M\int_{t_{m-1}}^{t_m}&\bigg(\left(m-t\frac{M}{T}\right) \left(q_{t_{m-1}}\right)+\left(t\frac{M}{T}-m+1\right) \left(q_{t_{m}}\right),\\
+&&\left(m-t\frac{M}{T}\right) \left(q_{t_{m-1}}\right)+\left(t\frac{M}{T}-m+1\right) \left(q_{t_{m}}\right)\bigg)\,\mathrm{d}t.
+\end{eqnarray*}
+Integration by substitution yields
+\begin{eqnarray*}
+j(q) =& \frac{T}{6M}\sum_{m=1}^M&\left(u_{t_{m-1}}-\hat{u}_{t_{m-1}},u_{t_{m-1}}-\hat{u}_{t_{m-1}}\right) + \left(u_{t_{m-1}}-\hat{u}_{t_{m-1}},u_{t_{m}}-\hat{u}_{t_{m}}\right)\\
+&&+ \left(u_{t_{m}}-\hat{u}_{t_{m}},u_{t_{m}}-\hat{u}_{t_{m}}\right)\\
+&+ \frac{\alpha T}{6M}\sum_{m=1}^M&\int_{t_{m-1}}^{t_m}\left(q_{t_{m-1}},q_{t_{m-1}}\right) + \left(q_{t_{m-1}},q_{t_{m}}\right) + \left(q_{t_{m}},q_{t_{m}}\right)\\
+=& \frac{T}{6M}\sum_{m=1}^M&\left(u_{t_{m-1}}-\hat{u}_{t_{m-1}}\right)M_n\left(u_{t_{m-1}}-\hat{u}_{t_{m-1}}\right)\\
+&&+ \left(u_{t_{m-1}}-\hat{u}_{t_{m-1}}\right)M_n\left(u_{t_{m}}-\hat{u}_{t_{m}}\right)\\
+&&+ \left(u_{t_{m}}-\hat{u}_{t_{m}}\right)M_n\left(u_{t_{m}}-\hat{u}_{t_{m}}\right)\\
+&+ \frac{\alpha T}{6M}\sum_{m=1}^M&q_{t_{m-1}}M_nq_{t_{m-1}} + q_{t_{m-1}}M_nq_{t_{m}} + q_{t_{m}}M_nq_{t_{m}}
+\end{eqnarray*}
+
+\section{Optimization of the control variable}
+
+To optimize the control variable, we write every $q\in X_{k,c}$, using a fixed basis $\Phi=\{\phi_1,\dotsc,\phi_{N_b}\}$ with $\phi_1,\dotsc,\phi_{N_b}\in V_c$ and scalars $q_1^0,q_1^1,\dotsc,q_1^M,\dotsc,q_{N_b}^0,q_{N_b}^1\dotsc,q_{N_b}^M\in\mathbb{R}$, as
+\begin{equation}
+\label{discrContrVar}
+q(t,x) = \sum_{i=1}^{N_b}\alpha_i(t)\phi_i(x)
+\end{equation} 
+with
+\begin{displaymath}
+\alpha_i(t)=\begin{cases}
+q_i^{m-1}\left(m-t\frac{M}{T}\right) + q_i^m\left(t\frac{M}{T}-m+1\right) & \text{ if $t\in I_m$ with $m=1,\dotsc,M$}\\
+q_i^0 & \text{ if $t=0$}
+\end{cases}
+\end{displaymath}
+Each control variable, that is written in this form, can be represented as a vector
+\begin{displaymath}
+\mathbf{q}=\left[q_1^0,q_1^1,\dotsc,q_1^M,\dotsc,q_{N_b}^0,q_{N_b}^1\dotsc,q_{N_b}^M\right]^T\in\mathcal{D}:=\mathbb{R}^{N_q},
+\end{displaymath} 
+with $N_q = (M+1)\cdot N_b$. Therefore, we write
+\begin{displaymath}
+j(\mathbf{q}):=j(q)
+\end{displaymath}
+for each $q$ defined like in \eqref{discrContrVar}. In the next chapters we present algorithms that minimize $j(\mathbf{q})$ with respect to its control vector $\mathbf{q}$.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

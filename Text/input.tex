@@ -1,0 +1,69 @@
+
+%\documentclass[a4paper,11pt]{article}
+
+%einseitig
+\documentclass[paper=a4, 11pt, cleardoubleempty, fancyheaders, oneside, openright, BCOR=7mm, DIV12, listof=totoc, index=totoc,bibliography=totoc, headinclude=false]{scrreprt}
+
+%zweiseitig
+%\documentclass[ngerman, paper=a4, 11pt,  twoside, openright, BCOR=7mm, DIV12, headinclude=false, listof=totoc, index=totoc,bibliography=totoc,headinclude=false,chapterprefix=on]{scrreprt}
+
+\usepackage[english]{babel}
+
+\usepackage{amsfonts}
+
+\usepackage{amsmath}
+
+\usepackage{amsthm}
+
+\usepackage{amssymb}
+
+\usepackage{paralist}
+
+\usepackage{fancyhdr}
+
+\usepackage{mathrsfs}
+
+\usepackage{algorithm}
+
+\usepackage[noend]{algpseudocode}
+
+%\usepackage{hf-tikz}
+
+%\usepackage[natbib=true,style=authoryear,backend=bibtex,useprefix=true]{biblatex}
+\usepackage[natbib=true,style=IEEE,hyperref=true,backend=bibtex,useprefix=true]{biblatex}
+%\usepackage{biblatex}
+\addbibresource{sample.bib}
+
+\usepackage{hyperref}
+
+\pagestyle{fancy} %eigener Seitenstil
+\renewcommand{\chaptermark}[1]{%
+\markboth{\thechapter \ #1}{}}
+\fancyhf{} %alle Kopf- und Fußzeilenfelder bereinigen
+\fancyhead[C]{\leftmark} %zentrierte Kopfzeile
+\renewcommand{\headrulewidth}{0.4pt} %obere Trennlinie
+\renewcommand{\footrulewidth}{0.4pt} %untere Trennlinie
+\fancyfoot[C]{\thepage} %Seitennummer
+
+% Damit der Pagestyle auf bei Kapitelbeginn und bspw. bei TOC richtig gesetzt ist
+\fancypagestyle{plain}{
+\pagestyle{fancy} 
+}
+
+
+%\usepackage{showframe}           %zeigt Grenzen
+
+%\numberwithin{equation}{section}
+
+%\setlength{\topsep}{1ex} %aendern der Abstaende zwischen Sätzen/Propositionen/....
+\theoremstyle{plain}% default
+\newtheorem{thm}{Theorem}[chapter]
+\newtheorem{lem}[thm]{Lemma}
+\newtheorem{prop}[thm]{Proposition}
+\newtheorem{cor}[thm]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{defn}[thm]{Definition}
+
+\theoremstyle{remark}
+\newtheorem{rema}[thm]{Bemerkung}

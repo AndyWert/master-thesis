@@ -1,0 +1,231 @@
+@article{RASMUSSEN2021159,
+title = {The Open Porous Media Flow reservoir simulator},
+journal = {Computers \& Mathematics with Applications},
+volume = {81},
+pages = {159-185},
+year = {2021},
+note = {Development and Application of Open-source Software for Problems with Numerical PDEs},
+issn = {0898-1221},
+doi = {https://doi.org/10.1016/j.camwa.2020.05.014},
+url = {https://www.sciencedirect.com/science/article/pii/S0898122120302182},
+author = {Atgeirr Flø Rasmussen and Tor Harald Sandve and Kai Bao and Andreas Lauser and Joakim Hove and Bård Skaflestad and Robert Klöfkorn and Markus Blatt and Alf Birger Rustad and Ove Sævareid and Knut-Andreas Lie and Andreas Thune},
+abstract = {The Open Porous Media (OPM) initiative is a community effort that encourages open innovation and reproducible research for simulation of porous media processes. OPM coordinates collaborative software development, maintains and distributes open-source software and open data sets, and seeks to ensure that these are available under a free license in a long-term perspective. In this paper, we present OPM Flow, which is a reservoir simulator developed for industrial use, as well as some of the individual components used to make OPM Flow. The descriptions apply to the 2019.10 release of OPM.}
+}
+
+@article{Chen07,
+title = {Reservoir simulation: Mathematical techniques in oil recovery},
+journal = {SIAM},
+year = {2007},
+author = {Zhangxin Chen},
+}
+
+@ARTICLE{Bao2017-db,
+  title    = "Fully implicit simulation of polymer flooding with {MRST}",
+  author   = "Bao, Kai and Lie, Knut-Andreas and M{\o}yner, Olav and Liu, Ming",
+  abstract = "The present work describes a fully implicit simulator for polymer
+              injection implemented in the free, open-source MATLAB Reservoir
+              Simulation Toolbox (MRST). Polymer injection is one of the widely
+              used enhanced oil recovery (EOR) techniques, and complicated
+              physical process is involved, which makes accurate simulation
+              very challenging. The proposed work is intended for providing a
+              powerful and flexible tool to investigate the polymer injection
+              process in realistic reservoir scenarios. Within the model, the
+              polymer component is assumed to be only transported in the water
+              phase and adsorbed in the rock. The hydrocarbon phases are not
+              influenced by the polymer, and they are described with the
+              standard, three-phase, black-oil equations. The effects of the
+              polymer are simulated based on the Todd--Longstaff mixing model,
+              accounting for adsorption, inaccessible pore space, and
+              permeability reduction effects. Shear-thinning/thickening effects
+              based on shear rate are also included by the means of a separate
+              inner-Newton iteration process within the global nonlinear
+              iteration. The implementation is based on the automatic
+              differentiation framework in MRST (MRST-AD), and an iterative
+              linear solver with a constrained pressure residual (CPR)
+              preconditioner is used to solve the resulting linear systems
+              efficiently. We discuss certain implementation details to show
+              how convenient it is to use the existing functionality in MRST to
+              develop an accurate and efficient polymer flooding simulator for
+              real fields. With its modular design, vectorized implementation,
+              support for stratigraphic and general unstructured grids, and
+              automatic differentiation framework, MRST is a very powerful
+              prototyping and experimentation platform for development of new
+              reservoir simulators. To verify the simulator, we first compare
+              it with a commercial simulator and good agreement is achieved.
+              Then, we apply the new simulator to a few realistic reservoir
+              models to investigate the effect of adding polymer injection, and
+              computational efficiency is demonstrated. Finally, we combine
+              existing optimization functionality in MRST with the new polymer
+              simulator to optimize polymer flooding for two different
+              reservoir models. We argue that the presented software framework
+              can be used as an efficient prototyping tool to evaluate new
+              models for polymer--water flooding processes in real reservoir
+              fields.",
+  journal  = "Computational Geosciences",
+  volume   =  21,
+  number   =  5,
+  pages    = "1219--1244",
+  month    =  dec,
+  year     =  2017
+}
+
+@inproceedings{Brouwer2004DynamicWF,
+  title={Dynamic water flood optimization with smart wells using optimal control theory},
+  author={D. Roald Brouwer},
+  year={2004},
+  url={https://api.semanticscholar.org/CorpusID:108533426}
+}
+
+@book{doi:10.1137/1.9780898717921,
+author = {Tarantola, Albert},
+title = {Inverse Problem Theory and Methods for Model Parameter Estimation},
+publisher = {Society for Industrial and Applied Mathematics},
+year = {2005},
+doi = {10.1137/1.9780898717921},
+address = {},
+edition   = {},
+URL = {https://epubs.siam.org/doi/abs/10.1137/1.9780898717921},
+eprint = {https://epubs.siam.org/doi/pdf/10.1137/1.9780898717921}
+}
+
+@ARTICLE{Stordal2016-cj,
+  title    = "A Theoretical look at {Ensemble-Based} Optimization in Reservoir
+              Management",
+  author   = "Stordal, Andreas S and Szklarz, Slawomir P and Leeuwenburgh,
+              Olwijn",
+  abstract = "Ensemble-based optimization has recently received great attention
+              as a potentially powerful technique for life-cycle production
+              optimization, which is a crucial element of reservoir management.
+              Recent publications have increased both the number of
+              applications and the theoretical understanding of the algorithm.
+              However, there is still ample room for further development since
+              most of the theory is based on strong assumptions. Here, the
+              mathematics (or statistics) of Ensemble Optimization is studied,
+              and it is shown that the algorithm is a special case of an
+              already well-defined natural evolution strategy known as Gaussian
+              Mutation. A natural description of uncertainty in reservoir
+              management arises from the use of an ensemble of history-matched
+              geological realizations. A logical step is therefore to
+              incorporate this uncertainty description in robust life-cycle
+              production optimization through the expected objective function
+              value. The expected value is approximated with the mean over all
+              geological realizations. It is shown that the frequently
+              advocated strategy of applying a different control sample to each
+              reservoir realization delivers an unbiased estimate of the
+              gradient of the expected objective function. However, this
+              procedure is more variance prone than the deterministic strategy
+              of applying the entire ensemble of perturbed control samples to
+              each reservoir model realization. In order to reduce the variance
+              of the gradient estimate, an importance sampling algorithm is
+              proposed and tested on a toy problem with increasing
+              dimensionality.",
+  journal  = "Mathematical Geosciences",
+  volume   =  48,
+  number   =  4,
+  pages    = "399--417",
+  month    =  may,
+  year     =  2016
+}
+
+@article{OGUNTOLA2021109165,
+title = {Ensemble-based constrained optimization using an exterior penalty method},
+journal = {Journal of Petroleum Science and Engineering},
+volume = {207},
+pages = {109165},
+year = {2021},
+issn = {0920-4105},
+doi = {https://doi.org/10.1016/j.petrol.2021.109165},
+url = {https://www.sciencedirect.com/science/article/pii/S0920410521008184},
+author = {Micheal B. Oguntola and Rolf J. Lorentzen},
+keywords = {Ensemble-based optimization, Stochastic gradient, Constrained optimization, Penalty method, Line search method, Production optimization, Lagrange method},
+abstract = {In science and engineering, non-linear constrained optimization has been a useful mathematical technique for many practical applications. Of interest to us is its applicability in the modeling and prediction of hydrocarbon reservoir production. In this paper, a new efficient, robust, and accurate optimal solution strategy based on the exterior penalty function (EPF) method and the adaptive ensemble-based optimization (EnOpt) approach (with backtracking line-search technique) for non-linear constrained optimization problems is presented. The purpose of this work is to provide a better user-friendly strategy which mitigates the problem often faced with the current constraints handling technique utilized when using the EnOpt method to solve constrained problems of water or EOR flooding. This study notes that the problem contributes to uncertainties in the gradient computation of the objective function and hence leads to the poor convergence rate of the standard EnOpt method. In this work, we used the EPF method to transform a given constrained optimization problem to a sequence of unconstrained subproblems and then sequentially solve the subproblems by unconstrained EnOpt procedure until convergence to the solution of the original problem. To demonstrate the advantage of the proposed methodology, we used it to solve analytical 2D bound constrained Rosenbrock’s problem and a practical high dimensional bound constrained water flooding optimization problem associated with a 2D 5Spot field and a 3D Reek reservoir field. The numerical results are compared with EnOpt using classical Lagrangian approach, as well as the traditional EnOpt. Our findings showed that the proposed solution method has a fast convergence rate and is more accurate and robust.}
+}
+  
+  @ARTICLE{Keil2022-dj,
+  title    = "Adaptive machine learning-based surrogate modeling to accelerate
+              {PDE-constrained} optimization in enhanced oil recovery",
+  author   = "Keil, Tim and Kleikamp, Hendrik and Lorentzen, Rolf J and
+              Oguntola, Micheal B and Ohlberger, Mario",
+  abstract = "In this contribution, we develop an efficient surrogate modeling
+              framework for simulation-based optimization of enhanced oil
+              recovery, where we particularly focus on polymer flooding. The
+              computational approach is based on an adaptive training procedure
+              of a neural network that directly approximates an input-output
+              map of the underlying PDE-constrained optimization problem. The
+              training process thereby focuses on the construction of an
+              accurate surrogate model solely related to the optimization path
+              of an outer iterative optimization loop. True evaluations of the
+              objective function are used to finally obtain certified results.
+              Numerical experiments are given to evaluate the accuracy and
+              efficiency of the approach for a heterogeneous five-spot
+              benchmark problem.",
+  journal  = "Advances in Computational Mathematics",
+  volume   =  48,
+  number   =  6,
+  pages    = "73",
+  month    =  nov,
+  year     =  2022
+}
+
+@article{doi:10.1137/070694016,
+author = {Meidner, Dominik and Vexler, Boris},
+title = {A Priori Error Estimates for Space-Time Finite Element Discretization of Parabolic Optimal Control Problems Part I: Problems Without Control Constraints},
+journal = {SIAM Journal on Control and Optimization},
+volume = {47},
+number = {3},
+pages = {1150-1177},
+year = {2008},
+doi = {10.1137/070694016},
+
+URL = { 
+    
+        https://doi.org/10.1137/070694016
+    
+    
+
+},
+eprint = { 
+    
+        https://doi.org/10.1137/070694016
+    
+    
+
+}
+,
+    abstract = { In this paper we develop a priori error analysis for Galerkin finite element discretizations of optimal control problems governed by linear parabolic equations. The space discretization of the state variable is done using usual conforming finite elements, whereas the time discretization is based on discontinuous Galerkin methods. For different types of control discretizations we provide error estimates of optimal order with respect to both space and time discretization parameters. The paper is divided into two parts. In the first part we develop some stability and error estimates for space-time discretization of the state equation and provide error estimates for optimal control problems without control constraints. In the second part of the paper, the techniques and results of the first part are used to develop a priori error analysis for optimal control problems with pointwise inequality constraints on the control variable. }
+}
+
+@ARTICLE{Zhang2023-sg,
+  title     = "A natural Hessian approximation for ensemble based optimization",
+  author    = "Zhang, Yiteng and Stordal, Andreas S and Lorentzen, Rolf J",
+  abstract  = "AbstractA key challenge in reservoir management and other fields
+               of engineering involves optimizing a nonlinear function
+               iteratively. Due to the lack of available gradients in
+               commercial reservoir simulators the attention over the last
+               decades has been on gradient free methods or gradient
+               approximations. In particular, the ensemble-based optimization
+               has gained popularity over the last decade due to its simplicity
+               and efficient implementation when considering an ensemble of
+               reservoir models. Typically, a regression type gradient
+               approximation is used in a backtracking or line search setting.
+               This paper introduces an approximation of the Hessian utilizing
+               a Monte Carlo approximation of the natural gradient with respect
+               to the covariance matrix. This Hessian approximation can further
+               be implemented in a trust region approach in order to improve
+               the efficiency of the algorithm. The advantages of using such
+               approximations are demonstrated by testing the proposed
+               algorithm on the Rosenbrock function and on a synthetic
+               reservoir field.",
+  journal   = "Comput. Geosci.",
+  publisher = "Springer Science and Business Media LLC",
+  volume    =  27,
+  number    =  2,
+  pages     = "355--364",
+  month     =  apr,
+  year      =  2023,
+  copyright = "https://creativecommons.org/licenses/by/4.0",
+  language  = "en"
+}
+
+@book{wloka_1987, place={Cambridge}, title={Partial Differential Equations}, DOI={10.1017/CBO9781139171755}, publisher={Cambridge University Press}, author={Wloka, J.}, year={1987}}
+
