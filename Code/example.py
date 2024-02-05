@@ -1,6 +1,6 @@
 from pymor.basic import *
-from pymor.discretizers.builtin.cg import L2ProductP1
 import numpy as np
+import matplotlib.pyplot as plt
 from pymor.algorithms.timestepping import TimeStepper
 
 
@@ -29,10 +29,6 @@ class CrankNicolsonTimeStepper(TimeStepper):
         return self.nt
 
     def iterate(self, initial_time, end_time, initial_data, operator, rhs=None, mass=None, mu=None, num_values=None):
-        """
-        return crank_nicolson(operator, rhs, mass, initial_data, initial_time, end_time, self.nt, mu, num_values,
-                              solver_options=self.solver_options)
-        """
 
         from pymor.operators.interface import Operator
         from pymor.parameters.base import Mu
@@ -103,10 +99,6 @@ class CrankNicolsonTimeStepper(TimeStepper):
                 dt_F1 = F.as_vector(mu1) * dt * 0.5
 
             if F:
-                #if not F_time_dep:
-                #    rhs += dt_F
-                #else:
-                #    rhs += dt_F0 + dt_F1
                 rhs += dt_F0 + dt_F1
             U = M_dt_A_p.apply_inverse(rhs, mu=mu1, initial_guess=U)
             while t - t0 + (min(dt, DT) * 0.5) >= num_ret_values * DT:
@@ -158,7 +150,6 @@ def parabolic_equation(q, T, grid_intervals=50, nt=50):
     )
 
     # discretize using continuous finite elements
-    # fom, data = discretize_instationary_cg(analytical_problem=problem, diameter=1./grid_intervals, nt=nt)
     fom, data = discretize_instationary_cg(analytical_problem=problem, diameter=1./grid_intervals, time_stepper=CrankNicolsonTimeStepper(nt=nt))
 
     return fom, data
@@ -185,14 +176,6 @@ def J(param, a, T, grid_intervals=50, nt=50):
     for i in range(nt+1):
         qh.append(u.space.from_numpy(q.evaluate(grid.centers(grid.dim), q.parameters.parse({'t': i/nt*T}))))
         uMinusUHath.append(u[i][0]-u.space.from_numpy(uHat.evaluate(grid.centers(grid.dim), uHat.parameters.parse({'a': a, 't': i/nt*T}))))
-    """
-    t = np.linspace(0, T, num=nt+1)
-    y1 = uMinusUHath.norm2(product=L2ProductP1(grid, boundary_info))
-    y2 = qh.norm2(product=L2ProductP1(grid, boundary_info))
-    y1Int = np.trapz(y1, t)
-    y2Int = np.trapz(y2, t)
-    out = 1/2*y1Int+alpha/2*y2Int
-    """
     y1Int = 0
     y2Int = 0
     for t in range(nt):
@@ -211,22 +194,10 @@ def L_BFGS_B_minimizer(init, a, T, grid_intervals=50, nt=50):
 
 
 # L2- and LInf-error between a function u and the analytical minimizer uBar
-def error(u, a, T, grid, product, nt=50):
-    assert len(u) == nt+1
-    uBar = ExpressionFunction('-1/(2+a[0])*pi**2*exp(a[0]*pi**2*t[0])*sin(pi*x[0])*sin(pi*x[1])', dim_domain=2, parameters={'a': 1, 't': 1})
-    uBarh = u.space.empty(reserve=nt+1)
-    for i in range(nt+1):
-        uBarh.append(u.space.from_numpy(uBar.evaluate(grid.centers(grid.dim), uBar.parameters.parse({'a': a, 't': i/nt*T}))))
-    err = uBarh-u
-    absInfErr = np.max((err).sup_norm())
-    relInfErr = np.max((err).sup_norm())/np.max(u.sup_norm())
+def error(err, u, T, product, nt=50):
+    absInfErr = np.max(err.sup_norm())
+    relInfErr = np.max(err.sup_norm())/np.max(u.sup_norm())
     t = np.linspace(0, T, num=nt+1)
-    """
-    y = err.norm2(product=product)
-    yInt = np.trapz(y, t)
-    uNorm2 = u.norm2(product=product)
-    uInt = np.trapz(uNorm2, t)
-    """
     yInt = 0
     uInt = 0
     for t in range(nt):
@@ -294,8 +265,48 @@ def FOM_EnOpt(u_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, 
     return enOpt(lambda mu: -J(mu, a, T, grid_intervals, nt)[0], u_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff)
 
 
+def result(name, qParamOpt, qParam, out, fom, data, u, y1, y2, a, T, nt):
+    assert len(u) == nt+1
+    assert len(qParamOpt) == nt+1
+    assert len(qParam) == nt+1
+    # error of u
+    uBar = ExpressionFunction('-1/(2+a[0])*pi**2*exp(a[0]*pi**2*t[0])*sin(pi*x[0])*sin(pi*x[1])', dim_domain=2, parameters={'a': 1, 't': 1})
+    uBarh = u.space.empty(reserve=nt+1)
+    for i in range(nt+1):
+        uBarh.append(u.space.from_numpy(uBar.evaluate(data['grid'].centers(data['grid'].dim), uBar.parameters.parse({'a': a, 't': i/nt*T}))))
+    err = uBarh-u
+    absL2Err, relL2Err, absInfErr, relInfErr = error(err, u, T, fom.l2_product, nt)
+    fom.visualize(u, title=name+' u')
+    fom.visualize(err, title=name+' u error')
+    print(name + ' y1 = {}'.format(y1))
+    print(name + ' y2 = {}'.format(y2))
+    print(name + ' u L2-error = {}'.format(absL2Err))
+    print(name + ' u relative L2-error = {}'.format(relL2Err))
+    print(name + ' u LInf-error = {}'.format(absInfErr))
+    print(name + ' u relative LInf-error = {}'.format(relInfErr))
+    # error of q
+    print(name + ' q = {}'.format(qParamOpt))
+    t = np.linspace(0, T, num=nt+1)
+    qAnalytical = np.all(qParamOpt == qParam)
+    fig, ax = plt.subplots(2-qAnalytical, 1)
+    if qAnalytical:
+        ax.plot(t, qParamOpt, label=name+' q')
+        ax.legend()
+    else:
+        qErr = qParamOpt-qParam
+        print(name + ' q LInf-error = {}'.format(np.max(np.abs(qErr))))
+        print(name + ' q relative LInf-error = {}'.format(np.max(np.abs(qErr))/np.max((qParamOpt))))
+        ax[0].plot(t, qParamOpt, label=name+' q')
+        ax[0].plot(t, qParam, label='Analytical q')
+        ax[0].legend()
+        ax[1].plot(t, qErr, label=name+' q error')
+        ax[1].legend()
+    plt.show()
+    print(name + ' J = {}'.format(out))
+
+
 T = 0.1
-nt = 3
+nt = 10
 grid_intervals = 50
 a = -np.sqrt(5)
 init = np.zeros(nt+1)-40
@@ -328,36 +339,14 @@ for i in range(nt+1):
 out, fom, data, y1, y2 = J(qParam, a, T, grid_intervals, nt)
 u = fom.solve({'a': a})
 
-fom.visualize(u)
 
-fomOpt.visualize(uOpt)
+def analytical():
+    result('Analytical', qParam, qParam, out, fom, data, u, y1, y2, a, T, nt)
 
-fomOptBFGS.visualize(uOptBFGS)
 
-print('EnOpt y1 = {}'.format(y1Opt))
-print('EnOpt y2 = {}'.format(y2Opt))
-print('EnOpt L2-error = {}'.format(error(uOpt, a, T, dataOpt['grid'], fomOpt.l2_product, nt)[0]))
-print('EnOpt relative L2-error = {}'.format(error(uOpt, a, T, dataOpt['grid'], fomOpt.l2_product, nt)[1]))
-print('EnOpt LInf-error = {}'.format(error(uOpt, a, T, dataOpt['grid'], fomOpt.l2_product, nt)[2]))
-print('EnOpt relative LInf-error = {}'.format(error(uOpt, a, T, dataOpt['grid'], fomOpt.l2_product, nt)[3]))
-print('EnOpt q = {}'.format(qParamOpt))
-print('EnOpt J = {}'.format(outOpt))
-print('k = {}'.format(k))
+def opt1():
+    result('EnOpt', qParamOpt, qParam, outOpt, fomOpt, dataOpt, uOpt, y1Opt, y2Opt, a, T, nt)
 
-print('L_BFGS_B y1 = {}'.format(y1OptBFGS))
-print('L_BFGS_B y2 = {}'.format(y2OptBFGS))
-print('L_BFGS_B L2-error = {}'.format(error(uOptBFGS, a, T, dataOptBFGS['grid'], fomOptBFGS.l2_product, nt)[0]))
-print('L_BFGS_B relative L2-error = {}'.format(error(uOptBFGS, a, T, dataOptBFGS['grid'], fomOptBFGS.l2_product, nt)[1]))
-print('L_BFGS_B LInf-error = {}'.format(error(uOptBFGS, a, T, dataOptBFGS['grid'], fomOptBFGS.l2_product, nt)[2]))
-print('L_BFGS_B relative LInf-error = {}'.format(error(uOptBFGS, a, T, dataOptBFGS['grid'], fomOptBFGS.l2_product, nt)[3]))
-print('L_BFGS_B q = {}'.format(qParamOptBFGS))
-print('L_BFGS_B J = {}'.format(outOptBFGS))
 
-print('y1 = {}'.format(y1))
-print('y2 = {}'.format(y2))
-print('L2-error = {}'.format(error(u, a, T, data['grid'], fom.l2_product, nt)[0]))
-print('relative L2-error = {}'.format(error(u, a, T, data['grid'], fom.l2_product, nt)[1]))
-print('LInf-error = {}'.format(error(u, a, T, data['grid'], fom.l2_product, nt)[2]))
-print('relative LInf-error = {}'.format(error(u, a, T, data['grid'], fom.l2_product, nt)[3]))
-print('q = {}'.format(qParam))
-print('J = {}'.format(out))
+def opt2():
+    result('L_BFGS_B', qParamOptBFGS, qParam, outOptBFGS, fomOptBFGS, dataOptBFGS, uOptBFGS, y1OptBFGS, y2OptBFGS, a, T, nt)
