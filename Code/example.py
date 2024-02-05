@@ -265,6 +265,35 @@ def FOM_EnOpt(u_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, 
     return enOpt(lambda mu: -J(mu, a, T, grid_intervals, nt)[0], u_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff)
 
 
+def train(sample, V_DNN):
+    from pymor.models.neural_network import FullyConnectedNN
+    DNN = FullyConnectedNN(V_DNN[0])
+    return DNN # todo
+
+
+def AML_enOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff):
+    F_k = F(u_0)
+    u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_0, N, 0, [], 0, F_k, beta_1, beta_2, r, eps_o, nu_1, var, correlationCoeff)
+    k = 0
+    u_k = u_0
+    u_k_next = u_k
+    while (F_k_tilde > F_k+eps_o and k < k_1_o):
+        F_ML_k = train(T_k, V_DNN)
+        u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var, correlationCoeff)[0]
+        F_k_next = F(u_k_next)
+        if F_k_next <= F_k+eps_o:
+            return u_k
+        u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_k_next, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps_o, nu_1, var, correlationCoeff)
+        F_k = F_k_next
+        u_k = u_k_next
+        k = k+1
+    return u_k, k
+
+
+def ROM_EnOpt(u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals=50, nt=50):
+    return AML_enOpt(lambda mu: -J(mu, a, T, grid_intervals, nt)[0], u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff)
+
+
 def result(name, qParamOpt, qParam, out, fom, data, u, y1, y2, a, T, nt):
     assert len(u) == nt+1
     assert len(qParamOpt) == nt+1
