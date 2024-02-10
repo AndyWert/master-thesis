@@ -1,5 +1,7 @@
-from pymor.basic import *
 import numpy as np
+import torch
+from torch.utils.data import Dataset
+from pymor.basic import *
 import matplotlib.pyplot as plt
 from pymor.algorithms.timestepping import TimeStepper
 
@@ -241,9 +243,9 @@ def optStep(F, u_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, corr
     T_k_new = []
     for i in range(N):
         T_k_new.append([sample[i], F(sample[i])])
-    C_F = 0
+    C_F = np.zeros(N_u)
     for m in range(N):
-        C_F = C_F+(T_k_new[m][0]-u_k).dot(T_k_new[m][1]-F_k)
+        C_F = C_F+(T_k_new[m][0]-u_k)*(T_k_new[m][1]-F_k)
     C_F = 1/(N-1)*C_F
     d_k = C_F/np.abs(np.max(C_F))
     u_k_new = lineSearch(F, u_k, d_k, beta_1, r, eps, nu_1)
@@ -265,25 +267,122 @@ def FOM_EnOpt(u_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, 
     return enOpt(lambda mu: -J(mu, a, T, grid_intervals, nt)[0], u_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff)
 
 
+class CustomDataset(Dataset):
+    def __init__(self, sample, transform=None, target_transform=None):
+        self.sample = sample
+        self.transform = transform
+        self.target_transform = target_transform
+
+    def __len__(self):
+        return len(self.sample)
+
+    def __getitem__(self, idx):
+        features = torch.from_numpy(self.sample[idx][0]).to(torch.float32)
+        label = torch.tensor(self.sample[idx][1]).to(torch.float32)
+        if self.transform:
+            features = self.transform(features)
+        if self.target_transform:
+            label = self.target_transform(label)
+        return features, label
+
+
+def train_loop(dataloader, model, loss_fn, optimizer):
+    # size = len(dataloader.dataset)
+    # Set the model to training mode - important for batch normalization and dropout layers
+    # Unnecessary in this situation but added for best practices
+    model.train()
+    for batch, (X, y) in enumerate(dataloader):
+        def closure():
+            optimizer.zero_grad()
+            pred = model(X)
+            loss = loss_fn(pred, y)
+            loss.backward()
+            return loss
+        optimizer.step(closure)
+        """
+        if batch % 100 == 0:
+            loss, current = loss.item(), batch * batch_size + len(X)
+            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+        """
+
+
+def test_loop(dataloader, model, loss_fn):
+    # Set the model to evaluation mode - important for batch normalization and dropout layers
+    # Unnecessary in this situation but added for best practices
+    model.eval()
+    size = len(dataloader.dataset)
+    num_batches = len(dataloader)
+    test_loss, correct = 0, 0
+
+    # Evaluating the model with torch.no_grad() ensures that no gradients are computed during test mode
+    # also serves to reduce unnecessary gradient computations and memory usage for tensors with requires_grad=True
+    with torch.no_grad():
+        for X, y in dataloader:
+            pred = model(X)
+            test_loss += loss_fn(pred, y).item()
+            correct += (pred.argmax(1) == y).type(torch.float).sum().item()
+
+    test_loss /= num_batches
+    correct /= size
+    print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
+
+
 def train(sample, V_DNN):
     from pymor.models.neural_network import FullyConnectedNN
-    DNN = FullyConnectedNN(V_DNN[0])
+    from torch import nn
+    from torch.utils.data import DataLoader
+    epochs = V_DNN[3]
+    training_batch_size = V_DNN[4]
+    testing_batch_size = V_DNN[5]
+    learning_rate = V_DNN[6]
+    training_data = CustomDataset(sample[V_DNN[2]:])
+    test_data = CustomDataset(sample[:V_DNN[2]])
+    train_dataloader = DataLoader(training_data, batch_size=training_batch_size, shuffle=True)
+    test_dataloader = DataLoader(test_data, batch_size=testing_batch_size, shuffle=True)
+    DNN = FullyConnectedNN(V_DNN[0], activation_function=V_DNN[1])
+    """
+    # initialization
+    for name, param in DNN.named_parameters():
+        if 'bias' in name:
+            param = torch.zeros(param.size())
+        else:
+            param = torch.from_numpy(np.random.multivariate_normal(u_k, C_k_new)
+    """
+    loss_fn = nn.MSELoss()
+    optimizer = torch.optim.LBFGS(DNN.parameters(), lr=learning_rate, line_search_fn='strong_wolfe')
+
+    for t in range(epochs):
+        print(f"Epoch {t+1}\n-------------------------------")
+        train_loop(train_dataloader, DNN, loss_fn, optimizer)
+        test_loop(test_dataloader, DNN, loss_fn)
+        print("Done!")
+    # DNN(torch.from_numpy(sample[m][0]).to(torch.float32)) approx sample[m][1] for all m
     return DNN # todo
 
 
-def AML_enOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff):
+def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff):
+    # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
+    V_DNN[0].insert(0, len(u_0))
+    V_DNN[0].insert(len(V_DNN[0]), 1)
     F_k = F(u_0)
     u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_0, N, 0, [], 0, F_k, beta_1, beta_2, r, eps_o, nu_1, var, correlationCoeff)
     k = 0
     u_k = u_0
-    u_k_next = u_k
+    u_k_next = u_k.copy()
     while (F_k_tilde > F_k+eps_o and k < k_1_o):
         F_ML_k = train(T_k, V_DNN)
-        u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var, correlationCoeff)[0]
+        u_k_next = enOpt(lambda mu: F_ML_k(torch.from_numpy(mu).to(torch.float32)).detach().numpy()[0], u_k, N, eps_i, k_1_i, beta_1/5, beta_2, r, nu_1, var/5, correlationCoeff)[0]
         F_k_next = F(u_k_next)
+        print(u_k_next)
+        print(F_k_next)
+        print(F_k)
+        print(F_ML_k(torch.from_numpy(u_k).to(torch.float32)).detach().numpy()[0])
+        print(F_ML_k(torch.from_numpy(u_k_next).to(torch.float32)).detach().numpy()[0])
+        # print(T_k)
         if F_k_next <= F_k+eps_o:
-            return u_k
-        u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_k_next, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps_o, nu_1, var, correlationCoeff)
+            print('fail')
+            return u_k, k
+        u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_k_next, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps_o, nu_1, var, correlationCoeff)  # different C_k?
         F_k = F_k_next
         u_k = u_k_next
         k = k+1
@@ -291,7 +390,7 @@ def AML_enOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, n
 
 
 def ROM_EnOpt(u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals=50, nt=50):
-    return AML_enOpt(lambda mu: -J(mu, a, T, grid_intervals, nt)[0], u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff)
+    return AML_EnOpt(lambda mu: -J(mu, a, T, grid_intervals, nt)[0], u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff)
 
 
 def result(name, qParamOpt, qParam, out, fom, data, u, y1, y2, a, T, nt):
@@ -342,25 +441,38 @@ init = np.zeros(nt+1)-40
 
 
 # optimized control function using the EnOpt minimizer
-N = 100
+N = 300
 eps = 1e-8
 k_1 = 1000
 beta_1 = 100
 beta_2 = 0.1
 r = 0.5
 nu_1 = 20
-var = 30
+var = 50
 correlationCoeff = 0.1
+"""
 qParamOpt, k = FOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt)
 outOpt, fomOpt, dataOpt, y1Opt, y2Opt = J(qParamOpt, a, T, grid_intervals, nt)
 uOpt = fomOpt.solve({'a': a})
+"""
+# optimized control function using the AML EnOpt minimizer
+eps_o = 1e-4
+eps_i = 1e-5
+k_1_o = k_1
+k_1_i = k_1
+# V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
+V_DNN = [[8, 5], torch.tanh, 30, 500, 100, 10, 1e-4]
 
-
+qParamAMLOpt, kAML = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt)
+print(qParamAMLOpt, kAML)
+outAMLOpt, fomAMLOpt, dataAMLOpt, y1AMLOpt, y2AMLOpt = J(qParamAMLOpt, a, T, grid_intervals, nt)
+uAMLOpt = fomAMLOpt.solve({'a': a})
+"""
 # optimized control function using the L_BFGS_B_minimizer
 qParamOptBFGS = L_BFGS_B_minimizer(init, a, T, grid_intervals, nt)
 outOptBFGS, fomOptBFGS, dataOptBFGS, y1OptBFGS, y2OptBFGS = J(qParamOptBFGS, a, T, grid_intervals, nt)
 uOptBFGS = fomOptBFGS.solve({'a': a})
-
+"""
 # analytical minimizer
 qParam = []
 for i in range(nt+1):
@@ -371,11 +483,16 @@ u = fom.solve({'a': a})
 
 def analytical():
     result('Analytical', qParam, qParam, out, fom, data, u, y1, y2, a, T, nt)
-
+"""
 
 def opt1():
     result('EnOpt', qParamOpt, qParam, outOpt, fomOpt, dataOpt, uOpt, y1Opt, y2Opt, a, T, nt)
-
+"""
 
 def opt2():
+    result('AML_EnOpt', qParamAMLOpt, qParam, outAMLOpt, fomAMLOpt, dataAMLOpt, uAMLOpt, y1AMLOpt, y2AMLOpt, a, T, nt)
+"""
+
+def opt3():
     result('L_BFGS_B', qParamOptBFGS, qParam, outOptBFGS, fomOptBFGS, dataOptBFGS, uOptBFGS, y1OptBFGS, y2OptBFGS, a, T, nt)
+"""
