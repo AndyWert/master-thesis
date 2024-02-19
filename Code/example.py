@@ -247,7 +247,19 @@ def optStep(F, u_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, corr
     for m in range(N):
         C_F = C_F+(T_k_new[m][0]-u_k)*(T_k_new[m][1]-F_k)
     C_F = 1/(N-1)*C_F
+    """
+    print('\n')
+    print('u_k: {}'.format(u_k))
+    print('T_k_new: {}'.format(T_k_new[:5]))
+    print('F_k: {}'.format(F_k))
+    print('C_F: {}'.format(C_F))
+    print('np.abs(np.max(C_F)): {}'.format(np.abs(np.max(C_F))))
+    """
     d_k = C_F/np.abs(np.max(C_F))
+    """
+    print('d_k: {}'.format(d_k))
+    print('\n')
+    """
     u_k_new = lineSearch(F, u_k, d_k, beta_1, r, eps, nu_1)
     return u_k_new, T_k_new, C_k_new, F(u_k_new)
 
@@ -260,6 +272,12 @@ def enOpt(F, u_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff):
         F_k_prev = F_k
         u_k, T_k, C_k, F_k = optStep(F, u_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff)
         k = k+1
+        if k % 1 == 0:
+            print('F_k: {}'.format(F_k))
+            print('F_k_prev: {}'.format(F_k_prev))
+            print('u_k: {}'.format(u_k))
+            print('\n')
+    print(k)
     return u_k, k
 
 
@@ -310,9 +328,8 @@ def test_loop(dataloader, model, loss_fn):
     # Set the model to evaluation mode - important for batch normalization and dropout layers
     # Unnecessary in this situation but added for best practices
     model.eval()
-    size = len(dataloader.dataset)
     num_batches = len(dataloader)
-    test_loss, correct = 0, 0
+    test_loss = 0
 
     # Evaluating the model with torch.no_grad() ensures that no gradients are computed during test mode
     # also serves to reduce unnecessary gradient computations and memory usage for tensors with requires_grad=True
@@ -320,11 +337,61 @@ def test_loop(dataloader, model, loss_fn):
         for X, y in dataloader:
             pred = model(X)
             test_loss += loss_fn(pred, y).item()
-            correct += (pred.argmax(1) == y).type(torch.float).sum().item()
 
     test_loss /= num_batches
-    correct /= size
-    print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
+    # print(f"Test Error: \n Avg loss: {test_loss:>8f} \n")
+    return test_loss
+
+
+def DNN_optimizer(DNN, train_dataloader, test_dataloader, loss_fn, optimizer, epochs):
+    wait = 0
+    minimal_validation_loss = test_loop(test_dataloader, DNN, loss_fn)
+    torch.save(DNN.state_dict(), 'checkpoint.pth')
+    for t in range(epochs):
+        # print(f"Epoch {t+1}\n-------------------------------")
+        train_loop(train_dataloader, DNN, loss_fn, optimizer)
+        validation_loss = test_loop(test_dataloader, DNN, loss_fn)
+        if validation_loss < minimal_validation_loss:
+            wait = 0
+            minimal_validation_loss = validation_loss
+            torch.save(DNN.state_dict(), 'checkpoint.pth')
+        else:
+            wait +=1
+        if wait >= 20:
+            DNN.load_state_dict(torch.load('checkpoint.pth'))
+            break
+        # print("Done!")
+
+
+def evaluate_DNN(model, training_data, test_data, loss_fn):
+    train_loss = 0
+    test_loss = 0
+    # with torch.no_grad():
+    """
+    for X, y in training_data.sample:
+        pred = model(torch.tensor(X).to(torch.float32))
+        train_loss += loss_fn(torch.tensor(pred), torch.tensor(y)).item()
+    for X, y in test_data.sample:
+        pred = model(torch.tensor(X).to(torch.float32))
+        test_loss += loss_fn(torch.tensor(pred), torch.tensor(y)).item()
+    """
+    for i in range(training_data.__len__()):
+        X, y = training_data.__getitem__(i)
+        pred = model(X)
+        train_loss += loss_fn(pred, y).item()
+    for i in range(test_data.__len__()):
+        X, y = test_data.__getitem__(i)
+        pred = model(X)
+        test_loss += loss_fn(pred, y).item()
+    train_loss /= training_data.__len__()
+    test_loss /= test_data.__len__()
+    loss = train_loss + test_loss
+    """
+    print('train loss: {}'.format(train_loss))
+    print('test loss: {}'.format(test_loss))
+    print('loss: {}'.format(loss))
+    """
+    return loss
 
 
 def train(sample, V_DNN):
@@ -335,8 +402,32 @@ def train(sample, V_DNN):
     training_batch_size = V_DNN[4]
     testing_batch_size = V_DNN[5]
     learning_rate = V_DNN[6]
-    training_data = CustomDataset(sample[V_DNN[2]:])
-    test_data = CustomDataset(sample[:V_DNN[2]])
+    # scaling
+    normSample = sample.copy()
+    minIn = np.min(normSample[0][0])
+    maxIn = np.max(normSample[0][0])
+    minOut = normSample[0][1]
+    maxOut = normSample[0][1]
+    for i in range(1, len(normSample)):
+        minInI = np.min(normSample[i][0])
+        maxInI = np.max(normSample[i][0])
+        minOutI = normSample[i][1]
+        maxOutI = normSample[i][1]
+        if minInI < minIn:
+            minIn = minInI
+        if maxInI > maxIn:
+            maxIn = maxInI
+        if minOutI < minOut:
+            minOut = minOutI
+        if maxOutI > maxOut:
+            maxOut = maxOutI
+    assert minIn != maxIn
+    assert minOut != maxOut
+    for i in range(len(normSample)):
+        normSample[i][0] = (normSample[i][0]-minIn)/(maxIn-minIn)
+        normSample[i][1] = (normSample[i][1]-minOut)/(maxOut-minOut)
+    training_data = CustomDataset(normSample[V_DNN[2]:])
+    test_data = CustomDataset(normSample[:V_DNN[2]])
     train_dataloader = DataLoader(training_data, batch_size=training_batch_size, shuffle=True)
     test_dataloader = DataLoader(test_data, batch_size=testing_batch_size, shuffle=True)
     DNN = FullyConnectedNN(V_DNN[0], activation_function=V_DNN[1])
@@ -351,13 +442,36 @@ def train(sample, V_DNN):
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.LBFGS(DNN.parameters(), lr=learning_rate, line_search_fn='strong_wolfe')
 
-    for t in range(epochs):
-        print(f"Epoch {t+1}\n-------------------------------")
-        train_loop(train_dataloader, DNN, loss_fn, optimizer)
-        test_loop(test_dataloader, DNN, loss_fn)
-        print("Done!")
+    DNN_optimizer(DNN, train_dataloader, test_dataloader, loss_fn, optimizer, epochs)
+    DNN_eval = evaluate_DNN(DNN, training_data, test_data, loss_fn)
+    for i in range(35):
+        DNN_i = FullyConnectedNN(V_DNN[0], activation_function=V_DNN[1])
+        optimizer = torch.optim.LBFGS(DNN_i.parameters(), lr=learning_rate, line_search_fn='strong_wolfe')
+        DNN_optimizer(DNN_i, train_dataloader, test_dataloader, loss_fn, optimizer, epochs)
+        DNN_i_eval = evaluate_DNN(DNN_i, training_data, test_data, loss_fn)
+        if DNN_i_eval < DNN_eval:
+            DNN_eval = DNN_i_eval
+            DNN = DNN_i
     # DNN(torch.from_numpy(sample[m][0]).to(torch.float32)) approx sample[m][1] for all m
-    return DNN # todo
+    return lambda mu: DNN(torch.from_numpy((mu-minIn)/(maxIn-minIn)).to(torch.float32)).detach().numpy()[0]*(maxOut-minOut)+minOut
+    """
+    def out(x):
+        if np.min(x) >= minIn and np.max(x) <= maxIn:
+            return DNN(torch.from_numpy((x-minIn)/(maxIn-minIn)).to(torch.float32)).detach().numpy()[0]
+        else:
+            return 0.
+    def out1(x):
+        out = DNN(torch.from_numpy((x-minIn)/(maxIn-minIn)).to(torch.float32)).detach().numpy()[0]
+        if out < 0:
+            return 0.
+        elif out > 1:
+            return 1.
+        else:
+            return out
+    # return out
+    # return out1
+    return lambda mu: DNN(torch.from_numpy((mu-minIn)/(maxIn-minIn)).to(torch.float32)).detach().numpy()[0]
+    """
 
 
 def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff):
@@ -371,21 +485,91 @@ def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, n
     u_k_next = u_k.copy()
     while (F_k_tilde > F_k+eps_o and k < k_1_o):
         F_ML_k = train(T_k, V_DNN)
-        u_k_next = enOpt(lambda mu: F_ML_k(torch.from_numpy(mu).to(torch.float32)).detach().numpy()[0], u_k, N, eps_i, k_1_i, beta_1/5, beta_2, r, nu_1, var/5, correlationCoeff)[0]
+        # scaling?
+        print(V_DNN[0])
+        """
+        print(F_ML_k(torch.tensor([-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40]).to(torch.float32)).detach().numpy()[0])
+        print(F_ML_k(torch.tensor([-41, -41, -41, -41, -41, -41, -41, -41, -41, -41, -41]).to(torch.float32)).detach().numpy()[0])
+        print(F_ML_k(torch.tensor([-99, -99, -99, -99, -99, -99, -99, -99, -99, -99, -99]).to(torch.float32)).detach().numpy()[0])
+        print(F_ML_k(torch.tensor([-95, -95, -95, -95, -95, -95, -95, -95, -95, -95, -95]).to(torch.float32)).detach().numpy()[0])
+        """
+        print(F_ML_k(np.array([-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40])))
+        print(F_ML_k(np.array([-41, -41, -41, -41, -41, -41, -41, -41, -41, -41, -41])))
+        print(F_ML_k(np.array([-99, -99, -99, -99, -99, -99, -99, -99, -99, -99, -99])))
+        print(F_ML_k(np.array([-95, -95, -95, -95, -95, -95, -95, -95, -95, -95, -95])))
+        print(F_ML_k(np.array([-140.78329625, -107.53610134, -100.77562214, 47.20501631, 16.17801575,
+          -59.43498092,   44.63564797,  -47.35872257,  112.177936,    -44.54255177,
+          -96.07835815])))
+        u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1/10, beta_2, r, nu_1, var/10, correlationCoeff)[0]
         F_k_next = F(u_k_next)
-        print(u_k_next)
-        print(F_k_next)
-        print(F_k)
-        print(F_ML_k(torch.from_numpy(u_k).to(torch.float32)).detach().numpy()[0])
-        print(F_ML_k(torch.from_numpy(u_k_next).to(torch.float32)).detach().numpy()[0])
+        print('u_k_next: {}'.format(u_k_next))
+        print('F_k_next: {}'.format(F_k_next))
+        print('F_k: {}'.format(F_k))
+        """
+        print('F_ML_k(torch.from_numpy(u_k).to(torch.float32)).detach().numpy()[0]): {}'.format(F_ML_k(torch.from_numpy(u_k).to(torch.float32)).detach().numpy()[0]))
+        print('F_ML_k(torch.from_numpy(u_k_next).to(torch.float32)).detach().numpy()[0]): {}'.format(F_ML_k(torch.from_numpy(u_k_next).to(torch.float32)).detach().numpy()[0]))
+        """
+        print('F_ML_k(torch.from_numpy(u_k).to(torch.float32)).detach().numpy()[0]): {}'.format(F_ML_k(u_k)))
+        print('F_ML_k(torch.from_numpy(u_k_next).to(torch.float32)).detach().numpy()[0]): {}'.format(F_ML_k(u_k_next)))
         # print(T_k)
         if F_k_next <= F_k+eps_o:
             print('fail')
+            print(k)
             return u_k, k
         u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_k_next, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps_o, nu_1, var, correlationCoeff)  # different C_k?
         F_k = F_k_next
         u_k = u_k_next
         k = k+1
+    return u_k, k
+
+
+def AML_EnOpt1(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff):
+    # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
+    V_DNN[0].insert(0, len(u_0))
+    V_DNN[0].insert(len(V_DNN[0]), 1)
+    F_k = F(u_0)
+    u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_0, N, 0, [], 0, F_k, beta_1, beta_2, r, eps_o, nu_1, var, correlationCoeff)
+    k = 0
+    u_k = u_0
+    u_k_next = u_k.copy()
+    while (F_k_tilde > F_k+eps_o and k < k_1_o):
+        F_ML_k = train(T_k, V_DNN)
+        # scaling?
+        print(V_DNN[0])
+        """
+        print(F_ML_k(torch.tensor([-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40]).to(torch.float32)).detach().numpy()[0])
+        print(F_ML_k(torch.tensor([-41, -41, -41, -41, -41, -41, -41, -41, -41, -41, -41]).to(torch.float32)).detach().numpy()[0])
+        print(F_ML_k(torch.tensor([-99, -99, -99, -99, -99, -99, -99, -99, -99, -99, -99]).to(torch.float32)).detach().numpy()[0])
+        print(F_ML_k(torch.tensor([-95, -95, -95, -95, -95, -95, -95, -95, -95, -95, -95]).to(torch.float32)).detach().numpy()[0])
+        """
+        print(F_ML_k(np.array([-40, -40, -40, -40, -40, -40, -40, -40, -40, -40, -40])))
+        print(F_ML_k(np.array([-41, -41, -41, -41, -41, -41, -41, -41, -41, -41, -41])))
+        print(F_ML_k(np.array([-99, -99, -99, -99, -99, -99, -99, -99, -99, -99, -99])))
+        print(F_ML_k(np.array([-95, -95, -95, -95, -95, -95, -95, -95, -95, -95, -95])))
+        print(F_ML_k(np.array([-140.78329625, -107.53610134, -100.77562214, 47.20501631, 16.17801575,
+          -59.43498092,   44.63564797,  -47.35872257,  112.177936,    -44.54255177,
+          -96.07835815])))
+        u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1/10, beta_2, r, nu_1, var/10, correlationCoeff)[0]
+        F_k_next = F(u_k_next)
+        print('u_k_next: {}'.format(u_k_next))
+        print('F_k_next: {}'.format(F_k_next))
+        print('F_k: {}'.format(F_k))
+        """
+        print('F_ML_k(torch.from_numpy(u_k).to(torch.float32)).detach().numpy()[0]): {}'.format(F_ML_k(torch.from_numpy(u_k).to(torch.float32)).detach().numpy()[0]))
+        print('F_ML_k(torch.from_numpy(u_k_next).to(torch.float32)).detach().numpy()[0]): {}'.format(F_ML_k(torch.from_numpy(u_k_next).to(torch.float32)).detach().numpy()[0]))
+        """
+        print('F_ML_k(torch.from_numpy(u_k).to(torch.float32)).detach().numpy()[0]): {}'.format(F_ML_k(u_k)))
+        print('F_ML_k(torch.from_numpy(u_k_next).to(torch.float32)).detach().numpy()[0]): {}'.format(F_ML_k(u_k_next)))
+        # print(T_k)
+        if F_k_next <= F_k+eps_o:
+            print('fail')
+            print(k)
+            # return u_k, k
+        else:
+            u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_k_next, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps_o, nu_1, var, correlationCoeff)  # different C_k?
+            F_k = F_k_next
+            u_k = u_k_next
+            k = k+1
     return u_k, k
 
 
@@ -441,7 +625,7 @@ init = np.zeros(nt+1)-40
 
 
 # optimized control function using the EnOpt minimizer
-N = 300
+N = 500
 eps = 1e-8
 k_1 = 1000
 beta_1 = 100
@@ -456,12 +640,13 @@ outOpt, fomOpt, dataOpt, y1Opt, y2Opt = J(qParamOpt, a, T, grid_intervals, nt)
 uOpt = fomOpt.solve({'a': a})
 """
 # optimized control function using the AML EnOpt minimizer
-eps_o = 1e-4
-eps_i = 1e-5
+eps_o = 1e-6
+eps_i = 1e-6
 k_1_o = k_1
 k_1_i = k_1
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
-V_DNN = [[8, 5], torch.tanh, 30, 500, 100, 10, 1e-4]
+# V_DNN = [[25, 25], torch.tanh, 50, 100, 100, 10, 1e-4]
+V_DNN = [[5, 5], torch.tanh, 50, 100, 100, 10, 1e-8]
 
 qParamAMLOpt, kAML = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt)
 print(qParamAMLOpt, kAML)
