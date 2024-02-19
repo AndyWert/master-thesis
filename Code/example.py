@@ -502,7 +502,8 @@ def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, n
           -59.43498092,   44.63564797,  -47.35872257,  112.177936,    -44.54255177,
           -96.07835815])))
         # u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1/20, beta_2, r, nu_1, var/20, correlationCoeff)[0]
-        u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1/((k+1)*20), beta_2, r, nu_1, var/((k+1)*20), correlationCoeff)[0]
+        # u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1/((k+1)*20), beta_2, r, nu_1, var/((k+1)*20), correlationCoeff)[0]
+        u_k_next = enOpt(F_ML_k, u_k, N, eps_i, (k+1)*k_1_i, beta_1/((k+1)*20), beta_2, r, nu_1, var/((k+1)*20), correlationCoeff)[0]
         F_k_next = F(u_k_next)
         print('u_k_next: {}'.format(u_k_next))
         print('F_k_next: {}'.format(F_k_next))
@@ -677,8 +678,8 @@ init = np.zeros(nt+1)-40
 
 
 # optimized control function using the EnOpt minimizer
-N = 500
-eps = 1e-8
+N = 100
+eps = 1e-6
 k_1 = 1000
 beta_1 = 100
 beta_2 = 0.1
@@ -698,12 +699,13 @@ k_1_o = k_1
 k_1_i = 5
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
 # V_DNN = [[25, 25], torch.tanh, 50, 100, 100, 10, 1e-4]
-V_DNN = [[25, 25], torch.tanh, 50, 100, 100, 10, 1e-4]
+V_DNN = [[25, 25], torch.tanh, 10, 100, 100, 10, 1e-4]
 
 qParamAMLOpt, kAML = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt)
 print(qParamAMLOpt, kAML)
 outAMLOpt, fomAMLOpt, dataAMLOpt, y1AMLOpt, y2AMLOpt = J(qParamAMLOpt, a, T, grid_intervals, nt)
 uAMLOpt = fomAMLOpt.solve({'a': a})
+
 """
 # optimized control function using the L_BFGS_B_minimizer
 qParamOptBFGS = L_BFGS_B_minimizer(init, a, T, grid_intervals, nt)
@@ -720,16 +722,16 @@ u = fom.solve({'a': a})
 
 def analytical():
     result('Analytical', qParam, qParam, out, fom, data, u, y1, y2, a, T, nt)
-"""
 
+"""
 def opt1():
     result('EnOpt', qParamOpt, qParam, outOpt, fomOpt, dataOpt, uOpt, y1Opt, y2Opt, a, T, nt)
-"""
 
+"""
 def opt2():
     result('AML_EnOpt', qParamAMLOpt, qParam, outAMLOpt, fomAMLOpt, dataAMLOpt, uAMLOpt, y1AMLOpt, y2AMLOpt, a, T, nt)
-"""
 
+"""
 def opt3():
     result('L_BFGS_B', qParamOptBFGS, qParam, outOptBFGS, fomOptBFGS, dataOptBFGS, uOptBFGS, y1OptBFGS, y2OptBFGS, a, T, nt)
 """
