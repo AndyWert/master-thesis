@@ -67,48 +67,48 @@ Now, we iterate until $F(\mathbf{q}_k)\leq F(\mathbf{q}_{k-1})+\varepsilon$, wit
 \begin{algorithm}[H]%\footnotesize
 \caption{EnOpt algorithm}
 \begin{algorithmic}[1]
-\Procedure{EnOpt}{$F,\mathbf{q}_0,N,\varepsilon,k^*,\beta,\tilde{\beta},r,\nu^*,\sigma^2,\rho$}
+\Procedure{EnOpt}{$F,\mathbf{q}_0,N,\varepsilon,k^*,\beta,\tilde{\beta},r,\nu^*,\sigma^2,\rho,\operatorname{pr}=\operatorname{id}$}
 \State $F_{{0}}\gets F(\mathbf{q}_0)$
-\State $\mathbf{q}_{1},T_{1},\mathbf{C}_{\mathbf{q}_{0}}^{0},F_{1}\gets\mathrm{OptStep}(F,\mathbf{q}_0,N,0,\{\},0,F_{0},\beta,\tilde{\beta},r,\varepsilon,\nu^*,\sigma^2,\rho)$
+\State $\mathbf{q}_{1},T_{1},\mathbf{C}_{\mathbf{q}_{0}}^{0},F_{1}\gets\mathrm{OptStep}(F,\mathbf{q}_0,N,0,\{\},0,F_{0},\beta,\tilde{\beta},r,\varepsilon,\nu^*,\sigma^2,\rho,\operatorname{pr})$
 \State $k\gets 1$
 \While{$F_{k}>F_{k-1}+\varepsilon$\text{ and }$k<k^*$}
-\State $\mathbf{q}_{k+1},T_{k+1},\mathbf{C}_{\mathbf{q}_{k}}^{k},F_{k+1}\gets\mathrm{OptStep}(F,\mathbf{q}_k,N,k,T_k,\mathbf{C}_{\mathbf{q}_{k-1}}^{k-1},F_k,\beta,\tilde{\beta},r,\varepsilon,\nu^*,\sigma^2,\rho))$
+\State $\mathbf{q}_{k+1},T_{k+1},\mathbf{C}_{\mathbf{q}_{k}}^{k},F_{k+1}\gets\mathrm{OptStep}(F,\mathbf{q}_k,N,k,T_k,\mathbf{C}_{\mathbf{q}_{k-1}}^{k-1},F_k,\beta,\tilde{\beta},r,\varepsilon,\nu^*,\sigma^2,\rho,\operatorname{pr})$
 \State $k\gets k+1$
 \EndWhile
 \State \Return $\mathbf{q}^*\gets\mathbf{q}_k$
 \EndProcedure
 \end{algorithmic}
 \end{algorithm}
-The EnOpt algorithm takes the objective function $F:\mathbb{R}^{N_q}\to\mathbb{R}$, our initial iterate $\mathbf{q}_0\in\mathbb{R}^{N_q}$, the sample size $N\in\mathbb{N}$, the tolerance $\varepsilon>0$, the maximum number of iterations $k^*\in\mathbb{N}$, the initial step size $\beta>0$ for the compuation of the next iterate, the step size $\tilde{\beta}$ for the iteration of the covariance matrix, the step size contraction $r\in(0,1)$, the maximum number of step size trials $\nu^*\in\mathbb{N}$, the variance $\sigma^2\in\mathbb{R}^{N_b}$ with positive elements and the correlation coefficient $\rho\in(-1,1)$.
+The EnOpt algorithm takes the objective function $F:\mathbb{R}^{N_q}\to\mathbb{R}$, our initial iterate $\mathbf{q}_0\in\mathbb{R}^{N_q}$, the sample size $N\in\mathbb{N}$, the tolerance $\varepsilon>0$, the maximum number of iterations $k^*\in\mathbb{N}$, the initial step size $\beta>0$ for the compuation of the next iterate, the step size $\tilde{\beta}$ for the iteration of the covariance matrix, the step size contraction $r\in(0,1)$, the maximum number of step size trials $\nu^*\in\mathbb{N}$, the variance $\sigma^2\in\mathbb{R}^{N_b}$ with positive elements, the correlation coefficient $\rho\in(-1,1)$ and a projection $\operatorname{pr}$, where the default is the identity function $\operatorname{id}:x\to x$.
 \begin{algorithm}[H]%\footnotesize
 \caption{OptStep algorithm}
 \begin{algorithmic}[1]
-\Procedure{OptStep}{F,$\mathbf{q}_k,N,k,T_k,\mathbf{C}_{\mathbf{q}_{k-1}}^{k-1},F_k,\beta,\tilde{\beta},r,\varepsilon,\nu^*,\sigma^2,\rho$}
+\Procedure{OptStep}{F,$\mathbf{q}_k,N,k,T_k,\mathbf{C}_{\mathbf{q}_{k-1}}^{k-1},F_k,\beta,\tilde{\beta},r,\varepsilon,\nu^*,\sigma^2,\rho,\operatorname{pr}$}
 \If{$k=0$}
-\State \text{Compute the initial covariance matrix }$\mathbf{C}_{\mathbf{q}_0}^0$\text{ like defined with }$\sigma^2,\rho$
+\State \text{Compute the initial covariance matrix }$\mathbf{C}_{\mathbf{q}_0}^0$\text{ like defined with }$\mathbf{q}_0,\sigma^2,\rho$
 \Else
-\State \text{Compute the covariance matrix }$\mathbf{C}_{\mathbf{q}_{k}}^{k}\text{ like defined with }\mathbf{q}_k,F_k,T_k,\mathbf{C}_{\mathbf{q}_{k-1}}^{k-1}$
+\State \text{Compute the covariance matrix }$\mathbf{C}_{\mathbf{q}_{k}}^{k}\text{ like defined with }\mathbf{q}_k,F_k,T_k,\mathbf{C}_{\mathbf{q}_{k-1}}^{k-1},\tilde{\beta},N$
 \EndIf
 \State \text{Sample }$N$\text{ control vectors }$\{\mathbf{q}_{k,j}\}_{j=1}^N$\text{ from a distribution }$\mathcal{N}(\mathbf{q}_{k},\mathbf{C}_{\mathbf{q}_{k}}^{k})$
-\State \text{Compute vector }$\mathbf{C}_{\mathbf{q}_{k},F}^{k}$\text{ and store values }$\{F(\mathbf{q}_{k,j})\}_{j=1}^N$
+\State $T_{k+1}\gets\{\mathbf{q}_{k,j},F(\mathbf{q}_{k,j})\}_{j=1}^N$
+\State \text{Compute the vector }$\mathbf{C}_{\mathbf{q}_{k},F}^{k}$\text{ with }$\mathbf{q}_k,F_k$\text{ and the stored values of }$T_{k+1}$
 \State \text{Compute the search direction }$\mathbf{d}_k=\mathbf{C}_{\mathbf{q}_{k},F}^{k}/\|\mathbf{C}_{\mathbf{q}_{k},F}^{k}\|_\infty$
-\State $\mathbf{q}_{k+1}\gets\mathrm{LineSearch}(F,\mathbf{q}_k,\mathbf{d}_k,\beta,r,\varepsilon,\nu^*)$
-\State $T_{k+1}\gets\{\mathbf{q}_{k+1,j},F(\mathbf{q}_{k+1,j})\}_{j=1}^N$
+\State $\mathbf{q}_{k+1}\gets\mathrm{LineSearch}(F,\mathbf{q}_k,\mathbf{d}_k,\beta,r,\varepsilon,\nu^*,\operatorname{pr})$
 \State $F_{k+1}\gets F(\mathbf{q}_{k+1})$
-\State \Return $\mathbf{q}_{k+1},T_{k+1},\mathbf{C}_{\mathbf{q}_{{k+1}}}^{{k+1}},F_{k+1}$
+\State \Return $\mathbf{q}_{k+1},T_{k+1},\mathbf{C}_{\mathbf{q}_k}^k,F_{k+1}$
 \EndProcedure
 \end{algorithmic}
 \end{algorithm}
 \begin{algorithm}[H]%\footnotesize
 \caption{Line search}
 \begin{algorithmic}[1]
-\Procedure{LineSearch}{$F,\mathbf{q}_k,\mathbf{d}_k,\beta,r,\varepsilon,\nu^*$}
+\Procedure{LineSearch}{$F,\mathbf{q}_k,\mathbf{d}_k,\beta,r,\varepsilon,\nu^*,\operatorname{pr}$}
 \State $\beta_k \gets \beta$
-\State $\mathbf{q}_{k+1} \gets \mathbf{q}_k+\beta_k\mathbf{d}_k$
+\State $\mathbf{q}_{k+1} \gets \operatorname{pr}(\mathbf{q}_k+\beta_k\mathbf{d}_k)$
 \State $\nu \gets 0$
 \While{$F(\mathbf{q}_{k+1})-F(\mathbf{q}_k)\leq\varepsilon$\text{ and }$\nu<\nu^*$}
 \State $\beta_k \gets r\beta_k$
-\State $\mathbf{q}_{k+1} \gets \mathbf{q}_k+\beta_k\mathbf{d}_k$
+\State $\mathbf{q}_{k+1} \gets \operatorname{pr}(\mathbf{q}_k+\beta_k\mathbf{d}_k)$
 \State $\nu \gets \nu+1$
 \EndWhile
 \Return $\mathbf{q}_{k+1}$
@@ -119,8 +119,8 @@ Now we use this algorithm to optimize our objective function $j$. Since this is 
 \begin{algorithm}[H]%\footnotesize
 \caption{FOM-EnOpt algorithm}
 \begin{algorithmic}[1]
-\Procedure{FOM-EnOpt}{$\mathbf{q}_0,N,\varepsilon,k^*,\beta,r,\nu^*$}
-\State \Return $\mathrm{EnOpt}(-j,,\mathbf{q}_0,N,\varepsilon,k^*,\beta,\tilde{\beta},r,\nu^*,\sigma^2,\rho)$
+\Procedure{FOM-EnOpt}{$\mathbf{q}_0,N,\varepsilon,k^*,\beta,\tilde{\beta},r,\nu^*,\sigma^2,\rho$}
+\State \Return $\mathrm{EnOpt}(-j,\mathbf{q}_0,N,\varepsilon,k^*,\beta,\tilde{\beta},r,\nu^*,\sigma^2,\rho)$
 \EndProcedure
 \end{algorithmic}
 \end{algorithm}
