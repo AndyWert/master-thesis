@@ -151,6 +151,20 @@ def parabolic_equation(q, T, grid_intervals=50, nt=50):
 
         initial_data=ExpressionFunction('-1/(2+a[0])*pi**2*sin(pi*x[0])*sin(pi*x[1])', dim_domain=2, parameters={'a': 1})
     )
+    # test
+    from pymor.discretizers.builtin.domaindiscretizers.default import discretize_domain_default
+    grid, boundary_info = discretize_domain_default(problem.stationary_part.domain, diameter=1./grid_intervals)
+    from pymor.discretizers.builtin.cg import L2ProductFunctionalP1
+    print(grid.centers(0))
+    print(len(L2ProductFunctionalP1(grid, ConstantFunction(1, 2), dirichlet_clear_dofs=True, boundary_info=boundary_info).as_vector().to_numpy()[0]))
+    print(grid)
+    print(grid.subentities(0, grid.dim))
+    print(np.repeat(grid.subentities(0, grid.dim), grid.dim + 1, axis=1).ravel())
+    print(np.tile(grid.subentities(0, grid.dim), [1, grid.dim + 1]).ravel())
+    print(boundary_info.dirichlet_mask(grid.dim)[np.repeat(grid.subentities(0, grid.dim), grid.dim + 1, axis=1).ravel()])
+    print(boundary_info)
+    print(boundary_info.dirichlet_boundaries(grid.dim))
+    print(problem.stationary_part.dirichlet_data)
 
     # discretize using continuous finite elements
     fom, data = discretize_instationary_cg(analytical_problem=problem, diameter=1./grid_intervals, time_stepper=CrankNicolsonTimeStepper(nt=nt))
@@ -844,12 +858,12 @@ def result(name, qParamOpt, qParam, out, fom, data, u, y1, y2, a, T, nt):
 
 
 T = 0.1
-nt = 10
+nt = 100
 grid_intervals = 50
 a = -np.sqrt(5)
 init = np.zeros(nt+1)-40
 
-
+"""
 # optimized control function using the EnOpt minimizer
 N = 100
 eps = 1e-6
@@ -861,9 +875,11 @@ nu_1 = 20
 var = 4
 correlationCoeff = 0.9
 """
+"""
 qParamOpt, k = FOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt)
 outOpt, fomOpt, dataOpt, y1Opt, y2Opt = J(qParamOpt, a, T, grid_intervals, nt)
 uOpt = fomOpt.solve({'a': a})
+"""
 """
 # optimized control function using the AML EnOpt minimizer
 eps_o = eps
@@ -873,12 +889,13 @@ k_1_i = k_1
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
 # V_DNN = [[25, 25], torch.tanh, 50, 100, 100, 10, 1e-4]
 V_DNN = [[25, 25], torch.tanh, 10, 100, 10, 2, 1e-4]
-
+"""
+"""
 qParamAMLOpt, kAML = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt)
 print(qParamAMLOpt, kAML)
 outAMLOpt, fomAMLOpt, dataAMLOpt, y1AMLOpt, y2AMLOpt = J(qParamAMLOpt, a, T, grid_intervals, nt)
 uAMLOpt = fomAMLOpt.solve({'a': a})
-
+"""
 """
 # optimized control function using the L_BFGS_B_minimizer
 qParamOptBFGS = L_BFGS_B_minimizer(init, a, T, grid_intervals, nt)
@@ -900,10 +917,10 @@ def analytical():
 def opt1():
     result('EnOpt', qParamOpt, qParam, outOpt, fomOpt, dataOpt, uOpt, y1Opt, y2Opt, a, T, nt)
 """
-
+"""
 def opt2():
     result('AML_EnOpt', qParamAMLOpt, qParam, outAMLOpt, fomAMLOpt, dataAMLOpt, uAMLOpt, y1AMLOpt, y2AMLOpt, a, T, nt)
-
+"""
 """
 def opt3():
     result('L_BFGS_B', qParamOptBFGS, qParam, outOptBFGS, fomOptBFGS, dataOptBFGS, uOptBFGS, y1OptBFGS, y2OptBFGS, a, T, nt)

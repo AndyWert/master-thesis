@@ -1,7 +1,7 @@
 \chapter{Parabolic optimal control problems}
 
 \section{Introduction to the problem}
-Our optimization problem is based on the one presented in \cite{doi:10.1137/070694016}. We consider a state variable $u$ and a control variable $q$, defined on $(0,T)\times\Omega$ with $T\in\mathbb{R}$ and $\Omega\subset\mathbb{R}^n$. Our goal is to minimize the function
+Our optimization problem is based on the problem presented in \cite{doi:10.1137/070694016}. We consider a state variable $u$ and a control variable $q$, defined on $(0,T)\times\Omega$ with $T\in\mathbb{R}$ and $\Omega\subset\mathbb{R}^n$. Our goal is to minimize the function
 \begin{subequations}
 \label{conProb}
 \begin{gather}
@@ -10,7 +10,7 @@ J(q,u)=\frac{1}{2}\int_0^T\int_\Omega(u(t,x)-\hat{u}(t,x))^2\,\mathrm{d}x\,\math
 \intertext{subject to the constraints}
 %\begin{equation}
 \begin{aligned}
-	\partial_tu-\Delta x&=f+q&\text{ in }(0,T)\times\Omega,\\
+	\partial_tu-\Delta u&=f+q&\text{ in }(0,T)\times\Omega,\\
 	u(0)&=u_0&\text{ in }\Omega,
 \end{aligned}
 \label{constraints}
@@ -26,12 +26,12 @@ and the control space as
 \begin{displaymath}
 Q=L^2(I,L^2(\Omega)).
 \end{displaymath}
-We define the notion of the inner norms on $L^2(\Omega)$ and $L^2(I,L^2(\Omega))$ as
+The notion of the inner products and norms on $L^2(\Omega)$ and $L^2(I,L^2(\Omega))$ is introduced as
 \begin{align*}
 (v,w)&:=(v,w)_{L^2(\Omega)},&(v,w)_I&:=(v,w)_{L^2(I,L^2(\Omega))}\\
-\|v\|&:=\|v\|_{L^2(\Omega)},&\|v\|_I&:=\|v\|_{L^2(I,L^2(\Omega))}
+\|v\|&:=\|v\|_{L^2(\Omega)},&\|v\|_I&:=\|v\|_{L^2(I,L^2(\Omega))}.
 \end{align*}
-to describe the weak formulation of the state equations \eqref{constraints} for $q,f\in Q$ and $u_0\in V$. The state $u\in X$ should satisfy
+Using this inner product, the weak form of the state equations \eqref{constraints} for $q,f\in Q$ and $u_0\in V$ is given as
 \begin{equation}
 \label{weakEq}
 \begin{aligned}
@@ -61,13 +61,13 @@ It holds the stability estimate
 
 %evtl rauslassen
 \begin{prop}[\cite{doi:10.1137/070694016}]
-For given $f,\hat{u}\in L^2(I,H)$, $u_0\in $, and $\alpha>0$, the optimal control Problem \eqref{weakProb} admits a unique solution $(\bar{q},\bar{u})\in Q\times X$. The optimal control $\bar{q}$ posesses the regularity
+For given $f,\hat{u}\in L^2(I,H)$, $u_0\in V$, and $\alpha>0$, the optimal control Problem \eqref{weakProb} admits a unique solution $(\bar{q},\bar{u})\in Q\times X$. The optimal control $\bar{q}$ posesses the regularity
 \begin{displaymath}
-q\in L^2(I,H^2(\Omega))\cap H^1(I,L^2(\Omega)).
+\bar{q}\in L^2(I,H^2(\Omega))\cap H^1(I,L^2(\Omega)).
 \end{displaymath}
 \end{prop}
 
-Due to the existence and uniqueness results from Proposition \ref{uniqueU}, we define $u(q)$ as the unique solution of \eqref{weakEq} with respect to some $q\in Q$. This enables us to define a reduced cost funcitonal $j:Q\to \mathbb{R}$ that is only dependent on the control $q$ as
+Due to the existence and uniqueness results from Proposition \ref{uniqueU}, we define $u(q)$ as the unique solution of \eqref{weakEq} with respect to some $q\in Q$. This enables us to define a reduced cost functional $j:Q\to \mathbb{R}$ that is only dependent on the control $q$ as
 \begin{displaymath}
 j(q):=J(q,u(q)).
 \end{displaymath}
@@ -78,16 +78,16 @@ From now on, the optimal control problem that we examine is:
 \end{equation}
 
 \section{Finite element discretization}
-In order to solve our optimization problem \eqref{weakProb} numerically, we discuss now the discretization of this model. We begin with the presentation of the discretization in space with a n-D continuous Galerkin method. Then, we look at the discretization in time, which is done with a 1D continuous Galerkin method.
+In order to solve the optimization problem \eqref{redProb} numerically, the discretization of our model is now discussed. We begin with the presentation of the discretization in space with a n-D continuous Galerkin method. Then, we look at the discretization in time, which is done with a 1D continuous Galerkin method.
 
 \subsection{Discretization in space}
-We begin by describing the discretization in a 2-dimensional rectangular space $\Omega\subset\mathbb{R}^2$ with linear finite elements. We assume that we have a vertex set $\mathcal{V}=(x_1,\dotsc,x_N)\in(\mathbb{R}^2)^N$ with a convex hull that is equal  to $\bar{\Omega}$ and $x_i\neq x_j$ for all $i\neq j$ in $\{1,\dotsc,N\}$. Let $\hat{T}=\{(x_1,x_2)\in[0,1]^2\mid x_2 \leq 1-x_1\}$ be the reference triangle. Then,
+The discretization in space is shown on a 2-dimensional rectangular space $\Omega\subset\mathbb{R}^2$ with linear finite elements. We assume to have a vertex set $\mathcal{V}=(x_1,\dotsc,x_N)\in(\mathbb{R}^2)^N$ with a convex hull that is equal  to $\bar{\Omega}$ and $x_i\neq x_j$ for all $i\neq j$ in $\{1,\dotsc,N\}$. Let $\hat{T}=\{(x,y)\in[0,1]^2\mid y \leq 1-x\}$ be the reference triangle. Then,
 \begin{displaymath}
 \theta_l(\xi)=x_{l_1} + D\theta_l \begin{pmatrix} \xi_1 \\ \xi_2 \end{pmatrix} \text{ with } D\theta_l = \begin{pmatrix} x_{l_2}-x_{l_1} & x_{l_3}-x_{l_1} \end{pmatrix}
 \end{displaymath}
-is a transformation from the reference triangle $\hat{T}$ to some other triangle $T_l$ with corners $x_{l_1}, x_{l_2}, x_{l_3}$.
+is a transformation from the reference triangle $\hat{T}$ to some other triangle $T_l$ with the corners $x_{l_1}, x_{l_2}, x_{l_3}$.
 
-We define now a mesh $\mathcal{T}=\{T_l\}$ which consists of triangles $T_l=\theta_l(\hat{T})$, where $T_l\cap T_m$ for $T_l,T_m\in\mathcal{T}$ is either a common side/corner or empty and where $\bar{\Omega}=\cup_{T_l\in\mathcal{T}}T_l$.
+We define now a mesh $\mathcal{T}=\{T_l\}$ which consists of triangles $T_l=\theta_l(\hat{T})$, where $T_l\cap T_m$ for $T_l,T_m\in\mathcal{T}$ is either a common side/corner or empty and where $\bar{\Omega}=\cup_{T_l\in\mathcal{T}}T_l$. We also assume that every vertex in $\mathcal{V}$ is a corner of at least one triangle of $\mathcal{T}$.
 
 Let $\mathcal{P}_1(\hat{T}, \mathbb{R})$ be the space of polynomials up to order 1 in $\hat{T}$. Then, $\{\psi_1, \psi_2, \psi_3\}$ with $\psi_1(\xi)=1-\xi_1-\xi_2, \psi_2(\xi)=\xi_1, \psi_3(\xi)=\xi_2$ defines a basis of $\mathcal{P}_1(\hat{T}, \mathbb{R})$.
 %Therefore, $\{\phi_1, \phi_2, \phi_3\}$ with $\phi_{l_m}= \psi_m \circ \theta_l^{-1}$ for $m=1, 2, 3$ defines a basis of $\mathcal{P}_1(T, \mathbb{R})$.
@@ -110,13 +110,13 @@ as the finite element space of our control variables with
 \psi_3 \circ \theta_l^{-1} & \text{ if $\theta_l\left(\begin{pmatrix} 0 \\ 1 \end{pmatrix}\right)=x_i$}
 \end{cases} 
 \end{displaymath}
-for all $T_l\in\mathcal{T}$ and $i=1,\dotsc,N$. By the construction of the basis, every $u\in V_c$ (and therefore also every $u\in V_s$ ) is uniquely defined by
+for all $T_l\in\mathcal{T}$ and $i=1,\dotsc,N$. By construction, every $u\in V_c$ (and therefore also every $u\in V_s$ ) is uniquely defined by
 \begin{displaymath}
 u=\sum_{i=1}^NU_i\phi_i
 \end{displaymath}
 with $U_i=u(x_i)$.\\
 
-We want now to calculate $\int_\Omega u \cdot v \,\mathrm{d}x$ and $\int_\Omega \nabla u \cdot \nabla v \,\mathrm{d}x$ for all $u,v\in  V_c$. In order to do that, we set the mass matrix $M_n = \left(\int_\Omega \phi_i \cdot \phi_j \,\mathrm{d}x\right)_{i,j=1,\dotsc,N}$ and the stiffness matrix $L_n = \left(\int_\Omega \nabla\phi_i \cdot \nabla\phi_j \,\mathrm{d}x\right)_{i,j=1,\dotsc,N}$. Let%We calculate these integrals by taking the sum of the integrals over all triangles $T_l\in\mathcal{T}$ where $\phi_i$ and $\phi_j$ are not zero, so all triangles $T_l$ with $x_i,x_j\in T_l$
+Now, we want to calculate $\int_\Omega u \cdot v \,\mathrm{d}x$ and $\int_\Omega \nabla u \cdot \nabla v \,\mathrm{d}x$ for all $u,v\in  V_c$. In order to do that, we set the mass matrix $M_n = \left(\int_\Omega \phi_i \cdot \phi_j \,\mathrm{d}x\right)_{i,j=1,\dotsc,N}$ and the stiffness matrix $L_n = \left(\int_\Omega \nabla\phi_i \cdot \nabla\phi_j \,\mathrm{d}x\right)_{i,j=1,\dotsc,N}$. Let%We calculate these integrals by taking the sum of the integrals over all triangles $T_l\in\mathcal{T}$ where $\phi_i$ and $\phi_j$ are not zero, so all triangles $T_l$ with $x_i,x_j\in T_l$
 \begin{displaymath}
 U=\begin{pmatrix} U_1 \\ \vdots \\ U_n \end{pmatrix}\text{ and }V=\begin{pmatrix} V_1 \\ \vdots \\ V_n \end{pmatrix}.
 \end{displaymath}
@@ -149,11 +149,11 @@ where $v_{t_m}(\cdot)=v(t_m,\cdot)$.
 
 
 \subsection{Crank-Nicolson scheme}
-We want to solve now the weak state equations \eqref{weakEq} for the state $U\in X_{k,s}$ and $f,q\in X_{k,c}$. For $m=0$ we set:
+Now, we solve the weak state equations \eqref{weakEq} for the state $U\in X_{k,s}$ and $f,q\in X_{k,c}$ numerically. For $m=0$, we set:
 \begin{displaymath}
 U_0=\begin{pmatrix} U_{0,1} \\ \vdots \\ U_{0,n} \end{pmatrix}
 \end{displaymath}
-For $m=1,\dotsc,M$ we get with the Crank-Nicolson scheme that for all $\phi\in V_s$:
+For $m=1,\dotsc,M$, we get with the Crank-Nicolson scheme that for all $\phi\in V_s$:
 \begin{eqnarray*}
 (U_m,\phi) + \frac{T}{2M}(\nabla U_m, \nabla \phi) & = &(U_{m-1},\phi) - \frac{T}{2M}(\nabla U_{m-1}, \nabla \phi)\\
 && + \frac{T}{2M}(f_{m-1} + q_{m-1}, \phi) + \frac{T}{2M}(f_m + q_m, \phi).
