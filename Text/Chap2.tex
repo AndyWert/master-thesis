@@ -1,11 +1,13 @@
 \chapter{Parabolic optimal control problems}
 
 \section{Introduction to the problem}
-Our optimization problem is based on the problem presented in \cite{doi:10.1137/070694016}. We consider a state variable $u$ and a control variable $q$, defined on $(0,T)\times\Omega$ with $T\in\mathbb{R}$ and $\Omega\subset\mathbb{R}^n$. Our goal is to minimize the function
+Our optimization problem is based on the problem that is presented in \cite{doi:10.1137/070694016}. We consider a state variable $u$ and a control variable $q$, defined on $(0,T)\times\Omega$ with $T\in\mathbb{R}$ and $\Omega\subset\mathbb{R}^n$.
+
+The goal of this thesis is to minimize the function
 \begin{subequations}
 \label{conProb}
 \begin{gather}
-J(q,u)=\frac{1}{2}\int_0^T\int_\Omega(u(t,x)-\hat{u}(t,x))^2\,\mathrm{d}x\,\mathrm{d}t+\frac{\alpha}{2}\int_0^T\int_\Omega q(t,x)^2\,\mathrm{d}x\,\mathrm{d}t\label{objFun}\\
+J(q,u)=\frac{1}{2}\int_0^T\int_\Omega(u(t,x)-\hat{u}(t,x))^2\,\mathrm{d}x\,\mathrm{d}t+\frac{\alpha}{2}\int_0^T\int_\Omega q(t,x)^2\,\mathrm{d}x\,\mathrm{d}t\label{objFun},\\
 %\end{equation}
 \intertext{subject to the constraints}
 %\begin{equation}
@@ -24,14 +26,14 @@ X:=\{v\mid v\in L^2(I,V)\text{ and }\partial_tv\in L^2(I,V^*)\}
 \end{displaymath}
 and the control space as
 \begin{displaymath}
-Q=L^2(I,L^2(\Omega)).
+Q:=L^2(I,L^2(\Omega)).
 \end{displaymath}
 The notion of the inner products and norms on $L^2(\Omega)$ and $L^2(I,L^2(\Omega))$ is introduced as
 \begin{align*}
-(v,w)&:=(v,w)_{L^2(\Omega)},&(v,w)_I&:=(v,w)_{L^2(I,L^2(\Omega))}\\
+(v,w)&:=(v,w)_{L^2(\Omega)},&(v,w)_I&:=(v,w)_{L^2(I,L^2(\Omega))},\\
 \|v\|&:=\|v\|_{L^2(\Omega)},&\|v\|_I&:=\|v\|_{L^2(I,L^2(\Omega))}.
 \end{align*}
-Using this inner product, the weak form of the state equations \eqref{constraints} for $q,f\in Q$ and $u_0\in V$ is given as
+By using the inner product, the weak form of the state equations \eqref{constraints} for $q,f\in Q$ and $u_0\in V$ is given as
 \begin{equation}
 \label{weakEq}
 \begin{aligned}
@@ -74,34 +76,41 @@ j(q):=J(q,u(q)).
 From now on, the optimal control problem that we examine is:
 \begin{equation}
 \label{redProb}
-\text{Minimize }j(q)\text{ subject to }q\in Q.
+\text{minimize }j(q)\text{ subject to }q\in Q.
 \end{equation}
 
 \section{Finite element discretization}
-In order to solve the optimization problem \eqref{redProb} numerically, the discretization of our model is now discussed. We begin with the presentation of the discretization in space with a n-D continuous Galerkin method. Then, we look at the discretization in time, which is done with a 1D continuous Galerkin method.
+In order to solve the optimization problem \eqref{redProb} numerically, the discretization of our model is now discussed. We begin with the presentation of the discretization in space with a n-D continuous Galerkin method. Then, we look at the discretization in time, which is done with a 1D continuous Galerkin method. From now on, we will also discuss some implementation details, so, in this chapter, how we handle the calculation of the objective function $j$. To solve the partial equations of \eqref{weakEq}, we use the Python package pyMOR.
 
 \subsection{Discretization in space}
 The discretization in space is shown on a 2-dimensional rectangular space $\Omega\subset\mathbb{R}^2$ with linear finite elements. We assume to have a vertex set $\mathcal{V}=(x_1,\dotsc,x_N)\in(\mathbb{R}^2)^N$ with a convex hull that is equal  to $\bar{\Omega}$ and $x_i\neq x_j$ for all $i\neq j$ in $\{1,\dotsc,N\}$. Let $\hat{T}=\{(x,y)\in[0,1]^2\mid y \leq 1-x\}$ be the reference triangle. Then,
 \begin{displaymath}
 \theta_l(\xi)=x_{l_1} + D\theta_l \begin{pmatrix} \xi_1 \\ \xi_2 \end{pmatrix} \text{ with } D\theta_l = \begin{pmatrix} x_{l_2}-x_{l_1} & x_{l_3}-x_{l_1} \end{pmatrix}
 \end{displaymath}
-is a transformation from the reference triangle $\hat{T}$ to some other triangle $T_l$ with the corners $x_{l_1}, x_{l_2}, x_{l_3}$.
+is a transformation from the reference triangle $\hat{T}$ to some other triangle $T_l$ with the corners $x_{l_1}, x_{l_2}, x_{l_3}\in\mathcal{V}$.
 
-We define now a mesh $\mathcal{T}=\{T_l\}$ which consists of triangles $T_l=\theta_l(\hat{T})$, where $T_l\cap T_m$ for $T_l,T_m\in\mathcal{T}$ is either a common side/corner or empty and where $\bar{\Omega}=\cup_{T_l\in\mathcal{T}}T_l$. We also assume that every vertex in $\mathcal{V}$ is a corner of at least one triangle of $\mathcal{T}$.
+We define now a mesh $\mathcal{T}=\{T_l\}$ which consists of triangles $T_l=\theta_l(\hat{T})$, where $T_l\cap T_m$ for $T_l,T_m\in\mathcal{T}$ is either a common side, a common corner, or empty, and where $\bar{\Omega}=\cup_{T_l\in\mathcal{T}}T_l$. We also assume that every vertex in $\mathcal{V}$ is a corner of at least one triangle of $\mathcal{T}$.
 
-Let $\mathcal{P}_1(\hat{T}, \mathbb{R})$ be the space of polynomials up to order 1 in $\hat{T}$. Then, $\{\psi_1, \psi_2, \psi_3\}$ with $\psi_1(\xi)=1-\xi_1-\xi_2, \psi_2(\xi)=\xi_1, \psi_3(\xi)=\xi_2$ defines a basis of $\mathcal{P}_1(\hat{T}, \mathbb{R})$.
+In our implementation, we discretize a rectangular domain by specifying the number of grid intervals first. Then, we divide the domain into smaller rectangles of the same size, so that the number of rectangles along the $x$- and the $y$-axis is equal to the predefined number of grid intervals. Each smaller rectangular unit is then divided into four equally sized triangles by adding a vertex into the center of the rectangle which is connected with the corners of the unit. The vertex set of the whole domain is now given by the union of the corners of all triangles. As an example, if we have given a domain $\Omega = [a, a]$ with $a>0$ and we define the number of grid intervals as $2$, then our mesh would look like that:
+\begin{figure}
+    \centering
+    %\textbf{Your title}\par\medskip
+    \includegraphics[height=8cm]{mesh.png} 
+    \caption{Example of a mesh with $2$ grid intervals in a square shaped domain.}
+\end{figure}
+%\begin{center}
+%\includegraphics[height=8cm]{discretization.pdf} 
+%Example of a mesh with $2$ grid intervals in a cuboid domain.
+%\end{center}
+
+Now, let $\mathcal{P}_1(\hat{T}, \mathbb{R})$ be the space of polynomials up to order 1 in $\hat{T}$. Then, $\{\psi_1, \psi_2, \psi_3\}$ with $\psi_1(\xi)=1-\xi_1-\xi_2, \psi_2(\xi)=\xi_1, \psi_3(\xi)=\xi_2$ defines a basis of $\mathcal{P}_1(\hat{T}, \mathbb{R})$.
 %Therefore, $\{\phi_1, \phi_2, \phi_3\}$ with $\phi_{l_m}= \psi_m \circ \theta_l^{-1}$ for $m=1, 2, 3$ defines a basis of $\mathcal{P}_1(T, \mathbb{R})$.
 Using this basis, we set
 \begin{displaymath}
-%V_s=\{v\in C(\Omega)\mid  v|_{T_l}\in\operatorname*{span}\{\phi_{l_1}, \phi_{l_2}, \phi_{l_3}\}\forall T_l\in\mathcal{T}\}
-V_s=\operatorname*{span}\{\phi_i, i=0,\dotsc,N\}\cap V
+%V_h=\{v\in C(\Omega)\mid  v|_{T_l}\in\operatorname*{span}\{\phi_{l_1}, \phi_{l_2}, \phi_{l_3}\}\forall T_l\in\mathcal{T}\}
+V_h=\operatorname*{span}\{\phi_i, i=0,\dotsc,N\}\cap V
 \end{displaymath}
-as the finite element space of our state variables and
-\begin{displaymath}
-%V_c=\{v\in C(\Omega)\mid  v|_{T_l}\in\operatorname*{span}\{\phi_{l_1}, \phi_{l_2}, \phi_{l_3}\}\forall T_l\in\mathcal{T}\}
-V_c=\operatorname*{span}\{\phi_i, i=0,\dotsc,N\}
-\end{displaymath}
-as the finite element space of our control variables with
+as the finite element space of our state variables with
 \begin{displaymath}
 \phi_i|_{T_l}=\begin{cases}
 0 & \text{ if $x_i\notin T_l$}\\
@@ -110,13 +119,15 @@ as the finite element space of our control variables with
 \psi_3 \circ \theta_l^{-1} & \text{ if $\theta_l\left(\begin{pmatrix} 0 \\ 1 \end{pmatrix}\right)=x_i$}
 \end{cases} 
 \end{displaymath}
-for all $T_l\in\mathcal{T}$ and $i=1,\dotsc,N$. By construction, every $u\in V_c$ (and therefore also every $u\in V_s$ ) is uniquely defined by
+for all $T_l\in\mathcal{T}$ and $i=1,\dotsc,N$.
+
+By construction, every $u\in V_h$ is uniquely defined by
 \begin{displaymath}
 u=\sum_{i=1}^NU_i\phi_i
 \end{displaymath}
 with $U_i=u(x_i)$.\\
 
-Now, we want to calculate $\int_\Omega u \cdot v \,\mathrm{d}x$ and $\int_\Omega \nabla u \cdot \nabla v \,\mathrm{d}x$ for all $u,v\in  V_c$. In order to do that, we set the mass matrix $M_n = \left(\int_\Omega \phi_i \cdot \phi_j \,\mathrm{d}x\right)_{i,j=1,\dotsc,N}$ and the stiffness matrix $L_n = \left(\int_\Omega \nabla\phi_i \cdot \nabla\phi_j \,\mathrm{d}x\right)_{i,j=1,\dotsc,N}$. Let%We calculate these integrals by taking the sum of the integrals over all triangles $T_l\in\mathcal{T}$ where $\phi_i$ and $\phi_j$ are not zero, so all triangles $T_l$ with $x_i,x_j\in T_l$
+Now, we want to calculate $\int_\Omega u \cdot v \,\mathrm{d}x$ and $\int_\Omega \nabla u \cdot \nabla v \,\mathrm{d}x$ for all $u,v\in  V_h$. In order to do that, we set the mass matrix $M_n = \left(\int_\Omega \phi_i \cdot \phi_j \,\mathrm{d}x\right)_{i,j=1,\dotsc,N}$ and the stiffness matrix $L_n = \left(\int_\Omega \nabla\phi_i \cdot \nabla\phi_j \,\mathrm{d}x\right)_{i,j=1,\dotsc,N}$. Let%We calculate these integrals by taking the sum of the integrals over all triangles $T_l\in\mathcal{T}$ where $\phi_i$ and $\phi_j$ are not zero, so all triangles $T_l$ with $x_i,x_j\in T_l$
 \begin{displaymath}
 U=\begin{pmatrix} U_1 \\ \vdots \\ U_n \end{pmatrix}\text{ and }V=\begin{pmatrix} V_1 \\ \vdots \\ V_n \end{pmatrix}.
 \end{displaymath}
@@ -129,76 +140,87 @@ Then we have
 \subsection{Discretization in time}
 At first, we partition the time interval $\bar{I}=[0,T]$ as
 \begin{displaymath}
-\bar{I}=\{0\}\cup I_1\cup I_2\cup\dotsb\cup I_M,
+\bar{I}=\{0\}\cup I_1\cup I_2\cup\dotsb\cup I_M
 \end{displaymath}
-with subintervals $I_m=(t_{m-1},t_m]$, where $t_m=m\frac{T}{M}$ for $m=0,\dotsc, M$ and $M\in\mathbb{N}$. We want that the discretizations of our functions are continuous in $\bar{I}$ and piecewise polynomial of order 1 in all subintervals $I_m$, so our discretization space is
+with subintervals $I_m=(t_{m-1},t_m]$, where $t_m=m\frac{T}{M}$ for $m=0,\dotsc, M$ and $M\in\mathbb{N}$. We want that the discretizations of our functions are continuous in $\bar{I}$ and piecewise polynomial of order 1 in all subintervals $I_m$, so the discretization space of our state variables is
 \begin{displaymath}
-X_{k,s}:=\{v\in C(\bar{I},H)\mid v |_{I_m}\in\mathcal{P}_1(I_m,V_s),m=1,2,\dotsc,M\}
+X_{k,h}:=\{v\in C(\bar{I},V_h)\mid v |_{I_m}\in\mathcal{P}_1(I_m,V_h),m=1,2,\dotsc,M\},
 \end{displaymath}
-for our state variables and
+where $\mathcal{P}_1(I_m,V_h)$ denotes the space of polynomials up to order 1, defined on $I_m$ with values in $V_h$.
+Similarly, we define the time-discretized space of our control variables as
 \begin{displaymath}
-X_{k,c}:=\{v\in C(\bar{I},H)\mid v |_{I_m}\in\mathcal{P}_1(I_m,V_c),m=1,2,\dotsc,M\}\supset X_{k,s}
+Q_d:=\{v\in C(\bar{I},H)\mid v |_{I_m}\in\mathcal{P}_1(I_m,H),m=1,2,\dotsc,M\}\supset X_{k,h}.
 \end{displaymath}
-for our control variables, where $\mathcal{P}_1(I_m,V)$ denotes the space of polynomials up to order 1 defined on $I_m$ with values in $V$.
 
-By using the Lagrange basis of $\mathcal{P}_1(I_m,\mathbb{R})$, we can write every function $v\in X_{k,c}$ as
+By using the Lagrange basis of $\mathcal{P}_1(I_m,\mathbb{R})$, we can write every function $v \in Q_d$ as
 \begin{displaymath}
-v(t,\cdot)=\left(m-t\frac{M}{T}\right) v_{t_{m-1}}(\cdot)+\left(t\frac{M}{T}-m+1\right) v_{t_m}(\cdot)\text{ for }t\in I_m,
+v(t,\cdot)=\left(m-t\frac{M}{T}\right) v_{m-1}(\cdot)+\left(t\frac{M}{T}-m+1\right) v_m(\cdot)\text{ for }t\in I_m,
 \end{displaymath}
-where $v_{t_m}(\cdot)=v(t_m,\cdot)$.
+where $v_m(\cdot)=v(t_m,\cdot)$.
 
 
 \subsection{Crank-Nicolson scheme}
-Now, we solve the weak state equations \eqref{weakEq} for the state $U\in X_{k,s}$ and $f,q\in X_{k,c}$ numerically. For $m=0$, we set:
+Now, we solve the weak state equations \eqref{weakEq} for the state $u\in X_{k,h}$, the control $q\in Q_d$, and $f\in Q$ numerically. For $m=0$, we set
 \begin{displaymath}
-U_0=\begin{pmatrix} U_{0,1} \\ \vdots \\ U_{0,n} \end{pmatrix}
+U_0=\begin{pmatrix} U_{0,1} \\ \vdots \\ U_{0,n} \end{pmatrix},
 \end{displaymath}
-For $m=1,\dotsc,M$, we get with the Crank-Nicolson scheme that for all $\phi\in V_s$:
+where $U_{0,i}=u_0(x_i)$ for $i=1,\dotsc,N$.
+
+For $m=1,\dotsc,M$, we get with the Crank-Nicolson scheme that for all $v\in V_h$:
 \begin{eqnarray*}
-(U_m,\phi) + \frac{T}{2M}(\nabla U_m, \nabla \phi) & = &(U_{m-1},\phi) - \frac{T}{2M}(\nabla U_{m-1}, \nabla \phi)\\
-&& + \frac{T}{2M}(f_{m-1} + q_{m-1}, \phi) + \frac{T}{2M}(f_m + q_m, \phi).
+(u_m,v) + \frac{T}{2M}(\nabla u_m, \nabla v) & = &(u_{m-1},v) - \frac{T}{2M}(\nabla u_{m-1}, \nabla v)\\
+&& + \frac{T}{2M}(f_{m-1} + q_{m-1}, v) + \frac{T}{2M}(f_m + q_m, v),
 \end{eqnarray*}
-To solve that, we define the matrix $\tilde{M}_n\in\mathbb{R}^{N\times N}$ as
+where $u_m$ is a time discretization of $u$ at the time step $t_m$, while $f_m=f(t_m, \cdot)$ and $q_m=q(t_m,\cdot)$. To solve the above equation, we define the matrix $\tilde{M}_n\in\mathbb{R}^{N\times N}$ as
 \begin{displaymath}
 \left(\tilde{M}_n\right)_{i,j}=\begin{cases}
-0 & \text{ if $x_j$ in $\partial\Omega$}\\
-\left(M_n\right)_{i,j} & \text{ else,}
+0 & \text{ if $x_i$ or $x_j$ in $\partial\Omega$ and $i \neq j$}\\
+1 & \text{ if $x_i$ or $x_j$ in $\partial\Omega$ and $i = j$}\\
+\left(M_n\right)_{i,j} & \text{ else}
 \end{cases}
 \end{displaymath}
-so that $(V_n,W_n)=V_n^T\tilde{M}_nW_n$ for $V_n\in V_c$ and $W_n\in V_s$. Now we solve
-%sqrt(M^TM)?
+and the matrix $\tilde{L}_n\in\mathbb{R}^{N\times N}$ as
+\begin{displaymath}
+\left(\tilde{L}_n\right)_{i,j}=\begin{cases}
+0 & \text{ if $x_j$ in $\partial\Omega$}\\
+\left(L_n\right)_{i,j} & \text{ else,}
+\end{cases}
+\end{displaymath}
+so that $(u_m,v)=U_m^T\tilde{M}_nV$ and $(\nabla u_m,\nabla v)=U_m^T\tilde{L}_nV$ for all $m=0,\dotsc,M$, which is giving us
 \begin{eqnarray*}
-\tilde{M}_n^TU_m + \frac{T}{2M} L_n^T U_m &=& \tilde{M}_n^TU_{m-1} - \frac{T}{2M} L_n^T U_{m-1}\\
-&& + \frac{T}{2M} \tilde{M}_n^T (f_{m-1} + q_{m-1}) + \frac{T}{2M} \tilde{M}_n^T (f_m + q_m)
+V^T\tilde{M}_n^TU_m + \frac{T}{2M} V^T\tilde{L}_n^T U_m &=& V^T\tilde{M}_n^TU_{m-1} - \frac{T}{2M} V^T\tilde{L}_n^T U_{m-1}\\
+&&  + \frac{T}{2M}(f_{m-1} + q_{m-1}, v) + \frac{T}{2M}(f_m + q_m, v).
 \end{eqnarray*}
-\begin{multline}
+In the pyMOR implementation, vectors $F_m$ for $m=0,\dotsc,M$ are defined such that $V^TF_m\approx(f_m + q_m, v)$ for all $v\in V_h$ and $\left(F_m\right)_i=0$ if the $i$-th entry in the vertex set $\mathcal{V}$ lies on the boundary of $\Omega$. By using these vectors, we get the equation
+\begin{equation}
 \label{crank_nicolson}
-\implies U_m = \left(\tilde{M}_n^T + \frac{T}{2M} L_n^T\right)^{-1} \bigg( \tilde{M}_n^TU_{m-1} - \frac{T}{2M} L_n^T U_{m-1}\\
- + \frac{T}{2M} \tilde{M}_n^T (f_{m-1} + q_{m-1}) + \frac{T}{2M} \tilde{M}_n^T (f_m + q_m)\bigg)
-\end{multline}
+\left(\tilde{M}_n^T + \frac{T}{2M} \tilde{L}_n^T\right) U_m = \tilde{M}_n^TU_{m-1} - \frac{T}{2M} \tilde{L}_n^T U_{m-1} + \frac{T}{2M} F_{m-1} + \frac{T}{2M} F_m,
+\end{equation}
+which is solved after $U_m$ with functions from the Python package SciPy.
 
 \subsection{Calculation of the objective function value}
-For fixed $\hat{u},f\in X_{k,c}$, we define $u=u(q)$ for all $q\in X_{k,c}$ so that it satisfies \eqref{crank_nicolson}. We calculate $j(q)$ now in the following way
+For fixed $\hat{u},f\in Q$, we define $u=u(q)$ for all $q\in Q_d$, so that it satisfies \eqref{crank_nicolson}. We calculate $j(q)$ now in the following way:
 \begin{eqnarray*}
-j(q) =& \frac{1}{2}\sum_{m=1}^M\int_{t_{m-1}}^{t_m}&\bigg(\left(m-t\frac{M}{T}\right) \left(u_{t_{m-1}}-\hat{u}_{t_{m-1}}\right)+\left(t\frac{M}{T}-m+1\right) \left(u_{t_{m}}-\hat{u}_{t_{m}}\right),\\
-&&\left(m-t\frac{M}{T}\right) \left(u_{t_{m-1}}-\hat{u}_{t_{m-1}}\right)+\left(t\frac{M}{T}-m+1\right) \left(u_{t_{m}}-\hat{u}_{t_{m}}\right)\bigg)\,\mathrm{d}t\\
-&+ \frac{\alpha}{2}\sum_{m=1}^M\int_{t_{m-1}}^{t_m}&\bigg(\left(m-t\frac{M}{T}\right) \left(q_{t_{m-1}}\right)+\left(t\frac{M}{T}-m+1\right) \left(q_{t_{m}}\right),\\
-&&\left(m-t\frac{M}{T}\right) \left(q_{t_{m-1}}\right)+\left(t\frac{M}{T}-m+1\right) \left(q_{t_{m}}\right)\bigg)\,\mathrm{d}t.
+j(q) \approx& \frac{1}{2}\sum_{m=1}^M\int_{t_{m-1}}^{t_m}&\bigg(\left(m-t\frac{M}{T}\right) \left(u_{m-1}-\hat{u}_{m-1}\right)+\left(t\frac{M}{T}-m+1\right) \left(u_{m}-\hat{u}_{m}\right),\\
+&&\left(m-t\frac{M}{T}\right) \left(u_{m-1}-\hat{u}_{m-1}\right)+\left(t\frac{M}{T}-m+1\right) \left(u_{m}-\hat{u}_{m}\right)\bigg)\,\mathrm{d}t\\
+&+ \frac{\alpha}{2}\sum_{m=1}^M\int_{t_{m-1}}^{t_m}&\bigg(\left(m-t\frac{M}{T}\right) q_{m-1}+\left(t\frac{M}{T}-m+1\right) q_{m},\\
+&&\left(m-t\frac{M}{T}\right) q_{m-1}+\left(t\frac{M}{T}-m+1\right) q_{m}\bigg)\,\mathrm{d}t.
 \end{eqnarray*}
 Integration by substitution yields
 \begin{eqnarray*}
-j(q) =& \frac{T}{6M}\sum_{m=1}^M&\left(u_{t_{m-1}}-\hat{u}_{t_{m-1}},u_{t_{m-1}}-\hat{u}_{t_{m-1}}\right) + \left(u_{t_{m-1}}-\hat{u}_{t_{m-1}},u_{t_{m}}-\hat{u}_{t_{m}}\right)\\
-&&+ \left(u_{t_{m}}-\hat{u}_{t_{m}},u_{t_{m}}-\hat{u}_{t_{m}}\right)\\
-&+ \frac{\alpha T}{6M}\sum_{m=1}^M&\int_{t_{m-1}}^{t_m}\left(q_{t_{m-1}},q_{t_{m-1}}\right) + \left(q_{t_{m-1}},q_{t_{m}}\right) + \left(q_{t_{m}},q_{t_{m}}\right)\\
-=& \frac{T}{6M}\sum_{m=1}^M&\left(u_{t_{m-1}}-\hat{u}_{t_{m-1}}\right)M_n\left(u_{t_{m-1}}-\hat{u}_{t_{m-1}}\right)\\
-&&+ \left(u_{t_{m-1}}-\hat{u}_{t_{m-1}}\right)M_n\left(u_{t_{m}}-\hat{u}_{t_{m}}\right)\\
-&&+ \left(u_{t_{m}}-\hat{u}_{t_{m}}\right)M_n\left(u_{t_{m}}-\hat{u}_{t_{m}}\right)\\
-&+ \frac{\alpha T}{6M}\sum_{m=1}^M&q_{t_{m-1}}M_nq_{t_{m-1}} + q_{t_{m-1}}M_nq_{t_{m}} + q_{t_{m}}M_nq_{t_{m}}
+j(q) \approx& \frac{T}{6M}\sum_{m=1}^M&\left(u_{m-1}-\hat{u}_{m-1},u_{m-1}-\hat{u}_{m-1}\right) + \left(u_{m-1}-\hat{u}_{m-1},u_{m}-\hat{u}_{m}\right)\\
+&&+ \left(u_{m}-\hat{u}_{m},u_{m}-\hat{u}_{m}\right)\\
+&+ \frac{\alpha T}{6M}\sum_{m=1}^M&\left(q_{m-1},q_{m-1}\right) + \left(q_{m-1},q_{m}\right) + \left(q_{m},q_{m}\right)\\
+\approx& \frac{T}{6M}\sum_{m=1}^M&\left(U_{m-1}-\hat{U}_{m-1}\right)M_n\left(U_{m-1}-\hat{U}_{m-1}\right)\\
+&&+ \left(U_{m-1}-\hat{U}_{m-1}\right)M_n\left(U_{m}-\hat{U}_{m}\right)\\
+&&+ \left(U_{m}-\hat{U}_{m}\right)M_n\left(U_{m}-\hat{U}_{m}\right)\\
+&+ \frac{\alpha T}{6M}\sum_{m=1}^M&Q_{m-1}M_nQ_{m-1} + Q_{m-1}M_nQ_{m} + Q_{m}M_nQ_{m},
 \end{eqnarray*}
+where $\hat{U}_m=\left(\hat{u}(t_m, x_i)\right)_{i=1,\dotsc,N}$ and $Q_m=\left(q(t_m, x_i)\right)_{i=1,\dotsc,N}$ for $m=0,\dotsc,M$.
 
 \section{Optimization of the control variable}
 
-To optimize the control variable, we write every $q\in X_{k,c}$, using a fixed basis $\Phi=\{\phi_1,\dotsc,\phi_{N_b}\}$ with $\phi_1,\dotsc,\phi_{N_b}\in V_c$ and scalars $q_1^0,q_1^1,\dotsc,q_1^M,\dotsc,q_{N_b}^0,q_{N_b}^1\dotsc,q_{N_b}^M\in\mathbb{R}$, as
+To optimize the control variable, we write every $q\in Q_d$, by using a fixed basis $\Phi=\{\phi_1,\dotsc,\phi_{N_b}\}$ with $\phi_1,\dotsc,\phi_{N_b}\in H$ and scalars $q_1^0,q_1^1,\dotsc,q_1^M,\dotsc,q_{N_b}^0,q_{N_b}^1\dotsc,q_{N_b}^M\in\mathbb{R}$, as
 \begin{equation}
 \label{discrContrVar}
 q(t,x) = \sum_{i=1}^{N_b}\alpha_i(t)\phi_i(x)
@@ -210,7 +232,7 @@ q_i^{m-1}\left(m-t\frac{M}{T}\right) + q_i^m\left(t\frac{M}{T}-m+1\right) & \tex
 q_i^0 & \text{ if $t=0$}
 \end{cases}
 \end{displaymath}
-Each control variable, that is written in this form, can be represented as a vector
+Each control variable that is written in this form can be represented as a vector
 \begin{displaymath}
 \mathbf{q}=\left[q_1^0,q_1^1,\dotsc,q_1^M,\dotsc,q_{N_b}^0,q_{N_b}^1\dotsc,q_{N_b}^M\right]^T\in\mathcal{D}:=\mathbb{R}^{N_q},
 \end{displaymath} 
@@ -218,7 +240,9 @@ with $N_q = (M+1)\cdot N_b$. Therefore, we write
 \begin{displaymath}
 j(\mathbf{q}):=j(q)
 \end{displaymath}
-for each $q$ defined like in \eqref{discrContrVar}. In the next chapters we present algorithms that minimize $j(\mathbf{q})$ with respect to its control vector $\mathbf{q}$.
+for each $q$ that is defined like in \eqref{discrContrVar}.
+
+In the next chapters, we present algorithms that minimize $j(\mathbf{q})$ with respect to its control vector $\mathbf{q}$.
 
 
 

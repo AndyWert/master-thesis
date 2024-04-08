@@ -151,20 +151,6 @@ def parabolic_equation(q, T, grid_intervals=50, nt=50):
 
         initial_data=ExpressionFunction('-1/(2+a[0])*pi**2*sin(pi*x[0])*sin(pi*x[1])', dim_domain=2, parameters={'a': 1})
     )
-    # test
-    from pymor.discretizers.builtin.domaindiscretizers.default import discretize_domain_default
-    grid, boundary_info = discretize_domain_default(problem.stationary_part.domain, diameter=1./grid_intervals)
-    from pymor.discretizers.builtin.cg import L2ProductFunctionalP1
-    print(grid.centers(0))
-    print(len(L2ProductFunctionalP1(grid, ConstantFunction(1, 2), dirichlet_clear_dofs=True, boundary_info=boundary_info).as_vector().to_numpy()[0]))
-    print(grid)
-    print(grid.subentities(0, grid.dim))
-    print(np.repeat(grid.subentities(0, grid.dim), grid.dim + 1, axis=1).ravel())
-    print(np.tile(grid.subentities(0, grid.dim), [1, grid.dim + 1]).ravel())
-    print(boundary_info.dirichlet_mask(grid.dim)[np.repeat(grid.subentities(0, grid.dim), grid.dim + 1, axis=1).ravel()])
-    print(boundary_info)
-    print(boundary_info.dirichlet_boundaries(grid.dim))
-    print(problem.stationary_part.dirichlet_data)
 
     # discretize using continuous finite elements
     fom, data = discretize_instationary_cg(analytical_problem=problem, diameter=1./grid_intervals, time_stepper=CrankNicolsonTimeStepper(nt=nt))
@@ -244,13 +230,12 @@ def initCov(u_k, var, correlationCoeff):
     for i in range(N_u):
         for j in range(N_u):
             # change if more basis functions
-            C_k_new[i][j] = var**2*correlationCoeff**(np.abs(i-j))*1/(1-correlationCoeff**2)
+            C_k_new[i, j] = var**2*correlationCoeff**(np.abs(i-j))*1/(1-correlationCoeff**2)
     return C_k_new
 
 
 def updateCov(u_k, N, T_k, C_k, F_k, beta):
     N_u = len(u_k)
-    C_k_new = np.zeros((N_u, N_u))
     d_k_cov = np.zeros((N_u, N_u))
     assert len(T_k) == N
     for m in range(N):
@@ -261,10 +246,10 @@ def updateCov(u_k, N, T_k, C_k, F_k, beta):
     C_k_diag = np.zeros(N_u)
     d_k_cov_diag = np.zeros(N_u)
     for i in range(N_u):
-        C_k_diag[i] = C_k[i,i]
-        d_k_cov_diag[i] = d_k_cov[i,i]
+        C_k_diag[i] = C_k[i, i]
+        d_k_cov_diag[i] = d_k_cov[i, i]
     beta_iter = beta
-    while(np.min(C_k_diag+beta_iter*d_k_cov_diag) < 0):
+    while (np.min(C_k_diag+beta_iter*d_k_cov_diag) < 0):
         beta_iter /= 2
     return C_k + beta_iter*d_k_cov
 
@@ -293,11 +278,20 @@ def optStep(F, u_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, corr
     print('np.max(np.abs(C_F)): {}'.format(np.max(np.abs(C_F))))
     """
     d_k = C_F/np.max(np.abs(C_F))
+    t = np.linspace(0, 0.1, N_u)
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(t, d_k, label='EnOpt d_k: {}'.format(k))
+    ax.legend()
+    plt.show()
     """
     print('d_k: {}'.format(d_k))
     print('\n')
     """
     u_k_new = lineSearch(F, u_k, d_k, beta_1, r, eps, nu_1, proj)
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(t, u_k_new, label='EnOpt u_k: {}'.format(k))
+    ax.legend()
+    plt.show()
     return u_k_new, T_k_new, C_k_new, F(u_k_new)
 
 
@@ -558,6 +552,29 @@ def projection1(x, x0, delta):
         return x
 
 
+def evalMLM(F_ML_k, T_k, k):
+    x = range(len(T_k))
+    y_FOM = np.zeros(len(T_k))
+    y_ML = np.zeros(len(T_k))
+    y_diff = np.zeros(len(T_k))
+    for i in range(len(T_k)):
+        y_FOM[i] = T_k[i][1]
+        y_ML[i] = F_ML_k(T_k[i][0])
+        y_diff[i] = F_ML_k(T_k[i][0])-T_k[i][1]
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(x, y_FOM, label='FOM values: {}'.format(k))
+    ax.legend()
+    plt.show()
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(x, y_ML, label='ML values: {}'.format(k))
+    ax.legend()
+    plt.show()
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(x, y_diff, label='ML-error: {}'.format(k))
+    ax.legend()
+    plt.show()
+
+
 def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff):
     # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
     V_DNN[0].insert(0, len(u_0))
@@ -565,9 +582,14 @@ def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, n
     var_o = var
     var_i = var_o/20
     # var_i_list = [var_i]
-    delta = var
+    delta = 100
     F_k = F(u_0)
     u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_0, N, 0, [], 0, F_k, beta_1, beta_2, r, eps_o, nu_1, var_o, correlationCoeff)
+    t = np.linspace(0, T, num=nt+1)
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(t, u_k_tilde, label='u_k_tilde: {}'.format(1))
+    ax.legend()
+    plt.show()
     k = 1
     u_k = u_0
     u_k_next = u_k.copy()
@@ -575,10 +597,11 @@ def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, n
         # u_k = u_k_tilde.copy()
         # F_k = F_k_tilde
         F_ML_k = train(T_k, V_DNN)
+        evalMLM(F_ML_k, T_k, k)
         F_k_next = F_k
         F_ML_k_u_k = F_ML_k(u_k)
         deltaList = [delta]
-        #C_k_inv = LA.inv(C_k)
+        # C_k_inv = LA.inv(C_k)
         maxDiff = 0
         for i in range(len(T_k)):
             diff = np.min(np.abs(u_k-T_k[i][0]))
@@ -594,7 +617,7 @@ def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, n
             if rho_k < 0.25:
                 delta *= 0.25
             else:
-                #if rho_k > 0.75 and np.max(np.abs(C_k_inv.dot(u_k-u_k_next))) == delta:
+                # if rho_k > 0.75 and np.max(np.abs(C_k_inv.dot(u_k-u_k_next))) == delta:
                 if rho_k > 0.75 and np.max(np.abs(u_k-u_k_next)) == delta:
                     delta *= 2
             if rho_k <= 0:
@@ -611,7 +634,6 @@ def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, n
             print(k)
             return u_k, k
         """
-        t = np.linspace(0, T, num=nt+1)
         fig, ax = plt.subplots(1, 1)
         ax.plot(t, u_k_next, label='u_k_next: {}'.format(k))
         ax.legend()
@@ -628,7 +650,7 @@ def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, n
         u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_k_next, N, k, T_k, C_k, F_k_next, beta_1, beta_2, r, eps_o, nu_1, var_o, correlationCoeff)
         covList = []
         for i in range(len(C_k)):
-            covList.append(C_k[i,i])
+            covList.append(C_k[i, i])
         tCov = range(len(C_k))
         fig, ax = plt.subplots(1, 1)
         ax.plot(tCov, covList, label='Cov')
@@ -846,8 +868,10 @@ def result(name, qParamOpt, qParam, out, fom, data, u, y1, y2, a, T, nt):
         ax.legend()
     else:
         qErr = qParamOpt-qParam
+        print(name + ' q error = {}'.format(qErr))
         print(name + ' q LInf-error = {}'.format(np.max(np.abs(qErr))))
-        print(name + ' q relative LInf-error = {}'.format(np.max(np.abs(qErr))/np.max((qParamOpt))))
+        print(name + ' q average error = {}'.format(np.sum(np.abs(qErr))/len(qErr)))
+        # print(name + ' q relative LInf-error = {}'.format(np.max(np.abs(qErr))/np.max((qParamOpt))))
         ax[0].plot(t, qParamOpt, label=name+' q')
         ax[0].plot(t, qParam, label='Analytical q')
         ax[0].legend()
@@ -858,50 +882,24 @@ def result(name, qParamOpt, qParam, out, fom, data, u, y1, y2, a, T, nt):
 
 
 T = 0.1
-nt = 100
+nt = 10
 grid_intervals = 50
 a = -np.sqrt(5)
 init = np.zeros(nt+1)-40
 
-"""
+
 # optimized control function using the EnOpt minimizer
-N = 100
-eps = 1e-6
+N = 500
+eps = 1e-12
 k_1 = 1000
 beta_1 = 100
 beta_2 = 1
 r = 0.5
 nu_1 = 20
-var = 4
-correlationCoeff = 0.9
-"""
-"""
-qParamOpt, k = FOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt)
-outOpt, fomOpt, dataOpt, y1Opt, y2Opt = J(qParamOpt, a, T, grid_intervals, nt)
-uOpt = fomOpt.solve({'a': a})
-"""
-"""
-# optimized control function using the AML EnOpt minimizer
-eps_o = eps
-eps_i = 1e-9
-k_1_o = k_1
-k_1_i = k_1
-# V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
-# V_DNN = [[25, 25], torch.tanh, 50, 100, 100, 10, 1e-4]
-V_DNN = [[25, 25], torch.tanh, 10, 100, 10, 2, 1e-4]
-"""
-"""
-qParamAMLOpt, kAML = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt)
-print(qParamAMLOpt, kAML)
-outAMLOpt, fomAMLOpt, dataAMLOpt, y1AMLOpt, y2AMLOpt = J(qParamAMLOpt, a, T, grid_intervals, nt)
-uAMLOpt = fomAMLOpt.solve({'a': a})
-"""
-"""
-# optimized control function using the L_BFGS_B_minimizer
-qParamOptBFGS = L_BFGS_B_minimizer(init, a, T, grid_intervals, nt)
-outOptBFGS, fomOptBFGS, dataOptBFGS, y1OptBFGS, y2OptBFGS = J(qParamOptBFGS, a, T, grid_intervals, nt)
-uOptBFGS = fomOptBFGS.solve({'a': a})
-"""
+var = 1
+correlationCoeff = 0.99
+
+
 # analytical minimizer
 qParam = []
 for i in range(nt+1):
@@ -914,14 +912,41 @@ def analytical():
     result('Analytical', qParam, qParam, out, fom, data, u, y1, y2, a, T, nt)
 
 """
+# EnOpt
+qParamOpt, k = FOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt)
+outOpt, fomOpt, dataOpt, y1Opt, y2Opt = J(qParamOpt, a, T, grid_intervals, nt)
+uOpt = fomOpt.solve({'a': a})
+
+
 def opt1():
     result('EnOpt', qParamOpt, qParam, outOpt, fomOpt, dataOpt, uOpt, y1Opt, y2Opt, a, T, nt)
 """
-"""
+
+# optimized control function using the AML EnOpt minimizer
+eps_o = eps
+eps_i = 1e-9
+k_1_o = k_1
+k_1_i = k_1
+# V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
+# V_DNN = [[25, 25], torch.tanh, 50, 100, 100, 10, 1e-4]
+V_DNN = [[25, 25], torch.tanh, 50, 100, 50, 5, 1e-4]
+
+qParamAMLOpt, kAML = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt)
+print(qParamAMLOpt, kAML)
+outAMLOpt, fomAMLOpt, dataAMLOpt, y1AMLOpt, y2AMLOpt = J(qParamAMLOpt, a, T, grid_intervals, nt)
+uAMLOpt = fomAMLOpt.solve({'a': a})
+
+
 def opt2():
     result('AML_EnOpt', qParamAMLOpt, qParam, outAMLOpt, fomAMLOpt, dataAMLOpt, uAMLOpt, y1AMLOpt, y2AMLOpt, a, T, nt)
+
 """
-"""
+# optimized control function using the L_BFGS_B_minimizer
+qParamOptBFGS = L_BFGS_B_minimizer(init, a, T, grid_intervals, nt)
+outOptBFGS, fomOptBFGS, dataOptBFGS, y1OptBFGS, y2OptBFGS = J(qParamOptBFGS, a, T, grid_intervals, nt)
+uOptBFGS = fomOptBFGS.solve({'a': a})
+
+
 def opt3():
     result('L_BFGS_B', qParamOptBFGS, qParam, outOptBFGS, fomOptBFGS, dataOptBFGS, uOptBFGS, y1OptBFGS, y2OptBFGS, a, T, nt)
 """

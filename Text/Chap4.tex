@@ -1,5 +1,53 @@
 \chapter{Adaptive‑ML‑EnOpt algorithm}
 
+In this chapter, we introduce the Adaptive-ML-EnOpt algorithm \cite{Keil2022-dj}, which is a modified version of the EnOpt algorithm. This algorithm is supposed to reduce the number of FOM evaluations by using a machine learning-based surrogate function, which improves the computation speed with respect to the EnOpt algorithm. Therefore, we introduce deep neural networks (DNNs) next. After that, the Adaptive-ML-EnOpt-algorithm is presented.
+
 \section{Deep neural networks}
+
+This description of deep neural networks is based on the definitions in \cite{Keil2022-dj}.
+
+DNNs are used here to approximate a function $f:\mathbb{R}^{N_{\mathrm{in}}}\to\mathbb{R}^{N_{\mathrm{out}}}$ with $N_{\mathrm{in}},N_{\mathrm{out}}\in\mathbb{N}$. We call $L\in\mathbb{N}$ the number of layers and $N_{\mathrm{in}}=N_0,N_1,...,N_{L-1}, N_L=N_{\mathrm{out}}$ the number of neurons in each layer. $W_i\in\mathbb{R}^{N_i\times N_{i-1}}$ denotes the weights in layer $i\in\{1,...,L\}$ and $b_i\in\mathbb{R}^{N_i}$ the biases of the layer $i\in\{1,...,L\}$. These are composed as $\mathbf{W}=\left((W_1,b_1),...,(W_L,b_L)\right)$, which is a tuple of pairs of corresponding weights and biases.
+
+$\rho:\mathbb{R}\to\mathbb{R}$ is the so-called activation function. A popular example is the rectified linear unit funtion $\rho(x)=\operatorname{max}(x,0)$, however we will use the hyperbolic tangent funtion:
+\begin{displaymath}
+\rho(x)=\tanh(x)=\frac{\exp(2x)-1}{\exp(2x)+1}.
+\end{displaymath}
+$\rho_n^*:\mathbb{R}^n\to\mathbb{R}^n$ is now defined as the component-wise application of $\rho$ onto a vector of dimension $n$, so $\rho_n^*(x)=\left[\rho(x_1),\dotsc,\rho(x_n)\right]^T$ for $x\in\mathbb{R}^n$.
+
+To calculate the output $\Phi_\mathbf{W}(x)\in\mathbb{R}^{N_{\mathrm{out}}}$ of a DNN for an input $x\in\mathbb{R}^{N_{\mathrm{in}}}$, we apply the weights, biases, and activation function multiple times onto the input. It is calculated iteratively as shown here:
+\begin{eqnarray*}
+r_0(x)&:=&x,\\
+r_i(x)&:=&\rho_{N_i}^*(W_ir_{i-1}(x)+b_i)\text{ for }i=1,...,L-1,\\
+r_L(x)&:=&W_Lr_{L-1}(x)+b_L,\\
+\Phi_\mathbf{W}(x)&:=&r_L(x).
+\end{eqnarray*}
+
+Now we try to optimize the parameters in $\mathbf{W}$ such that $\Phi_\mathbf{W}\approx f$. To achieve this, we sample a set that consists of inputs $x_i\in X\subset\mathbb{R}^{N_{\mathrm{in}}}$ and corresponding outputs $f(x_i)\in\mathbb{R}^{N_{\mathrm{out}}}$ and assemble them in the training set
+\begin{displaymath}
+T_\mathrm{train}=\{(x_1,f(x_1)),...,(x_n,f(x_n))\}\subset X\times\mathbb{R}^{N_\mathrm{out}}.
+\end{displaymath}
+To evaluate the performance of our chosen $\mathbf{W}$, we use the mean squared error loss $\mathscr{L}(\Phi_\mathbf{W},T_\mathrm{train})$ to measure the distance between $\Phi_\mathbf{W}$ and $f$ on a training set. The mean squared error loss is defined as
+\begin{displaymath}
+\mathscr{L}(\Phi_\mathbf{W},T_\mathrm{train}):=\frac{1}{|T_\mathrm{train}|}\sum_{(x,y)\in T_\mathrm{train}}\| \Phi_\mathbf{W}(x)-y\|_2^2.
+\end{displaymath}
+Since we want $\Phi_\mathbf{W}$ to be close to $f$, we minimize the loss function with respect to $\mathbf{W}$. For that, we use some gradient-based optimization method. By the structure of the DNN, we can use the chain rule multiple times to divide the gradient of $\mathscr{L}$ into much simpler gradient computations.\\
+
+We want that $\Phi_\mathbf{W}$ is close to $f$ on $X$ but we train it only on a sample set of $X$, so we achieve that $\Phi_\mathbf{W}$ is only on $T_\mathrm{train}$ close to $f$. While we train, the mean squared error loss will eventually get better and better on the training set, but at some point the error on different samples will get worse \cite{Prechelt2012}. We call that overfitting.
+
+To prevent overfitting, we use early stopping. For early stopping, we evaluate the loss function on a validation set $T_\mathrm{val}\subset X\times\mathbb{R}^{N_\mathrm{out}}$, where usually $T_\mathrm{val}\cap T_\mathrm{train}=\emptyset$. Our algorithm for early stopping looks like this:
+
+\begin{itemize}
+\item let $\mathbf{W}^{(k)}$ be the weights in epoch $k$%evtl klarer machen, dass \mathbf{W}_k nicht W_k ist
+\item compute $\mathscr{L}(\Phi_{\mathbf{W}^{(k)}},T_\mathrm{val})$ in each epoch
+\item save $\mathbf{W}^{(k^*)}$ at iteration $k^*$ if it is the minimizer over all previous weights
+\item if $\mathscr{L}(\Phi_{\mathbf{W}^{(k^*+i)}},T_\mathrm{val})\geq\mathscr{L}(\Phi_{\mathbf{W}^{(k^*)}},T_\mathrm{val})$ for all $i$ from $0$ to a prescribed number:\\
+abort the training and use $\mathbf{W}^{(k^*)}$
+\end{itemize}
+
+So we abort the training if the minimum loss is not decreasing over a prescribed number of consecutive epochs. Our reasoning behind that is that the loss on the validation set is not srictly decreasing and can even increase over some epochs, but that is fine for us as long as we can decrease the loss over time.
+
+Since we search for local minima of the loss function, the initial value $\mathbf{W}^{(0)}$ of our iteration effects the local optimum that we get and therefore the performance. We use Kaiming initialization \cite{7410480} to set our initial value $\mathbf{W}^{(0)}$. With Kaiming initialization, the starting values are initialized randomly since the elements of the weights $W_i$ are sampled from a zero-mean Gaussian distribution whose standard deviation is $\sqrt{2/N_{i-1}}$ for $i\in\{1,...,L\}$. The biases $b_i$ are set to zero for $i\in\{1,...,L\}$. The idea behind the random sampling is that the specified standard deviation prevents the exponential increase/ reduction of the input as shown in \cite{7410480}.
+
+For the training of the DNN, we perform multiple restarts of the training algorithm with different initializations of $\mathbf{W}^{(0)}$ which minimizes the dependence of our neural network from the initial values. After we have trained enough DNNs, we select the neural network $\Phi_{\mathbf{W}^*}$ that has the smallest combined loss $\mathscr{L}(\Phi_{\mathbf{W}^*},T_\mathrm{train})+\mathscr{L}(\Phi_{\mathbf{W}^*},T_\mathrm{val})$ over all restarts.
 
 \section{Modifying the EnOpt algorithm by using a neural network-based surrogate}
