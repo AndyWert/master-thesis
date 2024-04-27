@@ -279,13 +279,11 @@ def optStep(F, u_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, corr
     """
     d_k = C_F/np.max(np.abs(C_F))
     t = np.linspace(0, 0.1, N_u)
+    """
     fig, ax = plt.subplots(1, 1)
     ax.plot(t, d_k, label='EnOpt d_k: {}'.format(k))
     ax.legend()
     plt.show()
-    """
-    print('d_k: {}'.format(d_k))
-    print('\n')
     """
     u_k_new = lineSearch(F, u_k, d_k, beta_1, r, eps, nu_1, proj)
     fig, ax = plt.subplots(1, 1)
@@ -303,13 +301,6 @@ def enOpt(F, u_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, p
         F_k_prev = F_k
         u_k, T_k, C_k, F_k = optStep(F, u_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, proj)
         k = k+1
-        if k < 20 or k % 50 == 0:
-            print('k: {}'.format(k))
-            print('F_k: {}'.format(F_k))
-            print('F_k_prev: {}'.format(F_k_prev))
-            print('u_k: {}'.format(u_k))
-            print('\n')
-    print(k)
     return u_k, k
 
 
@@ -320,20 +311,17 @@ def enOpt1(F, u_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, 
     errorList = [F_k_prev-J(u_0), F_k-J(u_k)]
     while (F_k > F_k_prev+eps and k < k_1):
         F_k_prev = F_k
+        # u_k_FOM, T_k_FOM, C_k_FOM, F_k_FOM = optStep(J, u_k, N, k, T_k, C_k, J(u_k), beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, proj)
         u_k, T_k, C_k, F_k = optStep(F, u_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, proj)
         errorList.append(F_k-J(u_k))
         k = k+1
-        if k < 20 or k % 50 == 0:
-            print('k: {}'.format(k))
-            print('F_k: {}'.format(F_k))
-            print('F_k_prev: {}'.format(F_k_prev))
-            print('u_k: {}'.format(u_k))
-            print('\n')
-    print(k)
     tError = range(len(errorList))
-    fig, ax = plt.subplots(1, 1)
-    ax.plot(tError, errorList, label='error')
-    ax.legend()
+    # fig, ax = plt.subplots(1, 1)
+    # ax.plot(tError, errorList, label='error')
+    # ax.legend()
+    # plt.show()
+    plt.bar(tError, errorList)
+    plt.suptitle('error')
     plt.show()
     return u_k, k
 
@@ -369,7 +357,7 @@ def train_loop(dataloader, model, loss_fn, optimizer):
     for batch, (X, y) in enumerate(dataloader):
         def closure():
             optimizer.zero_grad()
-            pred = model(X)
+            pred = model(X).reshape(len(y))
             loss = loss_fn(pred, y)
             loss.backward()
             return loss
@@ -392,7 +380,7 @@ def test_loop(dataloader, model, loss_fn):
     # also serves to reduce unnecessary gradient computations and memory usage for tensors with requires_grad=True
     with torch.no_grad():
         for X, y in dataloader:
-            pred = model(X)
+            pred = model(X).reshape(len(y))
             test_loss += loss_fn(pred, y).item()
 
     test_loss /= num_batches
@@ -452,7 +440,7 @@ def evaluate_DNN(model, training_data, test_data, loss_fn):
     return loss
 
 
-def train(sample, V_DNN):
+def train123(sample, V_DNN):
     from pymor.models.neural_network import FullyConnectedNN
     from torch import nn
     from torch.utils.data import DataLoader
@@ -513,6 +501,30 @@ def train(sample, V_DNN):
         if DNN_i_eval < DNN_eval:
             DNN_eval = DNN_i_eval
             DNN = DNN_i
+    for i in range(len(normSample)):
+        print('DNN output: {}'.format(DNN(torch.from_numpy(normSample[i][0]).to(torch.float32)).detach().numpy()))
+        print('FOM output: {}'.format(normSample[i][1]))
+    sortedDNNOutputs = []
+    sortedFOMOutputs = []
+    sortSample = normSample.copy()
+    for i in range(len(normSample)):
+        jMin = 0
+        sampleMin = sortSample[0][1]
+        for j in range(len(sortSample)):
+            if sortSample[j][1] < sampleMin:
+                jMin = j
+                sampleMin = sortSample[j][1]
+        sortedFOMOutputs.append(sampleMin)
+        sortedDNNOutputs.append(DNN(torch.from_numpy(sortSample[jMin][0]).to(torch.float32)).detach().numpy()[0])
+        sortSample.pop(jMin)
+    print(range(len(sortedDNNOutputs)))
+    print(sortedDNNOutputs)
+    plt.bar(range(len(sortedDNNOutputs)), sortedDNNOutputs)
+    plt.suptitle('sortedDNNOutputs')
+    plt.show()
+    plt.bar(range(len(sortedFOMOutputs)), sortedFOMOutputs)
+    plt.suptitle('sortedFOMOutputs')
+    plt.show()
     # DNN(torch.from_numpy(sample[m][0]).to(torch.float32)) approx sample[m][1] for all m
     return lambda mu: DNN(torch.from_numpy((mu-minIn)/(maxIn-minIn)).to(torch.float32)).detach().numpy()[0]*(maxOut-minOut)+minOut
     """
@@ -552,6 +564,16 @@ def projection1(x, x0, delta):
         return x
 
 
+def projectionSample(x, minIn, maxIn):
+    xProj = x.copy()
+    for i in range(len(xProj)):
+        if xProj[i] < minIn[i]:
+            xProj[i] = minIn[i]
+        if xProj[i] > maxIn[i]:
+            xProj[i] = maxIn[i]
+    return xProj
+
+
 def evalMLM(F_ML_k, T_k, k):
     x = range(len(T_k))
     y_FOM = np.zeros(len(T_k))
@@ -561,18 +583,413 @@ def evalMLM(F_ML_k, T_k, k):
         y_FOM[i] = T_k[i][1]
         y_ML[i] = F_ML_k(T_k[i][0])
         y_diff[i] = F_ML_k(T_k[i][0])-T_k[i][1]
-    fig, ax = plt.subplots(1, 1)
-    ax.plot(x, y_FOM, label='FOM values: {}'.format(k))
-    ax.legend()
+    plt.bar(x, y_FOM)
+    plt.suptitle('FOM values: {}'.format(k))
     plt.show()
-    fig, ax = plt.subplots(1, 1)
-    ax.plot(x, y_ML, label='ML values: {}'.format(k))
-    ax.legend()
+    plt.bar(x, y_ML)
+    plt.suptitle('ML values: {}'.format(k))
     plt.show()
-    fig, ax = plt.subplots(1, 1)
-    ax.plot(x, y_diff, label='ML-error: {}'.format(k))
-    ax.legend()
+    plt.bar(x, y_diff)
+    plt.suptitle('ML-error: {}'.format(k))
     plt.show()
+
+
+def evalMLM_delta(F_ML_k, F, u_k, u_k_next, delta):
+    MLM_val = []
+    FOM_val = []
+    diff = []
+    l2_dist = []
+    u = u_k.copy()-delta
+    tr = F_ML_k(u_k)
+    for i in range(21):
+        F_ML_k_u = F_ML_k(u)-tr
+        F_u = F(u)-tr
+        MLM_val.append(F_ML_k_u)
+        FOM_val.append(F_u)
+        diff.append(F_ML_k_u-F_u)
+        l2_dist.append(LA.norm(u-u_k_next))
+        t = np.linspace(0, T, num=nt+1)
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(t, u, label='translated u')
+        ax.legend()
+        plt.show()
+        u += delta/10
+    F_ML_k_u_k_next = F_ML_k(u_k_next)-tr
+    F_u_k_next = F(u_k_next)-tr
+    MLM_val.append(F_ML_k_u_k_next)
+    FOM_val.append(F_u_k_next)
+    diff.append(F_ML_k_u_k_next-F_u_k_next)
+    plt.bar(range(len(MLM_val)), MLM_val)
+    plt.suptitle('translated u_k and u_k_next MLM-values')
+    plt.show()
+    plt.bar(range(len(FOM_val)), FOM_val)
+    plt.suptitle('translated u_k and u_k_next FOM-values')
+    plt.show()
+    plt.bar(range(len(diff)), diff)
+    plt.suptitle('translated u_k and u_k_next error')
+    plt.show()
+    plt.bar(range(len(l2_dist)), l2_dist)
+    plt.suptitle('l2 distance to u_k_next')
+    plt.show()
+
+
+def evalMLM_delta1(F_ML_k, F, u_k, u_k_next, delta):
+    MLM_val = []
+    FOM_val = []
+    diff = []
+    l2_dist = []
+    u = u_k.copy()-delta
+    tr = F(u_k)
+    for i in range(21):
+        F_ML_k_u = F_ML_k(u)-tr
+        F_u = F(u)-tr
+        MLM_val.append(F_ML_k_u)
+        FOM_val.append(F_u)
+        diff.append(F_ML_k_u-F_u)
+        l2_dist.append(LA.norm(u-u_k_next))
+        t = np.linspace(0, T, num=nt+1)
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(t, u, label='translated u')
+        ax.legend()
+        plt.show()
+        u += delta/10
+    F_ML_k_u_k_next = F_ML_k(u_k_next)-tr
+    F_u_k_next = F(u_k_next)-tr
+    MLM_val.append(F_ML_k_u_k_next)
+    FOM_val.append(F_u_k_next)
+    diff.append(F_ML_k_u_k_next-F_u_k_next)
+    plt.bar(range(len(MLM_val)), MLM_val)
+    plt.suptitle('translated u_k and u_k_next MLM-values')
+    plt.show()
+    plt.bar(range(len(FOM_val)), FOM_val)
+    plt.suptitle('translated u_k and u_k_next FOM-values')
+    plt.show()
+    plt.bar(range(len(diff)), diff)
+    plt.suptitle('translated u_k and u_k_next error')
+    plt.show()
+    plt.bar(range(len(l2_dist)), l2_dist)
+    plt.suptitle('l2 distance to u_k_next')
+    plt.show()
+
+
+def test_DNN(DNN, x_test, y_test, loss_fn):
+    DNN.eval()
+    with torch.inference_mode():
+        test_pred = DNN(x_test).reshape(len(y_test))
+        test_loss = loss_fn(test_pred, y_test)
+        return test_loss
+
+
+def train_DNN(DNN, x, y, x_train, y_train, x_test, y_test, normSample, normVal, loss_fn, optimizer, epochs):
+    wait = 0
+    minimal_test_loss = test_DNN(DNN, x_test, y_test, loss_fn)
+    torch.save(DNN.state_dict(), 'checkpoint.pth')
+    for epoch in range(epochs):
+        # Training
+        """
+        with torch.inference_mode():
+            # print(x[0])
+            # y_preds = DNN(x).reshape(len(y))
+            # print('y_preds: {}'.format(y_preds))
+            # print('y: {}'.format(y))
+            # print('diff: {}'.format(y_preds-y))
+
+            sortedDNNOutputs = []
+            sortedFOMOutputs = []
+            sortSample = []
+            for i in range(len(normSample)):
+                sortSample.append([normSample[i, :], normVal[i]])
+            for i in range(len(normSample)):
+                jMin = 0
+                sampleMin = sortSample[0][1]
+                for j in range(len(sortSample)):
+                    if sortSample[j][1] < sampleMin:
+                        jMin = j
+                        sampleMin = sortSample[j][1]
+                sortedFOMOutputs.append(sampleMin)
+                sortedDNNOutputs.append(DNN(torch.from_numpy(sortSample[jMin][0]).to(torch.float32)).detach().numpy()[0])
+                sortSample.pop(jMin)
+            # print(range(len(sortedDNNOutputs)))
+            # print(sortedDNNOutputs)
+            minSortedDNNOutputs = np.min(sortedDNNOutputs)
+            plt.bar(range(len(sortedDNNOutputs)), sortedDNNOutputs)
+            plt.suptitle('sortedDNNOutputs, epoch {}'.format(epoch))
+            plt.show()
+            # plt.bar(range(len(sortedDNNOutputs)), sortedDNNOutputs-minSortedDNNOutputs)
+            # plt.suptitle('translated sortedDNNOutputs, epoch {}'.format(epoch))
+            # plt.show()
+            plt.bar(range(len(sortedFOMOutputs)), sortedFOMOutputs)
+            plt.suptitle('sortedFOMOutputs, epoch {}'.format(epoch))
+            plt.show()
+        """
+        DNN.train()
+
+        def closure():
+            y_pred = DNN(x_train).reshape(len(y_train))
+            loss = loss_fn(y_pred, y_train)
+            optimizer.zero_grad()
+            loss.backward()
+            return loss
+        optimizer.step(closure)
+
+        # Testing
+        test_loss = test_DNN(DNN, x_test, y_test, loss_fn)
+        if epoch % 1 == 0:
+            print(f"Epoch: {epoch} | Test loss: {test_loss}")
+            # print(f"Epoch: {epoch} | Train loss: {loss} | Test loss: {test_loss}")
+        if test_loss < minimal_test_loss:
+            wait = 0
+            minimal_test_loss = test_loss
+            torch.save(DNN.state_dict(), 'checkpoint.pth')
+        else:
+            wait += 1
+        if wait >= 20:
+            DNN.load_state_dict(torch.load('checkpoint.pth'))
+            return  # break
+
+
+def train(sample, V_DNN, minIn, maxIn):
+    from pymor.models.neural_network import FullyConnectedNN
+    from torch import nn
+    # from torch.utils.data import DataLoader
+    epochs = V_DNN[3]
+    training_batch_size = V_DNN[4]
+    testing_batch_size = V_DNN[5]
+    learning_rate = V_DNN[6]
+    # Setup device agnostic code
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using device: {device}")
+    # scaling
+    normSample = np.zeros((len(sample), len(sample[0][0])))
+    normVal = np.zeros(len(sample))
+    for i in range(len(sample)):
+        normSample[i, :] = sample[i][0]
+        normVal[i] = sample[i][1]
+    minOut = np.min(normVal)
+    maxOut = np.max(normVal)
+    print('normSample: {}'.format(normSample))
+    print('normVal: {}'.format(normVal))
+    normSample -= minIn
+    normVal -= minOut
+    print('normSample: {}'.format(normSample))
+    print('normVal: {}'.format(normVal))
+    normSample /= maxIn-minIn
+    normVal /= maxOut-minOut
+    print('normSample: {}'.format(normSample))
+    print('normVal: {}'.format(normVal))
+    """
+    normSample = []
+    for i in range(len(sample)):
+        normSample.append([sample[i][0].copy(), sample[i][1]])
+    #normSample = sample.copy()
+    minIn = np.min(normSample[0][0])
+    maxIn = np.max(normSample[0][0])
+    minOut = normSample[0][1]
+    maxOut = normSample[0][1]
+    for i in range(1, len(normSample)):
+        minInI = np.min(normSample[i][0])
+        maxInI = np.max(normSample[i][0])
+        minOutI = normSample[i][1]
+        maxOutI = normSample[i][1]
+        if minInI < minIn:
+            minIn = minInI
+        if maxInI > maxIn:
+            maxIn = maxInI
+        if minOutI < minOut:
+            minOut = minOutI
+        if maxOutI > maxOut:
+            maxOut = maxOutI
+    assert minIn != maxIn
+    assert minOut != maxOut
+    for i in range(len(normSample)):
+        normSample[i][0] = (normSample[i][0]-minIn)/(maxIn-minIn)
+        normSample[i][1] = (normSample[i][1]-minOut)/(maxOut-minOut)
+    x = []
+    y = []
+    for i in range(len(normSample)):
+        x.append(torch.from_numpy(normSample[i][0]).to(torch.float32))
+        y.append(torch.tensor(normSample[i][1]).to(torch.float32))
+    x_stacked = torch.stack(x, dim=0)
+    y_stacked = torch.stack(y, dim=0)
+    print(x_stacked[0])
+    print(y_stacked[0])
+    # Create train/test split
+    train_split = int(0.8 * len(x_stacked)) # 80% of data used for training set, 20% for testing 
+    x_train, y_train = x_stacked[:train_split], y_stacked[:train_split]
+    x_test, y_test = x_stacked[train_split:], y_stacked[train_split:]
+    """
+    x = torch.from_numpy(normSample).to(torch.float32)
+    y = torch.from_numpy(normVal).to(torch.float32)
+    print(x)
+    print(y)
+    # Create train/test split
+    train_split = int(0.8 * len(x))
+    x_train, y_train = x[:train_split], y[:train_split]
+    x_test, y_test = x[train_split:], y[train_split:]
+    # print(x_train)
+    # print(y_train)
+    # print(x_test)
+    # print(y_test)
+    # print(len(x_train), len(y_train), len(x_test), len(y_test))
+
+    DNN = FullyConnectedNN(V_DNN[0], activation_function=V_DNN[1])
+
+    """
+    class DNNModel(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.layer_1 = nn.Linear(in_features=len(x[0, :]), out_features=250)
+            self.layer_2 = nn.Linear(in_features=250, out_features=250)
+            self.layer_3 = nn.Linear(in_features=250, out_features=1)
+
+        def forward(self, x):
+            return self.layer_3(torch.tanh(self.layer_2(torch.tanh(self.layer_1(x)))))
+    """
+    """
+    class DNNModel(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.linear_layer_stack = nn.Sequential(
+                nn.Linear(in_features=len(x[0, :]), out_features=250),
+                nn.ReLU(),
+                nn.Linear(in_features=250, out_features=250),
+                nn.ReLU(),
+                nn.Linear(in_features=250, out_features=1),
+            )
+
+        def forward(self, x):
+            return self.linear_layer_stack(x)
+    """
+
+    # DNN = DNNModel().to(device)
+
+    # print(DNN.state_dict())
+    # print(list(DNN.parameters()))
+    # print(DNN.parameters().dtype)
+    """
+    with torch.inference_mode():
+        print(x[0])
+        y_preds = DNN(x).reshape(len(y))
+        print('y_preds: {}'.format(y_preds))
+        print('y: {}'.format(y))
+        print('diff: {}'.format(y_preds-y))
+    """
+    DNN.to(device)
+    loss_fn = nn.MSELoss()
+    # optimizer = torch.optim.SGD(params=DNN.parameters(), lr=learning_rate)
+    optimizer = torch.optim.LBFGS(DNN.parameters(), lr=learning_rate, line_search_fn='strong_wolfe')
+
+    x_train = x_train.to(device)
+    x_test = x_test.to(device)
+    y_train = y_train.to(device)
+    y_test = y_test.to(device)
+
+    train_DNN(DNN, x, y, x_train, y_train, x_test, y_test, normSample, normVal, loss_fn, optimizer, epochs)
+    DNN_eval = test_DNN(DNN, x_test, y_test, loss_fn)
+    for i in range(10):
+        DNN_i = FullyConnectedNN(V_DNN[0], activation_function=V_DNN[1])
+        optimizer = torch.optim.LBFGS(DNN_i.parameters(), lr=learning_rate, line_search_fn='strong_wolfe')
+        train_DNN(DNN_i, x, y, x_train, y_train, x_test, y_test, normSample, normVal, loss_fn, optimizer, epochs)
+        DNN_i_eval = test_DNN(DNN_i, x_test, y_test, loss_fn)
+        if DNN_i_eval < DNN_eval:
+            DNN_eval = DNN_i_eval
+            DNN = DNN_i
+
+    with torch.inference_mode():
+        print(x[0])
+        y_preds = DNN(x).reshape(len(y))
+        print('y_preds: {}'.format(y_preds))
+        print('y: {}'.format(y))
+        print('diff: {}'.format(y_preds-y))
+
+        sortedDNNOutputs = []
+        sortedFOMOutputs = []
+        sortSample = []
+        for i in range(len(normSample)):
+            sortSample.append([normSample[i, :], normVal[i]])
+        for i in range(len(normSample)):
+            jMin = 0
+            sampleMin = sortSample[0][1]
+            for j in range(len(sortSample)):
+                if sortSample[j][1] < sampleMin:
+                    jMin = j
+                    sampleMin = sortSample[j][1]
+            sortedFOMOutputs.append(sampleMin)
+            sortedDNNOutputs.append(DNN(torch.from_numpy(sortSample[jMin][0]).to(torch.float32)).detach().numpy()[0])
+            sortSample.pop(jMin)
+        print(range(len(sortedDNNOutputs)))
+        print(sortedDNNOutputs)
+        minSortedDNNOutputs = np.min(sortedDNNOutputs)
+        plt.bar(range(len(sortedDNNOutputs)), sortedDNNOutputs)
+        plt.suptitle('sortedDNNOutputs')
+        plt.show()
+        """
+        plt.bar(range(len(sortedDNNOutputs)), sortedDNNOutputs-minSortedDNNOutputs)
+        plt.suptitle('translated sortedDNNOutputs')
+        plt.show()
+        """
+        plt.bar(range(len(sortedFOMOutputs)), sortedFOMOutputs)
+        plt.suptitle('sortedFOMOutputs')
+        plt.show()
+
+    def f(inp):
+        scaledInput = torch.from_numpy((inp-minIn)/(maxIn-minIn)).to(torch.float32)
+        with torch.inference_mode():
+            scaledOutput = DNN(scaledInput)
+        # return scaledOutput.numpy()
+        print('scaledOutput.numpy()[0]: {}'.format(scaledOutput.numpy()[0]))
+        return scaledOutput.numpy()[0]*(maxOut-minOut)+minOut
+    return f
+    """
+    training_data = CustomDataset(normSample[V_DNN[2]:])
+    test_data = CustomDataset(normSample[:V_DNN[2]])
+    train_dataloader = DataLoader(training_data, batch_size=training_batch_size, shuffle=True)
+    test_dataloader = DataLoader(test_data, batch_size=testing_batch_size, shuffle=True)
+    DNN = FullyConnectedNN(V_DNN[0], activation_function=V_DNN[1])
+    """
+    """
+    # initialization
+    for name, param in DNN.named_parameters():
+        if 'bias' in name:
+            param = torch.zeros(param.size())
+        else:
+            param = torch.from_numpy(np.random.multivariate_normal(u_k, C_k_new)
+    """
+    """
+    loss_fn = nn.MSELoss()
+    optimizer = torch.optim.LBFGS(DNN.parameters(), lr=learning_rate, line_search_fn='strong_wolfe')
+
+    DNN_optimizer(DNN, train_dataloader, test_dataloader, loss_fn, optimizer, epochs)
+    DNN_eval = evaluate_DNN(DNN, training_data, test_data, loss_fn)
+    for i in range(25):
+        DNN_i = FullyConnectedNN(V_DNN[0], activation_function=V_DNN[1])
+        optimizer = torch.optim.LBFGS(DNN_i.parameters(), lr=learning_rate, line_search_fn='strong_wolfe')
+        DNN_optimizer(DNN_i, train_dataloader, test_dataloader, loss_fn, optimizer, epochs)
+        DNN_i_eval = evaluate_DNN(DNN_i, training_data, test_data, loss_fn)
+        if DNN_i_eval < DNN_eval:
+            DNN_eval = DNN_i_eval
+            DNN = DNN_i
+    # DNN(torch.from_numpy(sample[m][0]).to(torch.float32)) approx sample[m][1] for all m
+    return lambda mu: DNN(torch.from_numpy((mu-minIn)/(maxIn-minIn)).to(torch.float32)).detach().numpy()[0]*(maxOut-minOut)+minOut
+    """
+    """
+    def out(x):
+        if np.min(x) >= minIn and np.max(x) <= maxIn:
+            return DNN(torch.from_numpy((x-minIn)/(maxIn-minIn)).to(torch.float32)).detach().numpy()[0]
+        else:
+            return 0.
+    def out1(x):
+        out = DNN(torch.from_numpy((x-minIn)/(maxIn-minIn)).to(torch.float32)).detach().numpy()[0]
+        if out < 0:
+            return 0.
+        elif out > 1:
+            return 1.
+        else:
+            return out
+    # return out
+    # return out1
+    return lambda mu: DNN(torch.from_numpy((mu-minIn)/(maxIn-minIn)).to(torch.float32)).detach().numpy()[0]
+    """
 
 
 def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff):
@@ -580,9 +997,97 @@ def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, n
     V_DNN[0].insert(0, len(u_0))
     V_DNN[0].insert(len(V_DNN[0]), 1)
     var_o = var
+    var_i = var_o #/20
+    # var_i_list = [var_i]
+    F_k = F(u_0)
+    u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_0, N, 0, [], 0, F_k, beta_1, beta_2, r, eps_o, nu_1, var_o, correlationCoeff)
+    t = np.linspace(0, T, num=nt+1)
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(t, u_k_tilde, label='u_k_tilde: {}'.format(1))
+    ax.legend()
+    plt.show()
+    k = 1
+    u_k = u_0
+    u_k_next = u_k.copy()
+    while (F_k_tilde > F_k+eps_o and k < k_1_o):
+        # u_k = u_k_tilde.copy()
+        # F_k = F_k_tilde
+        T_k_x = np.zeros((N, nt+1))
+        for i in range(N):
+            T_k_x[i, :] = T_k[i][0]
+        minIn = np.zeros(nt+1)
+        maxIn = np.zeros(nt+1)
+        for i in range(nt+1):
+            minIn[i] = np.min(T_k_x[:, i])
+            maxIn[i] = np.max(T_k_x[:, i])
+        F_ML_k = train(T_k, V_DNN, minIn, maxIn)
+        """
+        evalMLM(F_ML_k, T_k, k)
+        F_k_next = F_k
+        F_ML_k_u_k = F_ML_k(u_k)
+        # C_k_inv = LA.inv(C_k)
+        maxDiff = 0
+        for i in range(len(T_k)):
+            diff = np.min(np.abs(u_k-T_k[i][0]))
+            if diff > maxDiff:
+                maxDiff = diff
+        """
+        # u_k_next = enOpt1(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, F, proj=lambda mu: projectionSample(mu, minIn, maxIn))[0]
+        # u_k_next = enOpt1(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, F)[0]
+        u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff)[0]
+        F_k_next = F(u_k_next)
+        # evalMLM_delta(F_ML_k, F, u_k, u_k_next, del
+        # var_i = maxDiff/50ta)
+        # evalMLM_delta1(F_ML_k, F, u_k, u_k_next, delta)
+
+        if F_k_next <= F_k+eps_o:
+            print('fail')
+            print(k)
+            return u_k, k
+
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(t, u_k_next, label='u_k_next: {}'.format(k))
+        ax.legend()
+        plt.show()
+        fig, ax = plt.subplots(1, 1)
+        for i in range(len(T_k)):
+            ax.plot(t, T_k[i][0])
+        plt.show()
+        """
+        u_k_diff = u_k_next-u_k_tilde
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(t, u_k_diff, label='u_k_diff: {}'.format(k))
+        ax.legend()
+        plt.show()
+        """
+        u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_k_next, N, k, T_k, C_k, F_k_next, beta_1, beta_2, r, eps_o, nu_1, var_o, correlationCoeff)
+        covList = []
+        for i in range(len(C_k)):
+            covList.append(C_k[i, i])
+        tCov = range(len(C_k))
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(tCov, covList, label='Cov')
+        ax.legend()
+        plt.show()
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(t, u_k_tilde, label='u_k_tilde: {}'.format(k+1))
+        ax.legend()
+        plt.show()
+        F_k = F_k_next
+        u_k = u_k_next.copy()
+        k = k+1
+        # var_i *= 0.1
+    return u_k, k
+
+
+def AML_EnOptOld(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff):
+    # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
+    V_DNN[0].insert(0, len(u_0))
+    V_DNN[0].insert(len(V_DNN[0]), 1)
+    var_o = var
     var_i = var_o/20
     # var_i_list = [var_i]
-    delta = 100
+    delta = 10
     F_k = F(u_0)
     u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_0, N, 0, [], 0, F_k, beta_1, beta_2, r, eps_o, nu_1, var_o, correlationCoeff)
     t = np.linspace(0, T, num=nt+1)
@@ -608,21 +1113,52 @@ def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, n
             if diff > maxDiff:
                 maxDiff = diff
         var_i = maxDiff/50
-        while np.all(u_k_next == u_k):
-            # u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, proj = lambda mu: projection(mu, u_k, delta, C_k_inv))[0]
-            u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, proj = lambda mu: projection1(mu, u_k, delta))[0]
-            print(u_k_next)
-            F_k_next = F(u_k_next)
-            rho_k = (F_k_next-F_k)/(F_ML_k(u_k_next)-F_ML_k_u_k)
-            if rho_k < 0.25:
-                delta *= 0.25
+        trustRegionFlag = True
+        while trustRegionFlag:
+            u_k_tilde_check = 0
+            if np.all(u_k_tilde == projection1(u_k_tilde, u_k, delta)):
+                u_k_tilde_check = 1
+            fig, ax = plt.subplots(1, 1)
+            ax.plot([0, 1], [u_k_tilde_check, u_k_tilde_check], label='u_k_tilde_check')
+            ax.legend()
+            plt.show()
+            T_k_check = 0
+            for i in range(len(T_k)):
+                if np.all(T_k[i][0] == projection1(T_k[i][0], u_k, delta)):
+                    T_k_check += 1
+            fig, ax = plt.subplots(1, 1)
+            ax.plot([0, 1], [T_k_check, T_k_check], label='T_k_check')
+            ax.legend()
+            plt.show()
+            if u_k_tilde_check == 1:
+                # u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, proj=lambda mu: projection(mu, u_k, delta, C_k_inv))[0]
+                # u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, proj=lambda mu: projection1(mu, u_k, delta))[0]
+                u_k_next = enOpt1(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, F, proj=lambda mu: projection1(mu, u_k, delta))[0]
+                # evalMLM_delta(F_ML_k, F, u_k, u_k_next, delta)
+                # evalMLM_delta1(F_ML_k, F, u_k, u_k_next, delta)
+                print(u_k_next)
+                F_k_next = F(u_k_next)
+                rho_k = (F_k_next-F_k)/(F_ML_k(u_k_next)-F_ML_k_u_k)
+                if rho_k < 0.25:
+                    delta *= 0.25
+                else:
+                    # if rho_k > 0.75 and np.max(np.abs(C_k_inv.dot(u_k-u_k_next))) == delta:
+                    if rho_k > 0.75 and np.max(np.abs(u_k-u_k_next)) == delta:
+                        delta *= 2
+                if rho_k <= 0:
+                    u_k_next = u_k.copy()
+                else:
+                    trustRegionFlag = False
             else:
-                # if rho_k > 0.75 and np.max(np.abs(C_k_inv.dot(u_k-u_k_next))) == delta:
-                if rho_k > 0.75 and np.max(np.abs(u_k-u_k_next)) == delta:
-                    delta *= 2
-            if rho_k <= 0:
-                u_k_next = u_k.copy()
+                u_k_next = u_k_tilde
+                trustRegionFlag = False
             deltaList.append(delta)
+            fig, ax = plt.subplots(1, 1)
+            ax.plot(range(len(deltaList)), deltaList, label='delta')
+            ax.legend()
+            plt.show()
+        evalMLM_delta(F_ML_k, F, u_k, u_k_next, delta)
+        evalMLM_delta1(F_ML_k, F, u_k, u_k_next, delta)
         tDelta = range(len(deltaList))
         fig, ax = plt.subplots(1, 1)
         ax.plot(tDelta, deltaList, label='delta')
@@ -647,6 +1183,133 @@ def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, n
         ax.plot(t, u_k_diff, label='u_k_diff: {}'.format(k))
         ax.legend()
         plt.show()
+        u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_k_next, N, k, T_k, C_k, F_k_next, beta_1, beta_2, r, eps_o, nu_1, var_o, correlationCoeff)
+        covList = []
+        for i in range(len(C_k)):
+            covList.append(C_k[i, i])
+        tCov = range(len(C_k))
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(tCov, covList, label='Cov')
+        ax.legend()
+        plt.show()
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(t, u_k_tilde, label='u_k_tilde: {}'.format(k+1))
+        ax.legend()
+        plt.show()
+        F_k = F_k_next
+        u_k = u_k_next.copy()
+        k = k+1
+        # var_i *= 0.1
+    return u_k, k
+
+
+def AML_EnOptOldOld(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff):
+    # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
+    V_DNN[0].insert(0, len(u_0))
+    V_DNN[0].insert(len(V_DNN[0]), 1)
+    var_o = var
+    var_i = var_o/20
+    # var_i_list = [var_i]
+    delta = 100
+    F_k = F(u_0)
+    u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_0, N, 0, [], 0, F_k, beta_1, beta_2, r, eps_o, nu_1, var_o, correlationCoeff)
+    t = np.linspace(0, T, num=nt+1)
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(t, u_k_tilde, label='u_k_tilde: {}'.format(1))
+    ax.legend()
+    plt.show()
+    k = 1
+    u_k = u_0
+    u_k_next = u_k.copy()
+    while (F_k_tilde > F_k+eps_o and k < k_1_o):
+        # u_k = u_k_tilde.copy()
+        # F_k = F_k_tilde
+        T_k_x = np.zeros((N, nt+1))
+        for i in range(N):
+            T_k_x[i, :] = T_k[i][0]
+        minIn = np.zeros(nt+1)
+        maxIn = np.zeros(nt+1)
+        for i in range(nt+1):
+            minIn[i] = np.min(T_k_x[:, i])
+            maxIn[i] = np.max(T_k_x[:, i])
+        F_ML_k = train(T_k, V_DNN, minIn, maxIn)
+        # evalMLM(F_ML_k, T_k, k)
+        F_k_next = F_k
+        F_ML_k_u_k = F_ML_k(u_k)
+        deltaList = [delta]
+        # C_k_inv = LA.inv(C_k)
+        maxDiff = 0
+        for i in range(len(T_k)):
+            diff = np.min(np.abs(u_k-T_k[i][0]))
+            if diff > maxDiff:
+                maxDiff = diff
+        var_i = maxDiff/50
+        trustRegionFlag = True
+        while trustRegionFlag:
+            u_k_tilde_check = 0
+            if np.all(u_k_tilde == projection1(u_k_tilde, u_k, delta)):
+                u_k_tilde_check = 1
+            fig, ax = plt.subplots(1, 1)
+            ax.plot([0, 1], [u_k_tilde_check, u_k_tilde_check], label='u_k_tilde_check')
+            ax.legend()
+            plt.show()
+            T_k_check = 0
+            for i in range(len(T_k)):
+                if np.all(T_k[i][0] == projection1(T_k[i][0], u_k, delta)):
+                    T_k_check += 1
+            fig, ax = plt.subplots(1, 1)
+            ax.plot([0, 1], [T_k_check, T_k_check], label='T_k_check')
+            ax.legend()
+            plt.show()
+            # u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, proj=lambda mu: projection(mu, u_k, delta, C_k_inv))[0]
+            # u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, proj=lambda mu: projection1(mu, u_k, delta))[0]
+            u_k_next = enOpt1(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var, correlationCoeff, F, proj=lambda mu: projection1(mu, u_k, delta))[0]
+            print(u_k_next)
+            F_k_next = F(u_k_next)
+            rho_k = (F_k_next-F_k)/(F_ML_k(u_k_next)-F_ML_k_u_k)
+            if rho_k < 0.25:
+                delta *= 0.25
+            else:
+                # if rho_k > 0.75 and np.max(np.abs(C_k_inv.dot(u_k-u_k_next))) == delta:
+                if rho_k > 0.75 and np.max(np.abs(u_k-u_k_next)) == delta:
+                    delta *= 2
+            if rho_k <= 0:
+                u_k_next = u_k.copy()
+            else:
+                trustRegionFlag = False
+            deltaList.append(delta)
+            fig, ax = plt.subplots(1, 1)
+            ax.plot(range(len(deltaList)), deltaList, label='delta')
+            ax.legend()
+            plt.show()
+        # evalMLM_delta(F_ML_k, F, u_k, u_k_next, delta)
+        # evalMLM_delta1(F_ML_k, F, u_k, u_k_next, delta)
+        tDelta = range(len(deltaList))
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(tDelta, deltaList, label='delta')
+        ax.legend()
+        plt.show()
+        """
+        if F_k_next <= F_k+eps_o:
+            print('fail')
+            print(k)
+            return u_k, k
+        """
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(t, u_k_next, label='u_k_next: {}'.format(k))
+        ax.legend()
+        plt.show()
+        fig, ax = plt.subplots(1, 1)
+        for i in range(len(T_k)):
+            ax.plot(t, T_k[i][0])
+        plt.show()
+        """
+        u_k_diff = u_k_next-u_k_tilde
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(t, u_k_diff, label='u_k_diff: {}'.format(k))
+        ax.legend()
+        plt.show()
+        """
         u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_k_next, N, k, T_k, C_k, F_k_next, beta_1, beta_2, r, eps_o, nu_1, var_o, correlationCoeff)
         covList = []
         for i in range(len(C_k)):
@@ -889,15 +1552,15 @@ init = np.zeros(nt+1)-40
 
 
 # optimized control function using the EnOpt minimizer
-N = 500
-eps = 1e-12
+N = 100
+eps = 1e-9
 k_1 = 1000
-beta_1 = 100
+beta_1 = 1
 beta_2 = 1
 r = 0.5
-nu_1 = 20
-var = 1
-correlationCoeff = 0.99
+nu_1 = 10
+var = 0.001
+correlationCoeff = 0.9
 
 
 # analytical minimizer
@@ -923,13 +1586,15 @@ def opt1():
 """
 
 # optimized control function using the AML EnOpt minimizer
-eps_o = eps
+eps_o = 1e-9
 eps_i = 1e-9
 k_1_o = k_1
 k_1_i = k_1
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
-# V_DNN = [[25, 25], torch.tanh, 50, 100, 100, 10, 1e-4]
-V_DNN = [[25, 25], torch.tanh, 50, 100, 50, 5, 1e-4]
+# V_DNN = [[100, 100, 40], torch.tanh, 50, 100, 100, 10, 1e-4]
+V_DNN = [[250, 250], torch.tanh, 50, 100, 100, 10, 1e-4]
+# V_DNN = [[200, 200, 100, 50], torch.tanh, 50, 100, 100, 10, 1e-4]
+# V_DNN = [[25, 25], torch.tanh, 50, 100, 50, 5, 1e-4]
 
 qParamAMLOpt, kAML = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt)
 print(qParamAMLOpt, kAML)
@@ -949,4 +1614,68 @@ uOptBFGS = fomOptBFGS.solve({'a': a})
 
 def opt3():
     result('L_BFGS_B', qParamOptBFGS, qParam, outOptBFGS, fomOptBFGS, dataOptBFGS, uOptBFGS, y1OptBFGS, y2OptBFGS, a, T, nt)
+"""
+"""
+T_k = [[np.array([-40.00487241, -40.00407639, -40.0063089 , -40.00636447,
+       -40.00510211, -40.0063463 , -40.0053436 , -40.00658185,
+       -40.00562901, -40.00481124, -40.00262891]), -4.3219718214993685], [np.array([-39.99810605, -39.99671477, -39.9974675 , -39.99884012,
+       -39.99768732, -39.9966866 , -39.99910849, -40.000109  ,
+       -40.00200245, -40.00197303, -40.00326857]), -4.321961182329264], [np.array([-39.99948767, -40.00015782, -39.99968415, -40.00097932,
+       -40.00030969, -40.00080768, -40.00110685, -40.00035003,
+       -40.00012607, -39.99993789, -39.9997851 ]), -4.321956214877475], [np.array([-39.99746972, -39.99570938, -39.99616834, -39.99762459,
+       -39.99808248, -39.99751036, -39.9989023 , -39.99999128,
+       -40.00198238, -40.00179074, -40.0007511 ]), -4.3219614459522795], [np.array([-40.00163663, -40.00364395, -40.0045095 , -40.00554076,
+       -40.00812964, -40.00906352, -40.00725983, -40.00583655,
+       -40.00411683, -40.00349097, -40.00380864]), -4.32197506922419], [np.array([-40.00186155, -40.00224204, -40.00418156, -40.00340717,
+       -40.00317383, -40.00247862, -40.00164247, -39.9994556 ,
+       -39.99989034, -39.99954583, -39.99944015]), -4.321952664127266], [np.array([-40.00016798, -39.99917946, -39.99987463, -39.99924288,
+       -39.99944679, -39.99994732, -40.00006716, -40.00122806,
+       -40.00278103, -40.00326205, -40.00254897]), -4.321962889060513], [np.array([-39.99726598, -39.99698666, -39.99787161, -39.99727513,
+       -39.99751131, -39.99672849, -39.99708057, -39.99865431,
+       -39.99933507, -39.99719985, -39.9994125 ]), -4.32194968409204], [np.array([-40.00002613, -40.00030734, -40.00184325, -40.00045929,
+       -39.9997424 , -39.99998407, -40.00083086, -39.99983679,
+       -39.99892994, -39.99902631, -39.99901122]), -4.321951629538084], [np.array([-39.99935655, -40.00097682, -40.00202206, -40.00179537,
+       -40.00285204, -40.00431062, -40.00457095, -40.00490957,
+       -40.0025601 , -40.00139029, -40.00017704]), -4.321967180847871]]
+JFirst = -J(np.array([-40.00487241, -40.00407639, -40.0063089, -40.00636447, -40.00510211, -40.0063463, -40.0053436, -40.00658185, -40.00562901, -40.00481124, -40.00262891]), -np.sqrt(5), 0.1, nt=10)[0]
+JSec = -J(np.array([-39.99810605, -39.99671477, -39.9974675, -39.99884012, -39.99768732, -39.9966866, -39.99910849, -40.000109, -40.00200245, -40.00197303, -40.00326857]), -np.sqrt(5), 0.1, nt=10)[0]
+JLast = -J(np.array([-39.99935655, -40.00097682, -40.00202206, -40.00179537, -40.00285204, -40.00431062, -40.00457095, -40.00490957, -40.0025601, -40.00139029, -40.00017704]), -np.sqrt(5), 0.1, nt=10)[0]
+# V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
+V_DNN = [[300, 300], torch.tanh, 2, 300, 5, 1, 1e-5]
+V_DNN[0].insert(0, 11)
+V_DNN[0].insert(len(V_DNN[0]), 1)
+print(T_k[0])
+# T_k_x = np.zeros((N, nt+1))
+T_k_x = np.zeros((10, nt+1))
+for i in range(10):
+    T_k_x[i, :] = T_k[i][0]
+"""
+"""
+minIn = []
+maxIn = []
+for i in range(nt+1):
+    minIn.append(np.min(T_k_x[:, i]))
+    maxIn.append(np.max(T_k_x[:, i]))
+"""
+"""
+minIn = np.zeros(nt+1)
+maxIn = np.zeros(nt+1)
+for i in range(nt+1):
+    minIn[i] = np.min(T_k_x[:, i])
+    maxIn[i] = np.max(T_k_x[:, i])
+print('T_k_x: {}'.format(T_k_x))
+torch.manual_seed(10)
+f = trainOld(T_k, V_DNN)
+fFirst = f(np.array([-39.99935655, -40.00097682, -40.00202206, -40.00179537, -40.00285204, -40.00431062, -40.00457095, -40.00490957, -40.0025601, -40.00139029, -40.00017704]))
+fSec = f(np.array([-39.99810605, -39.99671477, -39.9974675, -39.99884012, -39.99768732, -39.9966866, -39.99910849, -40.000109, -40.00200245, -40.00197303, -40.00326857]))
+fLast = f(np.array([-40.00487241, -40.00407639, -40.0063089, -40.00636447, -40.00510211, -40.0063463, -40.0053436, -40.00658185, -40.00562901, -40.00481124, -40.00262891]))
+print(fFirst)
+print(JFirst)
+print(fFirst-JFirst)
+print(fSec)
+print(JSec)
+print(fSec-JSec)
+print(fLast)
+print(JLast)
+print(fLast-JLast)
 """
