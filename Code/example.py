@@ -217,10 +217,20 @@ def lineSearch(F, u_k, d_k, beta, r, eps, nu_1, proj):
     beta_k = beta
     u_k_new = proj(u_k+beta_k*d_k)
     nu = 0
+    beta_k_list = [beta_k]
     while (F(u_k_new)-F(u_k) <= eps and nu < nu_1):
         beta_k = r*beta_k
+        beta_k_list.append(beta_k)
         u_k_new = proj(u_k+beta_k*d_k)
         nu = nu+1
+    fig, ax = plt.subplots(1, 1)
+    ax.plot([0, 1], [nu, nu], label='line search iterations')
+    ax.legend()
+    plt.show()
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(range(len(beta_k_list)), beta_k_list, label='beta_k')
+    ax.legend()
+    plt.show()
     return u_k_new
 
 
@@ -630,8 +640,16 @@ def projection(x, x0, delta):
         return x
 
 
+def projection2(x, u_k, d_k):
+    up = u_k + d_k
+    low = u_k - d_k
+    return np.maximum(np.minimum(x, up), low)
+
+
 def projectionSample(x, minIn, maxIn):
     xProj = x.copy()
+    assert len(xProj) == len(minIn)
+    assert len(xProj) == len(maxIn)
     for i in range(len(xProj)):
         if xProj[i] < minIn[i]:
             xProj[i] = minIn[i]
@@ -1067,7 +1085,358 @@ def train(sample, V_DNN, minIn, maxIn):
     """
 
 
-def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff):
+def AML_EnOptNewTR2(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff):
+    # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
+    V_DNN[0].insert(0, len(u_0))
+    V_DNN[0].insert(len(V_DNN[0]), 1)
+    var_o = var
+    var_i = var_o  # /100
+    # var_i_list = [var_i]
+    F_k = F(u_0)
+    F_k_next = F_k
+    u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_0, N, 0, [], None, F_k, beta_1, beta_2, r, eps_o, nu_1, var_o, correlationCoeff)
+    t = np.linspace(0, T, num=nt+1)
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(t, u_k_tilde, label='u_k_tilde: {}'.format(1))
+    ax.legend()
+    plt.show()
+    k = 1
+    u_k = u_0
+    u_k_next = u_k.copy()
+    u_k_tilde_check = []
+    fails_iter = []
+    fails = 0
+    delta = 40
+    while (F_k_tilde > F_k+eps_o and k < k_1_o):
+        # u_k = u_k_tilde.copy()
+        # F_k = F_k_tilde
+        fails -= 1
+        T_k_x = np.zeros((N, nt+1))
+        for i in range(N):
+            T_k_x[i, :] = T_k[i][0]
+        minIn = np.zeros(nt+1)
+        maxIn = np.zeros(nt+1)
+        for i in range(nt+1):
+            minIn[i] = np.min(T_k_x[:, i])
+            maxIn[i] = np.max(T_k_x[:, i])
+        u_k_tilde_check_iter = 0
+        if np.all(u_k_tilde == projectionSample(u_k_tilde, minIn, maxIn)):
+            u_k_tilde_check_iter = 1
+        u_k_tilde_check.append(u_k_tilde_check_iter)
+        F_ML_k = train(T_k, V_DNN, minIn, maxIn)
+        """
+        evalMLM(F_ML_k, T_k, k)
+        F_k_next = F_k
+        F_ML_k_u_k = F_ML_k(u_k)
+        # C_k_inv = LA.inv(C_k)
+        maxDiff = 0
+        for i in range(len(T_k)):
+            diff = np.min(np.abs(u_k-T_k[i][0]))
+            if diff > maxDiff:
+                maxDiff = diff
+        """
+        d_k = np.abs(u_k-u_k_tilde)
+
+        while F_k_next <= F_k+eps_o:
+            fails += 1
+            # evalMLM(F_ML_k, T_k, k)
+            F_ML_k_u_k = F_ML_k(u_k)
+            deltaList = [delta]
+            # C_k_inv = LA.inv(C_k)
+            """
+            maxDiff = 0
+            for i in range(len(T_k)):
+                diff = np.min(np.abs(u_k-T_k[i][0]))
+                if diff > maxDiff:
+                    maxDiff = diff
+            var_i = maxDiff/50
+            """
+            trustRegionFlag = True
+            while trustRegionFlag:
+                d_k_iter = delta * d_k
+                u_k_tilde_check2 = 0
+                if np.all(u_k_tilde == projection2(u_k_tilde, u_k, d_k_iter)):
+                    u_k_tilde_check2 = 1
+                fig, ax = plt.subplots(1, 1)
+                ax.plot([0, 1], [u_k_tilde_check2, u_k_tilde_check2], label='u_k_tilde_check2')
+                ax.legend()
+                plt.show()
+                T_k_check = 0
+                for i in range(len(T_k)):
+                    if np.all(T_k[i][0] == projection2(T_k[i][0], u_k, d_k_iter)):
+                        T_k_check += 1
+                fig, ax = plt.subplots(1, 1)
+                ax.plot([0, 1], [T_k_check, T_k_check], label='T_k_check')
+                ax.legend()
+                plt.show()
+                # u_k_next = enOpt1(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, F, proj=lambda mu: projection(mu, u_k, delta), Cov=C_k)[0]
+                u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, proj=lambda mu: projection2(mu, u_k, d_k_iter), Cov=C_k)[0]
+                print(u_k_next)
+                F_k_next = F(u_k_next)
+                rho_k = (F_k_next-F_k)/(F_ML_k(u_k_next)-F_ML_k_u_k)
+                if rho_k < 0.25:
+                    delta *= 0.25
+                else:
+                    # if rho_k > 0.75 and np.max(np.abs(C_k_inv.dot(u_k-u_k_next))) == delta:
+                    if rho_k > 0.75 and np.any(np.abs(u_k-u_k_next)-d_k_iter == 0):
+                        delta *= 2
+                if rho_k <= 0:
+                    u_k_next = u_k.copy()
+                else:
+                    trustRegionFlag = False
+                deltaList.append(delta)
+                fig, ax = plt.subplots(1, 1)
+                ax.plot(range(len(deltaList)), deltaList, label='delta')
+                ax.legend()
+                plt.show()
+            # evalMLM_delta(F_ML_k, F, u_k, u_k_next, delta)
+            # evalMLM_delta1(F_ML_k, F, u_k, u_k_next, delta)
+            fig, ax = plt.subplots(1, 1)
+            ax.plot(range(len(deltaList)), deltaList, label='delta')
+            ax.legend()
+            plt.show()
+
+        fails_iter.append(fails)
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(t, u_k_next, label='u_k_next: {}'.format(k))
+        ax.legend()
+        plt.show()
+        fig, ax = plt.subplots(1, 1)
+        for i in range(len(T_k)):
+            ax.plot(t, T_k[i][0])
+        plt.show()
+        T_k_min_u = T_k[0][0].copy()
+        T_k_min_dist = LA.norm(T_k_min_u-u_k)
+        T_k_max_u = T_k[0][0].copy()
+        T_k_max_dist = LA.norm(T_k_max_u-u_k)
+        for i in range(len(T_k)):
+            dist = LA.norm(T_k[i][0]-u_k)
+            if dist < T_k_min_dist:
+                T_k_min_dist = dist
+                T_k_min_u = T_k[i][0].copy()
+            if dist > T_k_max_dist:
+                T_k_max_dist = dist
+                T_k_max_u = T_k[i][0].copy()
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(t, u_k, label='u_k: {}'.format(k))
+        ax.plot(t, u_k_tilde, label='u_k_tilde: {}'.format(k))
+        ax.plot(t, u_k_next, label='u_k_next: {}'.format(k))
+        ax.plot(t, T_k_min_u, label='T_k_min: {}'.format(k))
+        ax.plot(t, T_k_max_u, label='T_k_max: {}'.format(k))
+        ax.legend()
+        plt.show()
+        fig, ax = plt.subplots(1, 1)
+        ax.plot([0, 1], [LA.norm(u_k_tilde-u_k), LA.norm(u_k_tilde-u_k)], label='u_k_tilde dist: {}'.format(k))
+        # ax.plot([0,1], [LA.norm(u_k_next-u_k), LA.norm(u_k_next-u_k)], label='u_k_next dist: {}'.format(k))
+        ax.plot([0, 1], [T_k_min_dist, T_k_min_dist], label='T_k_min dist: {}'.format(k))
+        ax.plot([0, 1], [T_k_max_dist, T_k_max_dist], label='T_k_max dist: {}'.format(k))
+        ax.legend()
+        plt.show()
+        fig, ax = plt.subplots(1, 1)
+        ax.plot([0, 1], [LA.norm(u_k_tilde-u_k), LA.norm(u_k_tilde-u_k)], label='u_k_tilde dist: {}'.format(k))
+        ax.plot([0, 1], [LA.norm(u_k_next-u_k), LA.norm(u_k_next-u_k)], label='u_k_next dist: {}'.format(k))
+        ax.plot([0, 1], [T_k_min_dist, T_k_min_dist], label='T_k_min dist: {}'.format(k))
+        ax.plot([0, 1], [T_k_max_dist, T_k_max_dist], label='T_k_max dist: {}'.format(k))
+        ax.legend()
+        plt.show()
+        """
+        u_k_diff = u_k_next-u_k_tilde
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(t, u_k_diff, label='u_k_diff: {}'.format(k))
+        ax.legend()
+        plt.show()
+        """
+        u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_k_next, N, k, T_k, C_k, F_k_next, beta_1, beta_2, r, eps_o, nu_1, var_o, correlationCoeff)
+        covList = []
+        for i in range(len(C_k)):
+            covList.append(C_k[i, i])
+        tCov = range(len(C_k))
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(tCov, covList, label='Cov')
+        ax.legend()
+        plt.show()
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(t, u_k_tilde, label='u_k_tilde: {}'.format(k+1))
+        ax.legend()
+        plt.show()
+        F_k = F_k_next
+        u_k = u_k_next.copy()
+        k = k+1
+        # var_i *= 0.1
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(range(len(u_k_tilde_check)), u_k_tilde_check, label='u_k_tilde_check')
+    ax.legend()
+    plt.show()
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(range(len(fails_iter)), fails_iter, label='fails')
+    ax.legend()
+    plt.show()
+    print('fails: {}'.format(fails))
+    return u_k, k
+
+
+def AML_EnOptNewTR(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff):
+    # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
+    V_DNN[0].insert(0, len(u_0))
+    V_DNN[0].insert(len(V_DNN[0]), 1)
+    var_o = var
+    var_i = var_o  # /100
+    # var_i_list = [var_i]
+    F_k = F(u_0)
+    u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_0, N, 0, [], None, F_k, beta_1, beta_2, r, eps_o, nu_1, var_o, correlationCoeff)
+    t = np.linspace(0, T, num=nt+1)
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(t, u_k_tilde, label='u_k_tilde: {}'.format(1))
+    ax.legend()
+    plt.show()
+    k = 1
+    u_k = u_0
+    u_k_next = u_k.copy()
+    u_k_tilde_check = []
+    fails_iter = []
+    fails = 0
+    delta = 40
+    while (F_k_tilde > F_k+eps_o and k < k_1_o):
+        # u_k = u_k_tilde.copy()
+        # F_k = F_k_tilde
+        T_k_x = np.zeros((N, nt+1))
+        for i in range(N):
+            T_k_x[i, :] = T_k[i][0]
+        minIn = np.zeros(nt+1)
+        maxIn = np.zeros(nt+1)
+        for i in range(nt+1):
+            minIn[i] = np.min(T_k_x[:, i])
+            maxIn[i] = np.max(T_k_x[:, i])
+        u_k_tilde_check_iter = 0
+        if np.all(u_k_tilde == projectionSample(u_k_tilde, minIn, maxIn)):
+            u_k_tilde_check_iter = 1
+        u_k_tilde_check.append(u_k_tilde_check_iter)
+        F_ML_k = train(T_k, V_DNN, minIn, maxIn)
+        """
+        evalMLM(F_ML_k, T_k, k)
+        F_k_next = F_k
+        F_ML_k_u_k = F_ML_k(u_k)
+        # C_k_inv = LA.inv(C_k)
+        maxDiff = 0
+        for i in range(len(T_k)):
+            diff = np.min(np.abs(u_k-T_k[i][0]))
+            if diff > maxDiff:
+                maxDiff = diff
+        """
+        u_k_tilde_reg_up = []
+        u_k_tilde_reg_low = []
+        for i in range(len(u_k)):
+            if u_k[i] < u_k_tilde[i]:
+                u_k_tilde_reg_up.append(u_k_tilde[i])
+                u_k_tilde_reg_low.append(u_k[i])
+            else:
+                u_k_tilde_reg_up.append(u_k[i])
+                u_k_tilde_reg_low.append(u_k_tilde[i])
+        # u_k_next = enOpt1(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, F, proj=lambda mu: projectionSample(mu, minIn, maxIn))[0]
+        # u_k_next = enOpt1(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, F)[0]
+        u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, proj=lambda mu: projectionSample(mu, u_k_tilde_reg_low, u_k_tilde_reg_up), Cov=C_k)[0]
+        # u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, Cov=C_k)[0]
+        # u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff)[0]
+        F_k_next = F(u_k_next)
+        T_k_min_u = T_k[0][0].copy()
+        T_k_min_dist = LA.norm(T_k_min_u-u_k)
+        T_k_max_u = T_k[0][0].copy()
+        T_k_max_dist = LA.norm(T_k_max_u-u_k)
+        for i in range(len(T_k)):
+            dist = LA.norm(T_k[i][0]-u_k)
+            if dist < T_k_min_dist:
+                T_k_min_dist = dist
+                T_k_min_u = T_k[i][0].copy()
+            if dist > T_k_max_dist:
+                T_k_max_dist = dist
+                T_k_max_u = T_k[i][0].copy()
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(t, u_k, label='u_k: {}'.format(k))
+        ax.plot(t, u_k_tilde, label='u_k_tilde: {}'.format(k))
+        ax.plot(t, u_k_next, label='u_k_next: {}'.format(k))
+        ax.plot(t, T_k_min_u, label='T_k_min: {}'.format(k))
+        ax.plot(t, T_k_max_u, label='T_k_max: {}'.format(k))
+        ax.legend()
+        plt.show()
+        fig, ax = plt.subplots(1, 1)
+        ax.plot([0,1], [LA.norm(u_k_tilde-u_k), LA.norm(u_k_tilde-u_k)], label='u_k_tilde dist: {}'.format(k))
+        # ax.plot([0,1], [LA.norm(u_k_next-u_k), LA.norm(u_k_next-u_k)], label='u_k_next dist: {}'.format(k))
+        ax.plot([0,1], [T_k_min_dist, T_k_min_dist], label='T_k_min dist: {}'.format(k))
+        ax.plot([0,1], [T_k_max_dist, T_k_max_dist], label='T_k_max dist: {}'.format(k))
+        ax.legend()
+        plt.show()
+        fig, ax = plt.subplots(1, 1)
+        ax.plot([0,1], [LA.norm(u_k_tilde-u_k), LA.norm(u_k_tilde-u_k)], label='u_k_tilde dist: {}'.format(k))
+        ax.plot([0,1], [LA.norm(u_k_next-u_k), LA.norm(u_k_next-u_k)], label='u_k_next dist: {}'.format(k))
+        ax.plot([0,1], [T_k_min_dist, T_k_min_dist], label='T_k_min dist: {}'.format(k))
+        ax.plot([0,1], [T_k_max_dist, T_k_max_dist], label='T_k_max dist: {}'.format(k))
+        ax.legend()
+        plt.show()
+        # evalMLM_delta(F_ML_k, F, u_k, u_k_next, del
+        # var_i = maxDiff/50ta)
+        # evalMLM_delta1(F_ML_k, F, u_k, u_k_next, delta)
+
+        if F_k_next <= F_k+eps_o:
+            fig, ax = plt.subplots(1, 1)
+            ax.plot(range(len(u_k_tilde_check)), u_k_tilde_check, label='u_k_tilde_check')
+            ax.legend()
+            plt.show()
+            print('fail')
+            print('F_k_next: {}'.format(F_k_next))
+            print('F_k: {}'.format(F_k))
+            print('F_k_tilde: {}'.format(F_k_tilde))
+            print(k)
+            u_k_next = u_k_tilde.copy()
+            F_k_next = F_k_tilde
+            fails += 1
+            return u_k, k
+
+        fails_iter.append(fails)
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(t, u_k_next, label='u_k_next: {}'.format(k))
+        ax.legend()
+        plt.show()
+        fig, ax = plt.subplots(1, 1)
+        for i in range(len(T_k)):
+            ax.plot(t, T_k[i][0])
+        plt.show()
+        """
+        u_k_diff = u_k_next-u_k_tilde
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(t, u_k_diff, label='u_k_diff: {}'.format(k))
+        ax.legend()
+        plt.show()
+        """
+        u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_k_next, N, k, T_k, C_k, F_k_next, beta_1, beta_2, r, eps_o, nu_1, var_o, correlationCoeff)
+        covList = []
+        for i in range(len(C_k)):
+            covList.append(C_k[i, i])
+        tCov = range(len(C_k))
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(tCov, covList, label='Cov')
+        ax.legend()
+        plt.show()
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(t, u_k_tilde, label='u_k_tilde: {}'.format(k+1))
+        ax.legend()
+        plt.show()
+        F_k = F_k_next
+        u_k = u_k_next.copy()
+        k = k+1
+        # var_i *= 0.1
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(range(len(u_k_tilde_check)), u_k_tilde_check, label='u_k_tilde_check')
+    ax.legend()
+    plt.show()
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(range(len(fails_iter)), fails_iter, label='fails')
+    ax.legend()
+    plt.show()
+    print('fails: {}'.format(fails))
+    return u_k, k
+
+
+def AML_EnOptOldTR(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff):
     # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
     V_DNN[0].insert(0, len(u_0))
     V_DNN[0].insert(len(V_DNN[0]), 1)
@@ -1262,7 +1631,7 @@ def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, n
     return u_k, k
 
 
-def AML_EnOptNoTR(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff):
+def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff):
     # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
     V_DNN[0].insert(0, len(u_0))
     V_DNN[0].insert(len(V_DNN[0]), 1)
@@ -1885,7 +2254,7 @@ init = np.zeros(nt+1)-40
 
 # optimized control function using the EnOpt minimizer
 N = 100
-eps = 1e-9
+eps = 1e-5
 k_1 = 1000
 beta_1 = 1
 beta_2 = 1
@@ -1918,8 +2287,8 @@ def opt1():
 """
 
 # optimized control function using the AML EnOpt minimizer
-eps_o = 1e-9
-eps_i = 1e-9
+eps_o = 1e-5
+eps_i = 1e-5
 k_1_o = k_1
 k_1_i = k_1
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate

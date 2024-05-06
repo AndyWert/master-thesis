@@ -87,7 +87,7 @@ The implementation in pseudo code is shown here:
 \begin{algorithm}[H]%\footnotesize
 \caption{OptStep algorithm}
 \begin{algorithmic}[1]
-\Procedure{OptStep}{F,$\mathbf{q}_k,N,k,T_k,\mathbf{C}_{\mathbf{q}_{k-1}}^{k-1},F_k,\beta,\tilde{\beta},r,\varepsilon,\nu^*,\sigma^2,\rho,\operatorname{pr}$}
+\Procedure{OptStep}{$F,\mathbf{q}_k,N,k,T_k,\mathbf{C}_{\mathbf{q}_{k-1}}^{k-1},F_k,\beta,\tilde{\beta},r,\varepsilon,\nu^*,\sigma^2,\rho,\operatorname{pr}$}
 \If{$k=0$}
 \State \text{Compute the initial covariance matrix }$\mathbf{C}_{\mathbf{q}_0}^0$\text{ like defined in }\eqref{initCov}\text{ with }$\mathbf{q}_0,\sigma^2,\rho$
 \Else

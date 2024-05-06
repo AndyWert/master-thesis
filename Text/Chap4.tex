@@ -50,4 +50,44 @@ Since we search for local minima of the loss function, the initial value $\mathb
 
 For the training of the DNN, we perform multiple restarts of the training algorithm with different initializations of $\mathbf{W}^{(0)}$ which minimizes the dependence of our neural network from the initial values. After we have trained enough DNNs, we select the neural network $\Phi_{\mathbf{W}^*}$ that has the smallest combined loss $\mathscr{L}(\Phi_{\mathbf{W}^*},T_\mathrm{train})+\mathscr{L}(\Phi_{\mathbf{W}^*},T_\mathrm{val})$ over all restarts.
 
+\begin{algorithm}[H]%\footnotesize
+\caption{DNN construction}
+\begin{algorithmic}[1]
+\Procedure{constructDNN}{$\mathrm{sample}, V_\mathrm{DNN}, \mathrm{minIn}, \mathrm{maxIn}$}
+%\State \text{scale inputs and outputs like described and save them as }$\mathrm{normSample}$\text{ and }$\mathrm{normVal}$
+\State $\mathrm{normSample} \gets \mathrm{np.zeros}((\mathrm{len}(\mathrm{sample}), \mathrm{len}(\mathrm{sample}[0][0])))$
+\State $\mathrm{normVal} \gets \mathrm{np.zeros}(\mathrm{len}(\mathrm{sample}))$
+\For{$i = 0,\dotsc,\mathrm{len}(\mathrm{sample})$}
+\State $\mathrm{normSample}[i, :] \gets \mathrm{sample}[i][0]$
+\State $\mathrm{normVal}[i] \gets \mathrm{sample}[i][1]$
+\EndFor
+\State $\mathrm{minOut} \gets \mathrm{np.min}(\mathrm{normVal})$
+\State $\mathrm{maxOut} \gets \mathrm{np.max}(\mathrm{normVal})$
+\State $\mathrm{normSample} \gets \mathrm{normSample}-\mathrm{minIn}$
+\State $\mathrm{normVal} \gets  \mathrm{normVal}-\mathrm{minOut}$
+\State $\mathrm{normSample} \gets \mathrm{normSample}/(\mathrm{maxIn}-\mathrm{minIn})$
+\State $\mathrm{normVal} \gets \mathrm{normVal}/(\mathrm{maxOut}-\mathrm{minOut})$
+\State \text{divide }$\mathrm{normSample}$\text{ and }$\mathrm{normVal}$\text{ into train/test splits }$x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{test}, y_\mathrm{test}$
+\State $\mathrm{DNN} \gets \mathrm{FullyConnectedNN}(V_\mathrm{DNN}[0], \mathrm{activation\_function}=V_\mathrm{DNN}[1])$
+\State $\mathrm{trainDNN}(\mathrm{DNN}, )$
+\State $\mathrm{evalDNN} \gets \mathrm{testDNN}(\mathrm{DNN}, )$
+\For{$i=1,\dotsc,\mathrm{numberOfRestarts}$}
+\State $\mathrm{DNN}_i \gets \mathrm{FullyConnectedNN}(V_\mathrm{DNN}[0], \mathrm{activation\_function}=V_\mathrm{DNN}[1])$
+\State $\mathrm{trainDNN}(\mathrm{DNN}_i, )$
+\State $\mathrm{evalDNN}_i \gets \mathrm{testDNN}(\mathrm{DNN}_i, )$
+\If{$\mathrm{evalDNN}_i<\mathrm{evalDNN}$}
+\State $\mathrm{evalDNN} \gets \mathrm{evalDNN}_i$
+\State $\mathrm{DNN} \gets \mathrm{DNN}_i$
+\EndIf
+\EndFor
+
+\State \text{define the function }$F_\mathrm{ML}$
+
+
+\State \Return $\mathbf{q}_{k+1},T_{k+1},\mathbf{C}_{\mathbf{q}_k}^k,F_{k+1}$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+
 \section{Modifying the EnOpt algorithm by using a neural network-based surrogate}
