@@ -6,7 +6,7 @@ In this chapter, we introduce the Adaptive-ML-EnOpt algorithm \cite{Keil2022-dj}
 
 This description of deep neural networks is based on the definitions in \cite{Keil2022-dj}.
 
-DNNs are used here to approximate a function $f:\mathbb{R}^{N_{\mathrm{in}}}\to\mathbb{R}^{N_{\mathrm{out}}}$ with $N_{\mathrm{in}},N_{\mathrm{out}}\in\mathbb{N}$. We call $L\in\mathbb{N}$ the number of layers and $N_{\mathrm{in}}=N_0,N_1,...,N_{L-1}, N_L=N_{\mathrm{out}}$ the number of neurons in each layer. $W_i\in\mathbb{R}^{N_i\times N_{i-1}}$ denotes the weights in layer $i\in\{1,...,L\}$ and $b_i\in\mathbb{R}^{N_i}$ the biases of the layer $i\in\{1,...,L\}$. These are composed as $\mathbf{W}=\left((W_1,b_1),...,(W_L,b_L)\right)$, which is a tuple of pairs of corresponding weights and biases.
+DNNs are used here to approximate a function $f:\mathbb{R}^{N_{\mathrm{in}}}\to\mathbb{R}^{N_{\mathrm{out}}}$ with $N_{\mathrm{in}},N_{\mathrm{out}}\in\mathbb{N}$. We call $L\in\mathbb{N}$ the number of layers and $N_{\mathrm{in}}=N_0,N_1,\dotsc,N_{L-1}, N_L=N_{\mathrm{out}}$ the number of neurons in each layer. $W_i\in\mathbb{R}^{N_i\times N_{i-1}}$ denotes the weights in layer $i\in\{1,\dotsc,L\}$ and $b_i\in\mathbb{R}^{N_i}$ the biases of the layer $i\in\{1,\dotsc,L\}$. These are composed as $\mathbf{W}=\left((W_1,b_1),\dotsc,(W_L,b_L)\right)$, which is a tuple of pairs of corresponding weights and biases.
 
 $\rho:\mathbb{R}\to\mathbb{R}$ is the so-called activation function. A popular example is the rectified linear unit funtion $\rho(x)=\operatorname{max}(x,0)$, however we will use the hyperbolic tangent funtion:
 \begin{displaymath}
@@ -17,15 +17,15 @@ $\rho_n^*:\mathbb{R}^n\to\mathbb{R}^n$ is now defined as the component-wise appl
 To calculate the output $\Phi_\mathbf{W}(x)\in\mathbb{R}^{N_{\mathrm{out}}}$ of a DNN for an input $x\in\mathbb{R}^{N_{\mathrm{in}}}$, we apply the weights, biases, and activation function multiple times onto the input. It is calculated iteratively as shown here:
 \begin{eqnarray*}
 r_0(x)&:=&x,\\
-r_i(x)&:=&\rho_{N_i}^*(W_ir_{i-1}(x)+b_i)\text{ for }i=1,...,L-1,\\
+r_i(x)&:=&\rho_{N_i}^*(W_ir_{i-1}(x)+b_i)\text{ for }i=1,\dotsc,L-1,\\
 r_L(x)&:=&W_Lr_{L-1}(x)+b_L,\\
 \Phi_\mathbf{W}(x)&:=&r_L(x).
 \end{eqnarray*}
 
 Now we try to optimize the parameters in $\mathbf{W}$ such that $\Phi_\mathbf{W}\approx f$. To achieve this, we sample a set that consists of inputs $x_i\in X\subset\mathbb{R}^{N_{\mathrm{in}}}$ and corresponding outputs $f(x_i)\in\mathbb{R}^{N_{\mathrm{out}}}$ and assemble them in the training set
-\begin{displaymath}
-T_\mathrm{train}=\{(x_1,f(x_1)),...,(x_n,f(x_n))\}\subset X\times\mathbb{R}^{N_\mathrm{out}}.
-\end{displaymath}
+\begin{equation}
+T_\mathrm{train}=\{(x_1,f(x_1)),\dotsc,(x_{N_\mathrm{train}},f(x_{N_\mathrm{train}}))\}\subset X\times\mathbb{R}^{N_\mathrm{out}}.
+\end{equation}
 To evaluate the performance of our chosen $\mathbf{W}$, we use the mean squared error loss $\mathscr{L}(\Phi_\mathbf{W},T_\mathrm{train})$ to measure the distance between $\Phi_\mathbf{W}$ and $f$ on a training set. The mean squared error loss is defined as
 \begin{displaymath}
 \mathscr{L}(\Phi_\mathbf{W},T_\mathrm{train}):=\frac{1}{|T_\mathrm{train}|}\sum_{(x,y)\in T_\mathrm{train}}\| \Phi_\mathbf{W}(x)-y\|_2^2.
@@ -46,9 +46,80 @@ abort the training and use $\mathbf{W}^{(k^*)}$
 
 So we abort the training if the minimum loss is not decreasing over a prescribed number of consecutive epochs. Our reasoning behind that is that the loss on the validation set is not srictly decreasing and can even increase over some epochs, but that is fine for us as long as we can decrease the loss over time.
 
-Since we search for local minima of the loss function, the initial value $\mathbf{W}^{(0)}$ of our iteration effects the local optimum that we get and therefore the performance. We use Kaiming initialization \cite{7410480} to set our initial value $\mathbf{W}^{(0)}$. With Kaiming initialization, the starting values are initialized randomly since the elements of the weights $W_i$ are sampled from a zero-mean Gaussian distribution whose standard deviation is $\sqrt{2/N_{i-1}}$ for $i\in\{1,...,L\}$. The biases $b_i$ are set to zero for $i\in\{1,...,L\}$. The idea behind the random sampling is that the specified standard deviation prevents the exponential increase/ reduction of the input as shown in \cite{7410480}.
+To summarize, the training of one neural network is shown in algorithm \ref{trainDNN}. It takes the initialization of the neural network ($\mathrm{DNN}$), the inputs and outputs of the training set ($x_\mathrm{train}, y_\mathrm{train}$), the inputs and outputs of the testing set ($x_\mathrm{test}, y_\mathrm{test}$), the loss function ($\mathrm{loss\_fn}$), the optimizer ($\mathrm{optimizer}$), and the number of training epochs ($\mathrm{epochs}$). In our case, the loss function is chosen as the mean squared error loss and we use the L-BFGS optimizer with strong Wolfe line-search as our optimizer. The number of training epochs is only the maximum number of iterations since we apply early stopping to our training algorithm. Usually, the training terminates earlier because the loss over the testing set is not decreasing further.
+
+The function `$\mathrm{testDNN}$' in algorithm \ref{trainDNN} returns the loss of the function $\mathrm{loss\_fn}$ between the output of the DNN with the current parameters and the output of the objective function over the testing set which are saved as $y_\mathrm{train}$. So if $\mathrm{loss\_fn}=\mathscr{L}$, we have $\mathrm{testDNN}(\mathrm{DNN}, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn}) = \mathscr{L}(\mathrm{DNN}, T_\mathrm{test})$ with
+\begin{displaymath}
+T_\mathrm{test}=\{((x_\mathrm{test})_1,(y_\mathrm{test})_1),\dotsc,((x_\mathrm{test})_{N_\mathrm{test}},(y_\mathrm{test})_{N_\mathrm{test}})\}.
+\end{displaymath}
+
+\begin{algorithm}[H]%\footnotesize
+\caption{\label{trainDNN}DNN training}
+\begin{algorithmic}[1]
+\Procedure{trainDNN}{$\mathrm{DNN}, x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn}, \mathrm{optimizer}, \mathrm{epochs}$}
+\State $\mathrm{wait} \gets 0$
+\State $\mathrm{minimalTestLoss} \gets \mathrm{testDNN}(\mathrm{DNN}, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn})$
+\State \text{save the current parameters of the DNN}%$\mathrm{torch.save}(\mathrm{DNN.state\_dict}(), \mathrm{'checkpoint.pth'})$
+\For{$\mathrm{epoch}=1,\dotsc,\mathrm{epochs}$}
+\State \text{do one training step with the }$\mathrm{optimizer}$
+\State $\mathrm{testLoss} \gets \mathrm{testDNN}(\mathrm{DNN}, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn})$
+\If{$\mathrm{testLoss} < \mathrm{minimalTestLoss}$}
+\State $\mathrm{wait} \gets 0$
+\State $\mathrm{minimalTestLoss} \gets \mathrm{testLoss}$
+\State \text{save the current parameters of the DNN}%$\mathrm{torch.save}(\mathrm{DNN.state\_dict}(), \mathrm{'checkpoint.pth'})$
+\Else
+\State $\mathrm{wait} \gets \mathrm{wait}+1$
+\EndIf
+\If{$\mathrm{wait} \geq \mathrm{earlyStop}$}
+\State \text{overwrite the parameters of the DNN with the saved parameters}%$\mathrm{DNN.load\_state\_dict}(\mathrm{torch.load}(\mathrm{'checkpoint.pth'}))$
+\State \Return
+\EndIf
+\EndFor
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+Since we search for local minima of the loss function, the initial value $\mathbf{W}^{(0)}$ of our iteration effects the local optimum that we get and therefore the performance. We use Kaiming initialization \cite{7410480} to set our initial value $\mathbf{W}^{(0)}$. With Kaiming initialization, the starting values are initialized randomly since the elements of the weights $W_i$ are sampled from a zero-mean Gaussian distribution whose standard deviation is $\sqrt{2/N_{i-1}}$ for $i\in\{1,\dotsc,L\}$. The biases $b_i$ are set to zero for $i\in\{1,\dotsc,L\}$. The idea behind the random sampling is that the specified standard deviation prevents the exponential increase/ reduction of the input as shown in \cite{7410480}.
 
 For the training of the DNN, we perform multiple restarts of the training algorithm with different initializations of $\mathbf{W}^{(0)}$ which minimizes the dependence of our neural network from the initial values. After we have trained enough DNNs, we select the neural network $\Phi_{\mathbf{W}^*}$ that has the smallest combined loss $\mathscr{L}(\Phi_{\mathbf{W}^*},T_\mathrm{train})+\mathscr{L}(\Phi_{\mathbf{W}^*},T_\mathrm{val})$ over all restarts.
+
+Before the whole algorithm for the construction of the DNN is presented, we look at the data that we use for the training. If we sample the inputs in a small area, it is likely that the corresponding outputs are also close to each other. Since we convert the values for the training of the neural network from double to float, it can even happen that the converted inputs or outputs are constant. In that case, the digits of these values that differ from each other get cut off at the conversion.
+
+We want the values of the inputs and outputs to be distributed in such a way that significant differences are correctly represented. For that, the inputs $x\in\mathbb{R}^n$ and outputs $y\in\mathbb{R}$ are scaled to $\tilde{x}\in[0,1]^n$ and $\tilde{y}\in[0,1]$.
+
+Let
+\begin{equation}
+T=\{(x_1,y_1),\dotsc,(x_N,y_N)\}
+\end{equation}
+be a sample set of size $N$ and
+\begin{align*}
+T_x&=\{x_1,\dotsc,x_N\},&T_y&=\{y_1,\dotsc,y_N\}
+\end{align*}
+the sets that contain the inputs/ output of that sample.
+
+We define $x^\mathrm{low}, x^\mathrm{upp}\in\mathbb{R}^n$ and $y^\mathrm{low}, y^\mathrm{upp}\in\mathbb{R}$ as
+\begin{eqnarray*}
+x^\mathrm{low}_i&:=&\operatorname*{min}\{x_i\mid x\in T_x\}\text{ for }i=1,\dotsc,n,\\
+x^\mathrm{upp}_i&:=&\operatorname*{max}\{x_i\mid x\in T_x\}\text{ for }i=1,\dotsc,n,\\
+y^\mathrm{low}&:=&\operatorname*{min}T_y,\\
+y^\mathrm{upp}&:=&\operatorname*{max}T_y.
+\end{eqnarray*}
+
+Now, $\tilde{x}$ and $\tilde{y}$ are calculated as
+\begin{align*}
+\tilde{x}_i&=\frac{x_i-x^\mathrm{low}_i}{x^\mathrm{upp}_i-x^\mathrm{low}_i}\text{ for }i=1,\dotsc,n,&\tilde{y}&=\frac{y-y^\mathrm{low}}{y^\mathrm{upp}-y^\mathrm{low}}.
+\end{align*}
+
+After we have trained the neural network, we need to rescale the DNN outputs so that we have a proper approximation of the function $f$. The output $\Phi(\tilde{x})$ of the DNN $\Phi$ is rescaled with the calculation $\Phi(\tilde{x})\cdot(y^\mathrm{upp}-y^\mathrm{low})+y^\mathrm{low}$.
+%\begin{eqnarray*}
+%\tilde{x}_i&=\frac{x_i-x^\mathrm{low}_i}{x^\mathrm{upp}_i-x^\mathrm{low}_i}&\text{ for }i=1,\dotsc,n,\\
+%\tilde{y}&=\frac{y-y^\mathrm{low}}{y^\mathrm{upp}-y^\mathrm{low}},&
+%\end{eqnarray*}
+
+
+
+
+%todo: 'Here is the full algorithm...', describe inputs, ...
 
 \begin{algorithm}[H]%\footnotesize
 \caption{DNN construction}
@@ -57,37 +128,34 @@ For the training of the DNN, we perform multiple restarts of the training algori
 %\State \text{scale inputs and outputs like described and save them as }$\mathrm{normSample}$\text{ and }$\mathrm{normVal}$
 \State $\mathrm{normSample} \gets \mathrm{np.zeros}((\mathrm{len}(\mathrm{sample}), \mathrm{len}(\mathrm{sample}[0][0])))$
 \State $\mathrm{normVal} \gets \mathrm{np.zeros}(\mathrm{len}(\mathrm{sample}))$
-\For{$i = 0,\dotsc,\mathrm{len}(\mathrm{sample})$}
+\For{$i = 0,\dotsc,\mathrm{len}(\mathrm{sample})-1$}
 \State $\mathrm{normSample}[i, :] \gets \mathrm{sample}[i][0]$
 \State $\mathrm{normVal}[i] \gets \mathrm{sample}[i][1]$
 \EndFor
 \State $\mathrm{minOut} \gets \mathrm{np.min}(\mathrm{normVal})$
 \State $\mathrm{maxOut} \gets \mathrm{np.max}(\mathrm{normVal})$
-\State $\mathrm{normSample} \gets \mathrm{normSample}-\mathrm{minIn}$
-\State $\mathrm{normVal} \gets  \mathrm{normVal}-\mathrm{minOut}$
-\State $\mathrm{normSample} \gets \mathrm{normSample}/(\mathrm{maxIn}-\mathrm{minIn})$
-\State $\mathrm{normVal} \gets \mathrm{normVal}/(\mathrm{maxOut}-\mathrm{minOut})$
+\State $\mathrm{scaleInput} \gets \mathbf{lambda}\:\mathrm{mu}: (\mathrm{mu}-\mathrm{minIn})/(\mathrm{maxIn}-\mathrm{minIn})$
+\State $\mathrm{scaleOutput} \gets \mathbf{lambda}\:\mathrm{mu}: (\mathrm{mu}-\mathrm{minOut})/(\mathrm{maxOut}-\mathrm{minOut})$
+\State $\mathrm{rescaleOutput} \gets \mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}\cdot(\mathrm{maxOut}-\mathrm{minOut})+\mathrm{minOut}$
+\State $\mathrm{normSample} \gets \mathrm{scaleInput}(\mathrm{normSample})$
+\State $\mathrm{normVal} \gets \mathrm{scaleOutput}(\mathrm{normVal})$
 \State \text{divide }$\mathrm{normSample}$\text{ and }$\mathrm{normVal}$\text{ into train/test splits }$x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{test}, y_\mathrm{test}$
 \State $\mathrm{DNN} \gets \mathrm{FullyConnectedNN}(V_\mathrm{DNN}[0], \mathrm{activation\_function}=V_\mathrm{DNN}[1])$
-\State $\mathrm{trainDNN}(\mathrm{DNN}, )$
-\State $\mathrm{evalDNN} \gets \mathrm{testDNN}(\mathrm{DNN}, )$
+\State $\mathrm{trainDNN}(\mathrm{DNN}, x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn}, \mathrm{optimizer}, \mathrm{epochs})$
+\State $\mathrm{evalDNN} \gets \mathrm{testDNN}(\mathrm{DNN}, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn})$
 \For{$i=1,\dotsc,\mathrm{numberOfRestarts}$}
 \State $\mathrm{DNN}_i \gets \mathrm{FullyConnectedNN}(V_\mathrm{DNN}[0], \mathrm{activation\_function}=V_\mathrm{DNN}[1])$
-\State $\mathrm{trainDNN}(\mathrm{DNN}_i, )$
-\State $\mathrm{evalDNN}_i \gets \mathrm{testDNN}(\mathrm{DNN}_i, )$
+\State $\mathrm{trainDNN}(\mathrm{DNN}_i, x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn}, \mathrm{optimizer}, \mathrm{epochs})$
+\State $\mathrm{evalDNN}_i \gets \mathrm{testDNN}(\mathrm{DNN}_i, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn})$
 \If{$\mathrm{evalDNN}_i<\mathrm{evalDNN}$}
 \State $\mathrm{evalDNN} \gets \mathrm{evalDNN}_i$
 \State $\mathrm{DNN} \gets \mathrm{DNN}_i$
 \EndIf
 \EndFor
-
-\State \text{define the function }$F_\mathrm{ML}$
-
-
-\State \Return $\mathbf{q}_{k+1},T_{k+1},\mathbf{C}_{\mathbf{q}_k}^k,F_{k+1}$
+\State $F_\mathrm{ML} \gets \mathbf{lambda}\:\mathrm{mu}: \mathrm{rescaleOutput}(\mathrm{DNN}(\mathrm{scaleInput}(\mathrm{mu})))$
+\State \Return $F_\mathrm{ML}$
 \EndProcedure
 \end{algorithmic}
 \end{algorithm}
-
 
 \section{Modifying the EnOpt algorithm by using a neural network-based surrogate}

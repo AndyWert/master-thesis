@@ -14,11 +14,11 @@ We start at an initialization $\mathbf{q}_0$,  which is updated iteratively with
 \begin{displaymath}
 \mathbf{d}_k\approx\frac{\mathbf{C}_{\mathbf{q}_k}^k\mathbf{G}_k}{\|\mathbf{C}_{\mathbf{q}_k}^k\mathbf{G}_k\|}_\infty,
 \end{displaymath}
-where $k=0,1,2,...$ denotes the optimization iteration. $\beta_k$ with $\beta_k>0$ is computed by using a line search. Furthermore, $\mathbf{C}_{\mathbf{q}_k}^k$ denotes the user-defined covariance matrix of the control variables at the $k$-th iteration and $\mathbf{G}_k$ is the approximate gradient of $F$ with respect to the control variables.
+where $k=0,1,2,\dotsc$ denotes the optimization iteration. $\beta_k$ with $\beta_k>0$ is computed by using a line search. Furthermore, $\mathbf{C}_{\mathbf{q}_k}^k$ denotes the user-defined covariance matrix of the control variables at the $k$-th iteration and $\mathbf{G}_k$ is the approximate gradient of $F$ with respect to the control variables.
 
 We define the initial covariance matrix $\mathbf{C}_{\mathbf{q}_0}^0$ so that the covariance between controls of different basis functions $\phi_i,\phi_j$ is zero and
 \begin{displaymath}
-\mathrm{Cov}(q_j^i,q_j^{i+h})=\sigma_j^2\rho^h\left(\frac{1}{1-\rho^2}\right),\text{ for all }h\in\{0,...,M-i\},
+\mathrm{Cov}(q_j^i,q_j^{i+h})=\sigma_j^2\rho^h\left(\frac{1}{1-\rho^2}\right),\text{ for all }h\in\{0,\dotsc,M-i\},
 \end{displaymath}
 where $\sigma_j^2>0$ is the variance for the basis function $\phi_j$ and $\rho\in(-1,1)$ the correlation coefficient.
 
@@ -34,7 +34,7 @@ That means that for $\mathbf{C}_j:=\left(\mathrm{Cov}(q_j^i,q_j^{k})\right)_{i,k
  \end{pmatrix}.
 \end{equation}
 
-To compute the step direction $\mathbf{d}_k$ at iteration step $k$, we sample $\mathbf{q}_{k,m}\in\mathcal{D}$ for $m=1,...,N$, with $N\in\mathbb{N}$, from a multivariate Gaussian distribution with mean $\mathbf{q}_k$ and covariance $\mathbf{C}_{\mathbf{q}_k}^k$, and then we define
+To compute the step direction $\mathbf{d}_k$ at iteration step $k$, we sample $\mathbf{q}_{k,m}\in\mathcal{D}$ for $m=1,\dotsc,N$, with $N\in\mathbb{N}$, from a multivariate Gaussian distribution with mean $\mathbf{q}_k$ and covariance $\mathbf{C}_{\mathbf{q}_k}^k$, and then we define
 \begin{equation}
 \label{CqkF}
 \mathbf{C}_{\mathbf{q}_k,F}^k:=\frac{1}{N-1}\sum_{m=1}^N(\mathbf{q}_{k,m}-\mathbf{q}_k)(F(\mathbf{q}_{k,m})-F(\mathbf{q}_k)).
