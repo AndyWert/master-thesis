@@ -1364,7 +1364,7 @@ def AML_EnOptNewTR2(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2
         """
         d_k = np.abs(u_k-u_k_tilde)
 
-        while F_k_next <= F_k+eps_o and k < k_1_o:
+        while F_k_next <= F_k+eps_o:
             fails += 1
             # evalMLM(F_ML_k, T_k, k)
             F_ML_k_u_k = F_ML_k(u_k)
