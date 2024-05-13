@@ -2742,7 +2742,7 @@ def AML_EnOpt2(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, 
 
 
 def ROM_EnOpt(u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals=50, nt=50):
-    return AML_EnOptNewTR2(lambda mu: -J(mu, a, T, grid_intervals, nt)[0], u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff)
+    return AML_EnOptOld2(lambda mu: -J(mu, a, T, grid_intervals, nt)[0], u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff)
 
 
 def result(name, qParamOpt, qParam, out, fom, data, u, y1, y2, a, T, nt):
@@ -2796,7 +2796,7 @@ init = np.zeros(nt+1)-40
 
 # optimized control function using the EnOpt minimizer
 N = 100
-eps = 1e-9
+eps = 1e-6
 k_1 = 1000
 beta_1 = 1
 beta_2 = 1
@@ -2829,8 +2829,8 @@ def opt1():
 """
 
 # optimized control function using the AML EnOpt minimizer
-eps_o = 1e-9
-eps_i = 1e-9
+eps_o = 1e-6
+eps_i = 1e-6
 k_1_o = k_1
 k_1_i = k_1
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
