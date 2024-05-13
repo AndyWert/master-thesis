@@ -171,9 +171,9 @@ To summarize, we present now the construction of a DNN as pseudo code. Training 
 \end{algorithmic}
 \end{algorithm}
 
-We define the Adaptive-ML-EnOpt algorithm:
+We describe now the Adaptive-ML-EnOpt algorithm. This algorithm takes the initial guess $\mathbf{q}_0\in\mathbb{R}^{N_u}$, the sample size $N\in\mathbb{N}$, the tolerances $\varepsilon_o,\varepsilon_i>0$ for the outer and inner iterations, the maximum number of outer and inner iterations $k_o^*,k_i^*\in\mathbb{N}$, the DNN-specific variables $V_{\mathrm{DNN}}$, the initial step size $\beta>0$, the step size contraction $r\in(0,1)$ and the maximum number of step size trials $\nu^*\in\mathbb{N}$.
 \begin{algorithm}[H]%\footnotesize
-\caption{Adaptive-ML-EnOpt algorithm}
+\caption{\label{AML-EnOpt}Adaptive-ML-EnOpt algorithm}
 \begin{algorithmic}[1]
 \Procedure{ROM-EnOpt}{$F,\mathbf{q}_0,N,\varepsilon_o,\varepsilon_i,k_o^*,k_i^*,V_{\mathrm{DNN}},\beta_1, \beta_2,r,\nu^*,\sigma^2,\rho$}
 \State $F_0\gets F(\mathbf{q}_0)$
@@ -184,7 +184,7 @@ We define the Adaptive-ML-EnOpt algorithm:
 \State $F_\mathrm{ML}^k\gets\mathrm{Train}(T_k, V_\mathrm{DNN}, \mathrm{minIn}, \mathrm{maxIn})$
 \State $\mathbf{d}_k\gets|\mathbf{q}_k-\tilde{\mathbf{q}}_k|$
 \State $F_{k+1}=F_k$
-\While{$F_{k+1}\leq F_k+\varepsilon_o$\text{ and }$k<k_o^*$}
+\While{$F_{k+1}\leq F_k+\varepsilon_o$}
 \State $F^\mathrm{approx}_k\gets F_\mathrm{ML}^k(\mathbf{q}_k)$
 \State $\mathrm{flag}_\mathrm{TR}\gets \mathrm{True}$
 \While{$\mathrm{flag}_\mathrm{TR}$}
@@ -210,4 +210,3 @@ We define the Adaptive-ML-EnOpt algorithm:
 \EndProcedure
 \end{algorithmic}
 \end{algorithm}
-The Adaptive-ML-EnOpt algorithm takes the initial guess $\mathbf{u}_0\in\mathbb{R}^{N_u}$, the sample size $N\in\mathbb{N}$, the tolerances $\varepsilon_o,\varepsilon_i>0$ for the outer and inner iterations, the maximum number of outer and inner iterations $k_o^*,k_i^*\in\mathbb{N}$, the DNN construction strategy $\mathrm{CS}\in\{\mathrm{DNN}_s,\mathrm{DNN}_v\}$, the DNN-specific variables $V_{\mathrm{DNN}}$, the initial step size $\beta>0$, the step size contraction $r\in(0,1)$ and the maximum number of step size trials $\nu^*\in\mathbb{N}$. $\mathrm{Train}(T_k,\mathrm{CS},V_{\mathrm{DNN}})$ returns a DNN $F_\mathrm{ML}^k$, which is, depending on the construction strategy, either scalar-valued or vector-valued.
