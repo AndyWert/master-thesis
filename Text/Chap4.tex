@@ -81,7 +81,7 @@ T_\mathrm{test}=\{((x_\mathrm{test})_1,(y_\mathrm{test})_1),\dotsc,((x_\mathrm{t
 
 Since we search for local minima of the loss function, the initial value $\mathbf{W}^{(0)}$ of our iteration effects the local optimum that we get and therefore the performance. We use Kaiming initialization \cite{7410480} to set our initial value $\mathbf{W}^{(0)}$. With Kaiming initialization, the starting values are initialized randomly since the elements of the weights $W_i$ are sampled from a zero-mean Gaussian distribution whose standard deviation is $\sqrt{2/N_{i-1}}$ for $i\in\{1,\dotsc,L\}$. The biases $b_i$ are set to zero for $i\in\{1,\dotsc,L\}$. The idea behind the random sampling is that the specified standard deviation prevents the exponential increase/ reduction of the input as shown in \cite{7410480}.
 
-For the training of the DNN, we perform multiple restarts of the training algorithm with different initializations of $\mathbf{W}^{(0)}$ which minimizes the dependence of our neural network from the initial values. After we have trained enough DNNs, we select the neural network $\Phi_{\mathbf{W}^*}$ that has the smallest combined loss $\mathscr{L}(\Phi_{\mathbf{W}^*},T_\mathrm{train})+\mathscr{L}(\Phi_{\mathbf{W}^*},T_\mathrm{val})$ over all restarts.
+For the training of the DNN, we perform multiple restarts of the training algorithm with different initializations of $\mathbf{W}^{(0)}$ which minimizes the dependence of our neural network from the initial values. After we have trained enough DNNs, we select the neural network $\Phi_{\mathbf{W}^*}$ that has the smallest evaluation loss $\mathscr{L}(\Phi_{\mathbf{W}^*},T_\mathrm{val})$ over all restarts.
 
 Before the whole algorithm for the construction of the DNN is presented, we look at the data that we use for the training. If we sample the inputs in a small area, it is likely that the corresponding outputs are also close to each other. Since we convert the values for the training of the neural network from double to float, it can even happen that the converted inputs or outputs are constant. In that case, the digits of these values that differ from each other get cut off at the conversion.
 
@@ -116,10 +116,7 @@ After we have trained the neural network, we need to rescale the DNN outputs so 
 %\tilde{y}&=\frac{y-y^\mathrm{low}}{y^\mathrm{upp}-y^\mathrm{low}},&
 %\end{eqnarray*}
 
-
-
-
-%todo: 'Here is the full algorithm...', describe inputs, ...
+To summarize, we present now the construction of a DNN as pseudo code. Training parameters like the neural network structure, the activation function, the loss function, the optimizer and the number of training epochs are stored in $V_\mathrm{DNN}$. We denote $x^\mathrm{low}$ as $\mathrm{minIn}$, $x^\mathrm{upp}$ as $\mathrm{maxIn}$, $y^\mathrm{low}$ as $\mathrm{minOut}$ and $y^\mathrm{upp}$ as $\mathrm{maxOut}$. $\mathrm{minIn}$ and $\mathrm{maxIn}$ are calculated before the construction of the DNN and are taken as an input.
 
 \begin{algorithm}[H]%\footnotesize
 \caption{DNN construction}
@@ -159,3 +156,58 @@ After we have trained the neural network, we need to rescale the DNN outputs so 
 \end{algorithm}
 
 \section{Modifying the EnOpt algorithm by using a neural network-based surrogate}
+ For the next step, we use neural networks like in \cite{Keil2022-dj} to get an improved version of the EnOpt algorithm. Here, we want to replace calls of the FOM function by a surrogate that is a neural network. The surrogate is supposed to be a local approximation of the FOM function around the current iterate. Doing that globally with a sufficient precision would be computationally too expensive.
+ 
+ Since the surrogate is only locally exact, we will introduce a trust region method. For that, we use an algorithm that projects inputs into the trust region.
+ 
+ \begin{algorithm}[H]%\footnotesize
+\caption{Projection}
+\begin{algorithmic}[1]
+\Procedure{TR-Projection}{$x, \mathbf{q}_k, \mathbf{d}_k$}
+\State $\mathrm{upp}\gets\mathbf{q}_k+\mathbf{d}_k$
+\State $\mathrm{low}\gets\mathbf{q}_k-\mathbf{d}_k$
+\State \Return $\mathrm{np.maximum}(\mathrm{np.minimum}(x,\mathrm{upp}),\mathrm{low})$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+We define the Adaptive-ML-EnOpt algorithm:
+\begin{algorithm}[H]%\footnotesize
+\caption{Adaptive-ML-EnOpt algorithm}
+\begin{algorithmic}[1]
+\Procedure{ROM-EnOpt}{$F,\mathbf{q}_0,N,\varepsilon_o,\varepsilon_i,k_o^*,k_i^*,V_{\mathrm{DNN}},\beta_1, \beta_2,r,\nu^*,\sigma^2,\rho$}
+\State $F_0\gets F(\mathbf{q}_0)$
+\State $\tilde{\mathbf{q}}_0,T_0,\mathbf{C}_{\mathbf{q}_0}^0,\tilde{F}_0\gets\mathrm{OptStep}(F,\mathbf{q}_0,N,0,\{\},0,\beta,r,\nu^*)$
+\State $k\gets 0$
+\While{$\tilde{F}_k>F_k+\varepsilon_o$\text{ and }$k<k_o^*$}
+\State $\text{compute }\mathrm{minIn}\text{ and }\mathrm{maxIn}$
+\State $F_\mathrm{ML}^k\gets\mathrm{Train}(T_k, V_\mathrm{DNN}, \mathrm{minIn}, \mathrm{maxIn})$
+\State $\mathbf{d}_k\gets|\mathbf{q}_k-\tilde{\mathbf{q}}_k|$
+\State $F_{k+1}=F_k$
+\While{$F_{k+1}\leq F_k+\varepsilon_o$\text{ and }$k<k_o^*$}
+\State $F^\mathrm{approx}_k\gets F_\mathrm{ML}^k(\mathbf{q}_k)$
+\State $\mathrm{flag}_\mathrm{TR}\gets \mathrm{True}$
+\While{$\mathrm{flag}_\mathrm{TR}$}
+\State $\mathbf{d}^\mathrm{iter}_k\gets\delta\cdot\mathbf{d}_k$
+\State $\mathbf{q}_{k+1}\gets\mathrm{EnOpt}(F_\mathrm{ML}^k,\mathbf{q}_k,N,\varepsilon_i,k_i^*,\beta_1, \beta_2,r,\nu^*, \sigma^2, \rho, \mathbf{lambda}\:\mathrm{mu}:\mathrm{TR-Projection}(\mathrm{mu}, \mathbf{q}_k, \mathbf{d}^\mathrm{iter}_k))[0]$
+\State $F_{k+1}\gets F(\mathbf{q}_{k+1})$
+\State $\rho_k\gets \frac{F_{k+1}-F_k}{F_\mathrm{ML}^k(\mathbf{q}_{k+1}-F^\mathrm{approx}_k)}$
+\If{$\rho_k<0.25$}
+\State $\delta\gets0.25\cdot\delta$
+\EndIf
+\If{$\rho_k>0.75$\text{ and at least one element of }$|\mathbf{q}_k-\mathbf{q}_{k+1}|-\mathbf{d}^\mathrm{iter}_k=0$}
+\State $\delta\gets2\cdot\delta$
+\EndIf
+\If{$\rho_k>0$}
+\State $\mathrm{flag}_\mathrm{TR}\gets\mathbf{False}$
+\EndIf
+\EndWhile
+\EndWhile
+\State $\tilde{\mathbf{q}}_{k+1},T_{k+1},\mathbf{C}_{\mathbf{q}_{k+1}}^{k+1},\tilde{F}_{k+1}\gets\mathrm{OptStep}(F,\mathbf{q}_{k+1},N,k,T_k,\mathbf{C}_{\mathbf{q}_k}^k, F_{k+1}, \beta_1, \beta_2, r, \varepsilon ,\nu^*, \sigma^2, \rho)$
+\State $k\gets k+1$
+\EndWhile
+\State \Return $\mathbf{q}^*\gets\mathbf{q}_k$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+The Adaptive-ML-EnOpt algorithm takes the initial guess $\mathbf{u}_0\in\mathbb{R}^{N_u}$, the sample size $N\in\mathbb{N}$, the tolerances $\varepsilon_o,\varepsilon_i>0$ for the outer and inner iterations, the maximum number of outer and inner iterations $k_o^*,k_i^*\in\mathbb{N}$, the DNN construction strategy $\mathrm{CS}\in\{\mathrm{DNN}_s,\mathrm{DNN}_v\}$, the DNN-specific variables $V_{\mathrm{DNN}}$, the initial step size $\beta>0$, the step size contraction $r\in(0,1)$ and the maximum number of step size trials $\nu^*\in\mathbb{N}$. $\mathrm{Train}(T_k,\mathrm{CS},V_{\mathrm{DNN}})$ returns a DNN $F_\mathrm{ML}^k$, which is, depending on the construction strategy, either scalar-valued or vector-valued.

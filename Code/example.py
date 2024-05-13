@@ -348,21 +348,21 @@ def optStep(F, u_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, corr
     print('np.max(np.abs(C_F)): {}'.format(np.max(np.abs(C_F))))
     """
     d_k = C_F/np.max(np.abs(C_F))
-
-    t = np.linspace(0, 0.1, N_u)
     """
+    t = np.linspace(0, 0.1, N_u)
     fig, ax = plt.subplots(1, 1)
     ax.plot(t, d_k, label='EnOpt d_k: {}'.format(k))
     ax.legend()
     plt.show()
     """
     u_k_new, F_k_new = lineSearch(F, u_k, F_k, d_k, beta_1, r, eps, nu_1, proj)
-
+    """
+    t = np.linspace(0, 0.1, N_u)
     fig, ax = plt.subplots(1, 1)
     ax.plot(t, u_k_new, label='EnOpt u_k: {}'.format(k))
     ax.legend()
     plt.show()
-
+    """
     return u_k_new, T_k_new, C_k_new, F_k_new
 
 
@@ -426,6 +426,7 @@ def enOpt1(F, u_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, 
         u_k, T_k, C_k, F_k = optStep(F, u_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, proj)
         errorList.append(F_k-J(u_k))
         k = k+1
+    """
     tError = range(len(errorList))
     # fig, ax = plt.subplots(1, 1)
     # ax.plot(tError, errorList, label='error')
@@ -434,6 +435,7 @@ def enOpt1(F, u_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, 
     plt.bar(tError, errorList)
     plt.suptitle('error')
     plt.show()
+    """
     return u_k, k
 
 
@@ -684,9 +686,9 @@ def projection(x, x0, delta):
 
 
 def projection2(x, u_k, d_k):
-    up = u_k + d_k
+    upp = u_k + d_k
     low = u_k - d_k
-    return np.maximum(np.minimum(x, up), low)
+    return np.maximum(np.minimum(x, upp), low)
 
 
 def projectionSample(x, minIn, maxIn):
@@ -1362,7 +1364,7 @@ def AML_EnOptNewTR2(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2
         """
         d_k = np.abs(u_k-u_k_tilde)
 
-        while F_k_next <= F_k+eps_o:
+        while F_k_next <= F_k+eps_o and k < k_1_o:
             fails += 1
             # evalMLM(F_ML_k, T_k, k)
             F_ML_k_u_k = F_ML_k(u_k)
@@ -1396,6 +1398,7 @@ def AML_EnOptNewTR2(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2
                 plt.show()
                 # u_k_next = enOpt1(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, F, proj=lambda mu: projection(mu, u_k, delta), Cov=C_k)[0]
                 u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, proj=lambda mu: projection2(mu, u_k, d_k_iter), Cov=C_k)[0]
+                # u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, proj=lambda mu: projection2(mu, u_k, d_k_iter))[0]
                 print(u_k_next)
                 F_k_next = F(u_k_next)
                 rho_k = (F_k_next-F_k)/(F_ML_k(u_k_next)-F_ML_k_u_k)
@@ -1405,9 +1408,7 @@ def AML_EnOptNewTR2(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2
                     # if rho_k > 0.75 and np.max(np.abs(C_k_inv.dot(u_k-u_k_next))) == delta:
                     if rho_k > 0.75 and np.any(np.abs(u_k-u_k_next)-d_k_iter == 0):
                         delta *= 2
-                if rho_k <= 0:
-                    u_k_next = u_k.copy()
-                else:
+                if rho_k > 0:
                     trustRegionFlag = False
                 deltaList.append(delta)
                 fig, ax = plt.subplots(1, 1)
@@ -2816,7 +2817,7 @@ u = fom.solve({'a': a})
 def analytical():
     result('Analytical', qParam, qParam, out, fom, data, u, y1, y2, a, T, nt)
 
-
+"""
 # EnOpt
 qParamOpt, k = FOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt)
 outOpt, fomOpt, dataOpt, y1Opt, y2Opt = J(qParamOpt, a, T, grid_intervals, nt)
@@ -2825,8 +2826,8 @@ uOpt = fomOpt.solve({'a': a})
 
 def opt1():
     result('EnOpt', qParamOpt, qParam, outOpt, fomOpt, dataOpt, uOpt, y1Opt, y2Opt, a, T, nt)
-
 """
+
 # optimized control function using the AML EnOpt minimizer
 eps_o = 1e-9
 eps_i = 1e-9
@@ -2848,7 +2849,7 @@ uAMLOpt = fomAMLOpt.solve({'a': a})
 
 def opt2():
     result('AML_EnOpt', qParamAMLOpt, qParam, outAMLOpt, fomAMLOpt, dataAMLOpt, uAMLOpt, y1AMLOpt, y2AMLOpt, a, T, nt)
-"""
+
 """
 # optimized control function using the L_BFGS_B_minimizer
 qParamOptBFGS = L_BFGS_B_minimizer(init, a, T, grid_intervals, nt)
