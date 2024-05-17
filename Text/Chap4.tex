@@ -46,7 +46,7 @@ abort the training and use $\mathbf{W}^{(k^*)}$
 
 So we abort the training if the minimum loss is not decreasing over a prescribed number of consecutive epochs. Our reasoning behind that is that the loss on the validation set is not srictly decreasing and can even increase over some epochs, but that is fine for us as long as we can decrease the loss over time.
 
-To summarize, the training of one neural network is shown in algorithm \ref{trainDNN}. It takes the initialization of the neural network ($\mathrm{DNN}$), the inputs and outputs of the training set ($x_\mathrm{train}, y_\mathrm{train}$), the inputs and outputs of the testing set ($x_\mathrm{test}, y_\mathrm{test}$), the loss function ($\mathrm{loss\_fn}$), the optimizer ($\mathrm{optimizer}$), and the number of training epochs ($\mathrm{epochs}$). In our case, the loss function is chosen as the mean squared error loss and we use the L-BFGS optimizer with strong Wolfe line-search as our optimizer. The number of training epochs is only the maximum number of iterations since we apply early stopping to our training algorithm. Usually, the training terminates earlier because the loss over the testing set is not decreasing further.
+To summarize, the training of one neural network is shown in algorithm \ref{trainDNN}. It takes the initialization of the neural network ($\mathrm{DNN}$), the inputs and outputs of the training set ($x_\mathrm{train}, y_\mathrm{train}$), the inputs and outputs of the testing set ($x_\mathrm{test}, y_\mathrm{test}$), the loss function ($\mathrm{loss\_fn}$), the optimizer ($\mathrm{optimizer}$), the number of training epochs ($\mathrm{epochs}$) and the number ($\mathrm{earlyStop}$) that describes after how many iterations without improvement of the test loss the training gets aborted. In our case, the loss function is chosen as the mean squared error loss and we use the L-BFGS optimizer with strong Wolfe line-search as our optimizer. The number of training epochs is only the maximum number of iterations since we apply early stopping to our training algorithm. Usually, the training terminates earlier because the loss over the testing set is not decreasing further.
 
 The function `$\mathrm{testDNN}$' in algorithm \ref{trainDNN} returns the loss of the function $\mathrm{loss\_fn}$ between the output of the DNN with the current parameters and the output of the objective function over the testing set which are saved as $y_\mathrm{train}$. So if $\mathrm{loss\_fn}=\mathscr{L}$, we have $\mathrm{testDNN}(\mathrm{DNN}, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn}) = \mathscr{L}(\mathrm{DNN}, T_\mathrm{test})$ with
 \begin{displaymath}
@@ -56,26 +56,38 @@ T_\mathrm{test}=\{((x_\mathrm{test})_1,(y_\mathrm{test})_1),\dotsc,((x_\mathrm{t
 \begin{algorithm}[H]%\footnotesize
 \caption{\label{trainDNN}DNN training}
 \begin{algorithmic}[1]
-\Procedure{trainDNN}{$\mathrm{DNN}, x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn}, \mathrm{optimizer}, \mathrm{epochs}$}
+\Function{trainDNN}{$\textproc{DNN}, x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{test}, y_\mathrm{test}, \textproc{loss\_fn}, \textproc{optimizer}, \mathrm{epochs}, \mathrm{earlyStop}$}
 \State $\mathrm{wait} \gets 0$
-\State $\mathrm{minimalTestLoss} \gets \mathrm{testDNN}(\mathrm{DNN}, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn})$
-\State \text{save the current parameters of the DNN}%$\mathrm{torch.save}(\mathrm{DNN.state\_dict}(), \mathrm{'checkpoint.pth'})$
+\State $\mathrm{minimalTestLoss} \gets \Call{testDNN}{\mathrm{DNN}, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn}}$
+%\State \text{save the current parameters of the DNN}%$\mathrm{torch.save}(\mathrm{DNN.state\_dict}(), \mathrm{'checkpoint.pth'})$
+\State $\Call{torch.save}{\textproc{DNN.state\_dict}(\:), \mathrm{'checkpoint.pth'}}$
 \For{$\mathrm{epoch}=1,\dotsc,\mathrm{epochs}$}
-\State \text{do one training step with the }$\mathrm{optimizer}$
-\State $\mathrm{testLoss} \gets \mathrm{testDNN}(\mathrm{DNN}, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn})$
+%\State \text{do one training step with the }$\mathrm{optimizer}$
+\State $\Call{DNN.train}{\:}$
+\Function{closure}{\:}
+    \State $\mathrm{y\_pred} \gets \Call{DNN}{\mathrm{x\_train}}\textproc{.reshape}(\Call{len}{\mathrm{y\_train}})$
+    \State $\mathrm{loss} \gets \Call{loss\_fn}{\mathrm{y\_pred}, \mathrm{y\_train}}$
+    \State $\Call{optimizer.zero\_grad}{\:}$
+    \State $\mathrm{loss.}\Call{backward}{\:}$
+    \State \Return $\mathrm{loss}$
+\EndFunction
+\State $\Call{optimizer.step}{\textproc{closure}}$
+\State $\mathrm{testLoss} \gets \Call{testDNN}{\textproc{DNN}, x_\mathrm{test}, y_\mathrm{test}, \textproc{loss\_fn}}$
 \If{$\mathrm{testLoss} < \mathrm{minimalTestLoss}$}
 \State $\mathrm{wait} \gets 0$
 \State $\mathrm{minimalTestLoss} \gets \mathrm{testLoss}$
-\State \text{save the current parameters of the DNN}%$\mathrm{torch.save}(\mathrm{DNN.state\_dict}(), \mathrm{'checkpoint.pth'})$
+%\State \text{save the current parameters of the DNN}%$\mathrm{torch.save}(\mathrm{DNN.state\_dict}(), \mathrm{'checkpoint.pth'})$
+\State $\Call{torch.save}{\textproc{DNN.state\_dict}(\:), \mathrm{'checkpoint.pth'}}$
 \Else
 \State $\mathrm{wait} \gets \mathrm{wait}+1$
 \EndIf
 \If{$\mathrm{wait} \geq \mathrm{earlyStop}$}
-\State \text{overwrite the parameters of the DNN with the saved parameters}%$\mathrm{DNN.load\_state\_dict}(\mathrm{torch.load}(\mathrm{'checkpoint.pth'}))$
+%\State \text{overwrite the parameters of the DNN with the saved parameters}%$\mathrm{DNN.load\_state\_dict}(\mathrm{torch.load}(\mathrm{'checkpoint.pth'}))$
+\State $\Call{DNN.load\_state\_dict}{\textproc{torch.load}(\mathrm{'checkpoint.pth'})}$
 \State \Return
 \EndIf
 \EndFor
-\EndProcedure
+\EndFunction
 \end{algorithmic}
 \end{algorithm}
 
@@ -121,37 +133,45 @@ To summarize, we present now the construction of a DNN as pseudo code. Training 
 \begin{algorithm}[H]%\footnotesize
 \caption{DNN construction}
 \begin{algorithmic}[1]
-\Procedure{constructDNN}{$\mathrm{sample}, V_\mathrm{DNN}, \mathrm{minIn}, \mathrm{maxIn}$}
+\Function{constructDNN}{$\mathrm{sample}, V_\mathrm{DNN}, \mathrm{minIn}, \mathrm{maxIn}$}
 %\State \text{scale inputs and outputs like described and save them as }$\mathrm{normSample}$\text{ and }$\mathrm{normVal}$
-\State $\mathrm{normSample} \gets \mathrm{np.zeros}((\mathrm{len}(\mathrm{sample}), \mathrm{len}(\mathrm{sample}[0][0])))$
-\State $\mathrm{normVal} \gets \mathrm{np.zeros}(\mathrm{len}(\mathrm{sample}))$
-\For{$i = 0,\dotsc,\mathrm{len}(\mathrm{sample})-1$}
+\State $\mathrm{normSample} \gets \Call{np.zeros}{\protect\Call{len}{\mathrm{sample}}, \protect\Call{len}{\mathrm{sample}[0][0]}}$
+\State $\mathrm{normVal} \gets \Call{np.zeros}{\protect\Call{len}{\mathrm{sample}}}$
+\For{$i = 0,\dotsc,\Call{len}{\mathrm{sample}}-1$}
 \State $\mathrm{normSample}[i, :] \gets \mathrm{sample}[i][0]$
 \State $\mathrm{normVal}[i] \gets \mathrm{sample}[i][1]$
 \EndFor
-\State $\mathrm{minOut} \gets \mathrm{np.min}(\mathrm{normVal})$
-\State $\mathrm{maxOut} \gets \mathrm{np.max}(\mathrm{normVal})$
-\State $\mathrm{scaleInput} \gets \mathbf{lambda}\:\mathrm{mu}: (\mathrm{mu}-\mathrm{minIn})/(\mathrm{maxIn}-\mathrm{minIn})$
-\State $\mathrm{scaleOutput} \gets \mathbf{lambda}\:\mathrm{mu}: (\mathrm{mu}-\mathrm{minOut})/(\mathrm{maxOut}-\mathrm{minOut})$
-\State $\mathrm{rescaleOutput} \gets \mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}\cdot(\mathrm{maxOut}-\mathrm{minOut})+\mathrm{minOut}$
-\State $\mathrm{normSample} \gets \mathrm{scaleInput}(\mathrm{normSample})$
-\State $\mathrm{normVal} \gets \mathrm{scaleOutput}(\mathrm{normVal})$
-\State \text{divide }$\mathrm{normSample}$\text{ and }$\mathrm{normVal}$\text{ into train/test splits }$x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{test}, y_\mathrm{test}$
-\State $\mathrm{DNN} \gets \mathrm{FullyConnectedNN}(V_\mathrm{DNN}[0], \mathrm{activation\_function}=V_\mathrm{DNN}[1])$
-\State $\mathrm{trainDNN}(\mathrm{DNN}, x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn}, \mathrm{optimizer}, \mathrm{epochs})$
-\State $\mathrm{evalDNN} \gets \mathrm{testDNN}(\mathrm{DNN}, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn})$
+\State $\mathrm{minOut} \gets \Call{np.min}{\mathrm{normVal}}$
+\State $\mathrm{maxOut} \gets \Call{np.max}{\mathrm{normVal}}$
+\State $\textproc{scaleInput} \gets \mathbf{lambda}\:\mathrm{mu}: (\mathrm{mu}-\mathrm{minIn})/(\mathrm{maxIn}-\mathrm{minIn})$
+\State $\textproc{scaleOutput} \gets \mathbf{lambda}\:\mathrm{mu}: (\mathrm{mu}-\mathrm{minOut})/(\mathrm{maxOut}-\mathrm{minOut})$
+\State $\textproc{rescaleOutput} \gets \mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}\cdot(\mathrm{maxOut}-\mathrm{minOut})+\mathrm{minOut}$
+\State $\mathrm{normSample} \gets \Call{scaleInput}{\mathrm{normSample}}$
+\State $\mathrm{normVal} \gets \Call{scaleOutput}{\mathrm{normVal}}$
+%\State \text{divide }$\mathrm{normSample}$\text{ and }$\mathrm{normVal}$\text{ into train/test splits }$x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{test}, y_\mathrm{test}$
+\State $x \gets \Call{torch.from\_numpy}{\mathrm{normSample}}\Call{.to}{\mathrm{torch.float32}}$
+\State $y \gets \Call{torch.from\_numpy}{\mathrm{normVal}}\Call{.to}{\mathrm{torch.float32}}$
+\State $\mathrm{train\_split} \gets \Call{int}{0.8 * \protect\Call{len}{x}}$
+\State $x_\mathrm{train}, y_\mathrm{train} \gets x[:\mathrm{train\_split}], y[:\mathrm{train\_split}]$
+\State $x_\mathrm{test}, y_\mathrm{test} \gets x[\mathrm{train\_split}:], y[\mathrm{train\_split}:]$
+\State $\textproc{DNN} \gets \Call{FullyConnectedNN}{V_\mathrm{DNN}[0], \textproc{activation\_function}=V_\mathrm{DNN}[1]}$
+\State $\textproc{loss\_fn} \gets \Call{nn.MSELoss}{\:}$
+\State $\textproc{optimizer} \gets \Call{torch.optim.LBFGS}{\protect\Call{DNN.parameters}{\:}, \mathrm{lr}\gets\mathrm{learning\_rate}, \mathrm{line\_search\_fn}\gets\mathrm{'strong\_wolfe'}}$
+\State $\Call{trainDNN}{\textproc{DNN}, x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{test}, y_\mathrm{test}, \textproc{loss\_fn}, \textproc{optimizer}, \mathrm{epochs}}$
+\State $\textproc{evalDNN} \gets \Call{testDNN}{\textproc{DNN}, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn}}$
 \For{$i=1,\dotsc,\mathrm{numberOfRestarts}$}
-\State $\mathrm{DNN}_i \gets \mathrm{FullyConnectedNN}(V_\mathrm{DNN}[0], \mathrm{activation\_function}=V_\mathrm{DNN}[1])$
-\State $\mathrm{trainDNN}(\mathrm{DNN}_i, x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn}, \mathrm{optimizer}, \mathrm{epochs})$
-\State $\mathrm{evalDNN}_i \gets \mathrm{testDNN}(\mathrm{DNN}_i, x_\mathrm{test}, y_\mathrm{test}, \mathrm{loss\_fn})$
+\State $\textproc{DNN}_i \gets \Call{FullyConnectedNN}{V_\mathrm{DNN}[0], \textproc{activation\_function}=V_\mathrm{DNN}[1]}$
+\State $\textproc{optimizer} \gets \Call{torch.optim.LBFGS}{\protect\Call{DNN$_i$.parameters}{\:}, \mathrm{lr}\gets\mathrm{learning\_rate}, \mathrm{line\_search\_fn}\gets\mathrm{'strong\_wolfe'}}$
+\State $\Call{trainDNN}{\mathrm{DNN}_i, x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{test}, y_\mathrm{test}, \textproc{loss\_fn}, \textproc{optimizer}, \mathrm{epochs}}$
+\State $\textproc{evalDNN}_i \gets \Call{testDNN}{\textproc{DNN}_i, x_\mathrm{test}, y_\mathrm{test}, \textproc{loss\_fn}}$
 \If{$\mathrm{evalDNN}_i<\mathrm{evalDNN}$}
 \State $\mathrm{evalDNN} \gets \mathrm{evalDNN}_i$
 \State $\mathrm{DNN} \gets \mathrm{DNN}_i$
 \EndIf
 \EndFor
-\State $F_\mathrm{ML} \gets \mathbf{lambda}\:\mathrm{mu}: \mathrm{rescaleOutput}(\mathrm{DNN}(\mathrm{scaleInput}(\mathrm{mu})))$
+\State $F_\mathrm{ML} \gets \mathbf{lambda}\:\mathrm{mu}: \Call{rescaleOutput}{\protect\Call{DNN}{\protect\Call{scaleInput}{\mathrm{mu}}}}$
 \State \Return $F_\mathrm{ML}$
-\EndProcedure
+\EndFunction
 \end{algorithmic}
 \end{algorithm}
 
@@ -163,11 +183,11 @@ To summarize, we present now the construction of a DNN as pseudo code. Training 
  \begin{algorithm}[H]%\footnotesize
 \caption{Projection}
 \begin{algorithmic}[1]
-\Procedure{TR-Projection}{$x, \mathbf{q}_k, \mathbf{d}_k$}
+\Function{TR-Projection}{$x, \mathbf{q}_k, \mathbf{d}_k$}
 \State $\mathrm{upp}\gets\mathbf{q}_k+\mathbf{d}_k$
 \State $\mathrm{low}\gets\mathbf{q}_k-\mathbf{d}_k$
-\State \Return $\mathrm{np.maximum}(\mathrm{np.minimum}(x,\mathrm{upp}),\mathrm{low})$
-\EndProcedure
+\State \Return $\Call{np.maximum}{\protect\Call{np.minimum}{x,\mathrm{upp}},\mathrm{low}}$
+\EndFunction
 \end{algorithmic}
 \end{algorithm}
 
@@ -175,27 +195,42 @@ We describe now the Adaptive-ML-EnOpt algorithm. This algorithm takes the initia
 \begin{algorithm}[H]%\footnotesize
 \caption{\label{AML-EnOpt}Adaptive-ML-EnOpt algorithm}
 \begin{algorithmic}[1]
-\Procedure{ROM-EnOpt}{$F,\mathbf{q}_0,N,\varepsilon_o,\varepsilon_i,k_o^*,k_i^*,V_{\mathrm{DNN}},\beta_1, \beta_2,r,\nu^*,\sigma^2,\rho$}
-\State $F_0\gets F(\mathbf{q}_0)$
-\State $\tilde{\mathbf{q}}_0,T_0,\mathbf{C}_{\mathbf{q}_0}^0,\tilde{F}_0\gets\mathrm{OptStep}(F,\mathbf{q}_0,N,0,\{\},0,\beta,r,\nu^*)$
-\State $k\gets 0$
+\Function{AML-EnOpt}{$F,\mathbf{q}_0,N,\varepsilon_o,\varepsilon_i,k_o^*,k_i^*,V_{\mathrm{DNN}},\beta_1, \beta_2,r,\nu^*,\sigma^2,\rho$}
+\State $F_k\gets F(\mathbf{q}_0)$
+\State $F^\mathrm{next}_k \gets F_k$
+\State $\tilde{\mathbf{q}}_k,T_k,\mathbf{C}_k,\tilde{F}_k\gets\Call{OptStep}{F, \mathbf{q}_0, N, 0, [], \mathrm{None}, F_k, \beta_1, \beta_2, r, \varepsilon_o, \nu^*, \sigma^2, \rho}$
+\State $k\gets 1$
+\State $\mathbf{q}_k \gets \mathbf{q}_0$
+\State $\mathbf{q}^\mathrm{next}_k \gets \mathbf{q}_k.\Call{copy}{\:}$
+\State $\delta \gets 40$
 \While{$\tilde{F}_k>F_k+\varepsilon_o$\text{ and }$k<k_o^*$}
-\State $\text{compute }\mathrm{minIn}\text{ and }\mathrm{maxIn}$
-\State $F_\mathrm{ML}^k\gets\mathrm{Train}(T_k, V_\mathrm{DNN}, \mathrm{minIn}, \mathrm{maxIn})$
+%\State $\text{compute }\mathrm{minIn}\text{ and }\mathrm{maxIn}$
+\State $T^x_k \gets \Call{np.zeros}{(N, nt+1)}$
+\For{$i=0,\dotsc,N-1$}
+\State $T^x_k[i,:] \gets T_k[i][0]$
+\EndFor
+\State $\mathrm{minIn} \gets \Call{np.zeros}{nt+1}$
+\State $\mathrm{maxIn} \gets \Call{np.zeros}{nt+1}$
+\For{$i=0,\dotsc,nt-1$}
+\State $\mathrm{minIn}[i] \gets \Call{np.min}{T^x_k[:,i]}$
+\State $\mathrm{maxIn}[i] \gets \Call{np.max}{T^x_k[:,i]}$
+\EndFor
+%\State $\mathbf{d}_k \gets \Call{np.abs}{\mathbf{q}_k-\tilde{\mathbf{q}}_k}$
+%\State $F_\mathrm{ML}^k\gets\mathrm{Train}(T_k, V_\mathrm{DNN}, \mathrm{minIn}, \mathrm{maxIn})$
 \State $\mathbf{d}_k\gets|\mathbf{q}_k-\tilde{\mathbf{q}}_k|$
-\State $F_{k+1}=F_k$
-\While{$F_{k+1}\leq F_k+\varepsilon_o$}
+\While{$F^\mathrm{next}_k\leq F_k+\varepsilon_o$}
+\State $F_\mathrm{ML}^k\gets \Call{constructDNN}{T_k, V_\mathrm{DNN}, \mathrm{minIn}, \mathrm{maxIn}}$
 \State $F^\mathrm{approx}_k\gets F_\mathrm{ML}^k(\mathbf{q}_k)$
 \State $\mathrm{flag}_\mathrm{TR}\gets \mathrm{True}$
 \While{$\mathrm{flag}_\mathrm{TR}$}
 \State $\mathbf{d}^\mathrm{iter}_k\gets\delta\cdot\mathbf{d}_k$
-\State $\mathbf{q}_{k+1}\gets\mathrm{EnOpt}(F_\mathrm{ML}^k,\mathbf{q}_k,N,\varepsilon_i,k_i^*,\beta_1, \beta_2,r,\nu^*, \sigma^2, \rho, \mathbf{lambda}\:\mathrm{mu}:\mathrm{TR-Projection}(\mathrm{mu}, \mathbf{q}_k, \mathbf{d}^\mathrm{iter}_k))[0]$
-\State $F_{k+1}\gets F(\mathbf{q}_{k+1})$
-\State $\rho_k\gets \frac{F_{k+1}-F_k}{F_\mathrm{ML}^k(\mathbf{q}_{k+1}-F^\mathrm{approx}_k)}$
+\State $\mathbf{q}^\mathrm{next}_k\gets\Call{EnOpt}{F_\mathrm{ML}^k,\mathbf{q}_k,N,\varepsilon_i,k_i^*,\beta_1, \beta_2,r,\nu^*, \sigma^2, \rho, \mathbf{lambda}\:\mathrm{mu}:\protect\Call{TR-Projection}{\mathrm{mu}, \mathbf{q}_k, \mathbf{d}^\mathrm{iter}_k}, \mathbf{C}_\mathrm{init}\gets\mathbf{C}_k}[0]$
+\State $F^\mathrm{next}_k\gets F(\mathbf{q}^\mathrm{next}_k)$
+\State $\rho_k\gets \frac{F^\mathrm{next}_k-F_k}{\Call{F$_\mathrm{ML}^k$}{\mathbf{q}^\mathrm{next}_k}-F^\mathrm{approx}_k}$
 \If{$\rho_k<0.25$}
 \State $\delta\gets0.25\cdot\delta$
 \EndIf
-\If{$\rho_k>0.75$\text{ and at least one element of }$|\mathbf{q}_k-\mathbf{q}_{k+1}|-\mathbf{d}^\mathrm{iter}_k=0$}
+\If{$\rho_k>0.75$\text{ and }$\Call{np.any}{\protect\Call{np.abs}{\mathbf{q}_k-\mathbf{q}^\mathrm{next}_k}-\mathbf{d}^\mathrm{iter}_k == 0}$}
 \State $\delta\gets2\cdot\delta$
 \EndIf
 \If{$\rho_k>0$}
@@ -203,10 +238,21 @@ We describe now the Adaptive-ML-EnOpt algorithm. This algorithm takes the initia
 \EndIf
 \EndWhile
 \EndWhile
-\State $\tilde{\mathbf{q}}_{k+1},T_{k+1},\mathbf{C}_{\mathbf{q}_{k+1}}^{k+1},\tilde{F}_{k+1}\gets\mathrm{OptStep}(F,\mathbf{q}_{k+1},N,k,T_k,\mathbf{C}_{\mathbf{q}_k}^k, F_{k+1}, \beta_1, \beta_2, r, \varepsilon ,\nu^*, \sigma^2, \rho)$
+\State $\tilde{\mathbf{q}}_k,T_k,\mathbf{C}_k,\tilde{F}_k\gets\mathrm{OptStep}(F,\mathbf{q}^\mathrm{next}_k,N,k,T_k,\mathbf{C}_k, F^\mathrm{next}_k, \beta_1, \beta_2, r, \varepsilon ,\nu^*, \sigma^2, \rho)$
+\State $F_k \gets F^\mathrm{next}_k$
+\State $\mathbf{q}_k \gets \mathbf{q}^\mathrm{next}_k\Call{.copy}{\:}$
 \State $k\gets k+1$
 \EndWhile
 \State \Return $\mathbf{q}^*\gets\mathbf{q}_k$
-\EndProcedure
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]%\footnotesize
+\caption{\label{ROM-EnOpt}ROM-EnOpt algorithm}
+\begin{algorithmic}[1]
+\Function{ROM-EnOpt}{$\mathbf{q}_0,N,\varepsilon_o,\varepsilon_i,k_o^*,k_i^*,V_{\mathrm{DNN}},\beta_1, \beta_2,r,\nu^*,\sigma^2,\rho$}
+\State \Return \Call{AML-EnOpt}{$-j,\mathbf{q}_0,N,\varepsilon_o,\varepsilon_i,k_o^*,k_i^*,V_{\mathrm{DNN}},\beta_1, \beta_2,r,\nu^*,\sigma^2,\rho$}
+\EndFunction
 \end{algorithmic}
 \end{algorithm}
