@@ -1033,7 +1033,7 @@ def result(name, qParamOpt, qParam, out, fom, data, u, y1, y2, a, T, nt, nb, qAn
 # q_base = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])+sin(2*pi*x[0])*sin(2*pi*x[1])', dim_domain=2), ExpressionFunction('(1-(2*x[0]-1)**2)*(1-(2*x[1]-1)**2)', dim_domain=2)]
 q_base = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
 T = 0.1
-nt = 3
+nt = 10
 nb = len(q_base)
 grid_intervals = 50
 a = -np.sqrt(5)
@@ -1054,7 +1054,7 @@ def analytical():
 
 # optimized control function using the EnOpt minimizer
 N = 100
-eps = 1e-3
+eps = 1e-6
 k_1 = 1000
 beta_1 = 1
 beta_2 = 1
@@ -1074,8 +1074,8 @@ def opt1():
 
 """
 # optimized control function using the AML EnOpt minimizer
-eps_o = 1e-3
-eps_i = 1e-3
+eps_o = 1e-6
+eps_i = 1e-6
 k_1_o = k_1
 k_1_i = k_1
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate

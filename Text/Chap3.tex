@@ -58,15 +58,21 @@ where $O(\|\mathbf{q}_{k,m}-\mathbf{q}_k\|^3)$ are the remaining terms containin
 since $\frac{1}{N-1}\sum_{m=1}^N(\mathbf{q}_{k,m}-\mathbf{q}_k)(\mathbf{q}_{k,m}-\mathbf{q}_k)^T$ is itself an approximation of $\mathbf{C}_{\mathbf{q}_k}^k$.\\
 
 By using the samples $\{\mathbf{q}_{k-1,m}\}_{m=1}^N$ and the covariance matrix $\mathbf{C}_{\mathbf{q}_{k-1}}^{k-1}$ from the last iteration, we update $\mathbf{C}_{\mathbf{q}_{k-1}}^{k-1}$, like in \cite{Stordal2016-cj}, by setting
-\begin{displaymath}
+\begin{equation}
+\label{updateCov}
 \mathbf{C}_{\mathbf{q}_{k}}^{k}=\mathbf{C}_{\mathbf{q}_{k-1}}^{k-1}+\tilde{\beta}_k\tilde{\mathbf{d}}_k\text{ with}
-\end{displaymath}
-\begin{displaymath}
+\end{equation}
+\begin{equation}
+\label{updateCovDirection}
 \tilde{\mathbf{d}}_k=N^{-1}\sum_{m=1}^N(F(\mathbf{q}_{k-1,m})-F(\mathbf{q}_k))((\mathbf{q}_{k-1,m}-\mathbf{q}_k)(\mathbf{q}_{k-1,m}-\mathbf{q}_k)^T-\mathbf{C}_{\mathbf{q}_{k-1}}^{k-1}),
-\end{displaymath}
+\end{equation}
 where $\tilde{\beta}_k$ is a step size that is chosen so that no entries of the diagonal of $\mathbf{C}_{\mathbf{q}_{k}}^{k}$ are negative. How we set $\tilde{\beta}_k$ is shown below at the implementation of the entire EnOpt algorithm.
 
-Now that we have described the optimization steps of this algorithm, we iterate until $F(\mathbf{q}_k)\leq F(\mathbf{q}_{k-1})+\varepsilon$, where $\varepsilon>0$. In our implementation, the EnOpt algorithm takes the objective function $F:\mathbb{R}^{N_\mathbf{q}}\to\mathbb{R}$, our initial iterate $\mathbf{q}_0\in\mathbb{R}^{N_\mathbf{q}}$, the sample size $N\in\mathbb{N}$, the tolerance $\varepsilon>0$, the maximum number of iterations $k^*\in\mathbb{N}$, the initial step size $\beta>0$ for the computation of the next iterate, the initial step size $\tilde{\beta}$ for the iteration of the covariance matrix, the step size contraction $r\in(0,1)$, the maximum number of step size trials $\nu^*\in\mathbb{N}$, the variance $\sigma^2\in\mathbb{R}^{N_b}$ with positive elements, the correlation coefficient $\rho\in(-1,1)$ and a projection $\operatorname{pr}$, where the default is the identity function $\operatorname{id}:x\to x$.
+Now that we have described the optimization steps of this algorithm, we iterate until $F(\mathbf{q}_k)\leq F(\mathbf{q}_{k-1})+\varepsilon$, where $\varepsilon>0$.
+
+In our implementation, the EnOpt algorithm takes the objective function $\textproc{F}:\mathbb{R}^{N_\mathbf{q}}\to\mathbb{R}$, our initial iterate $\mathbf{q}_0\in\mathbb{R}^{N_\mathbf{q}}$, the sample size $N\in\mathbb{N}$, the tolerance $\varepsilon>0$, the maximum number of iterations $k^*\in\mathbb{N}$, the initial step size $\beta_1>0$ for the computation of the next iterate, the initial step size $\beta_2>0$ for the iteration of the covariance matrix, the step size contraction $r\in(0,1)$, the maximum number of step size trials $\nu^*\in\mathbb{N}$, the variance $\sigma^2\in\mathbb{R}^{N_b}$ with positive elements, the correlation coefficient $\rho\in(-1,1)$, the number of time steps $N_t\in\mathbb{N}$, the number of basis functions $N_b\in\mathbb{N}$, a projection $\textproc{pr}$ and an initial covariance $\mathbf{C}_\mathrm{init}\in\mathbb{R}^{N_\mathbf{q}}$. $\textproc{pr}$ is set to the identity function $\mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}$ and $\mathbf{C}_\mathrm{init}$ is set to $\mathrm{None}$ by default.
+
+$\textproc{pr}$ is used to project the inputs onto a given set and $\mathbf{C}_\mathrm{init}$ is an alternative definition for the initialization of the covariance. In this chapter we do not need to specify these inputs, however $\textproc{pr}$ could be used if we had an optimization problem where the iterates were restricted to a certain spatial domain, which is not the case.
 
 The implementation in pseudo code is shown here:
 
@@ -88,19 +94,25 @@ The implementation in pseudo code is shown here:
 \begin{algorithm}[H]%\footnotesize
 \caption{EnOpt algorithm}
 \begin{algorithmic}[1]
-\Function{EnOpt}{$F,\mathbf{q}_0,N,\varepsilon,k^*,\beta_1,\beta_2,r,\nu^*,\sigma^2,\rho,\textproc{pr} \gets \mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}, \mathbf{C}_\mathrm{init}\gets\mathrm{None}$}
-\State $F^\mathrm{prev}_{k}\gets F(\mathbf{q}_0)$
-\State $\mathbf{q}_k,T_k,\mathbf{C}_k,F_k\gets\Call{OptStep}{F,\mathbf{q}_0,N,0,[\;],\mathbf{C}_\mathrm{init},F^\mathrm{prev}_{k},\beta_1,\beta_2,r,\varepsilon,\nu^*,\sigma^2,\rho,\textproc{pr}}$
+\Function{EnOpt}{$\textproc{F},\mathbf{q}_0,N,\varepsilon,k^*,\beta_1,\beta_2,r,\nu^*,\sigma^2,\rho, N_t, N_b, \textproc{pr} \gets \mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}, \mathbf{C}_\mathrm{init}\gets\mathrm{None}$}
+\State $F^\mathrm{prev}_{k}\gets \Call{F}{\mathbf{q}_0}$
+\State $\mathbf{q}_k,T_k,\mathbf{C}_k,F_k\gets\Call{OptStep}{\textproc{F},\mathbf{q}_0,N,0,[\;],\mathbf{C}_\mathrm{init},F^\mathrm{prev}_{k},\beta_1,\beta_2,r,\varepsilon,\nu^*,\sigma^2,\rho, N_t, N_b, \textproc{pr}}$
 \State $k\gets 1$
 \While{$F_{k}>F^\mathrm{prev}_k+\varepsilon$\text{ and }$k<k^*$}
 \State $F^\mathrm{prev}_k\gets F_k$
-\State $\mathbf{q}_{k},T_{k},\mathbf{C}_k,F_{k}\gets\Call{OptStep}{F,\mathbf{q}_k,N,k,T_k,\mathbf{C}_k,F_k,\beta_1,\beta_2,r,\varepsilon,\nu^*,\sigma^2,\rho,\textproc{pr}}$
+\State $\mathbf{q}_{k},T_{k},\mathbf{C}_k,F_{k}\gets\Call{OptStep}{\textproc{F},\mathbf{q}_k,N,k,T_k,\mathbf{C}_k,F_k,\beta_1,\beta_2,r,\varepsilon,\nu^*,\sigma^2,\rho, N_t, N_b,\textproc{pr}}$
 \State $k\gets k+1$
 \EndWhile
 \State \Return $\mathbf{q}_k, k$
 \EndFunction
 \end{algorithmic}
 \end{algorithm}
+
+We begin by initializing $F^\mathrm{prev}_{k}$ as $\Call{F}{\mathbf{q}_0}$. The next iterate $\mathbf{q}_k$, along with the sample $T_k$, the covariance $\mathbf{C}_k$ and the function value of $\mathbf{q}_k$, denoted by $F_k$, are computed by calling the initial optimization step $\textproc{OptStep}$, which is shown in algorithm \ref{OptStep}.
+
+After we initialized $k$ as $1$, we loop until the stop criterion is satisfied. In each optimization loop, $F^\mathrm{prev}_{k}$ is set to the function value of the last iterate and $\mathbf{q}_k,T_k,\mathbf{C}_k$ and $F_k$ are updated by calling $\textproc{OptStep}$ again.
+
+The next algorithms use some functions from Python such as $\textproc{len}$ for the length of a list or an array, as well as functions from the Python package NumPy, which are identified by starting with '$\mathrm{np.}$'.
 
 %\begin{algorithm}[H]%\footnotesize
 %\caption{OptStep algorithm}
@@ -122,35 +134,45 @@ The implementation in pseudo code is shown here:
 %\end{algorithmic}
 %\end{algorithm}
 \begin{algorithm}[H]%\footnotesize
-\caption{OptStep algorithm}
+\caption{\label{OptStep}OptStep algorithm}
 \begin{algorithmic}[1]
-\Function{OptStep}{$F,\mathbf{q}_k,N,k,T_k,\mathbf{C}_k,F_k,\beta_1,\beta_2,r,\varepsilon,\nu^*,\sigma^2,\rho,\textproc{pr} \gets \mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}$}
+\Function{OptStep}{$\textproc{F},\mathbf{q}_k,N,k,T_k,\mathbf{C}_k,F_k,\beta_1,\beta_2,r,\varepsilon,\nu^*,\sigma^2,\rho, N_t, N_b, \textproc{pr} \gets \mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}$}
 \State $N_\mathbf{q}\gets\Call{len}{\mathbf{q}_k}$
-\State $\mathbf{C}^\mathrm{next}_k \gets \Call{np.zeros}{(N_\mathbf{q}, N_\mathbf{q})}$
+\State $\mathbf{C}^\mathrm{next}_k \gets \mathrm{np.}\Call{zeros}{(N_\mathbf{q}, N_\mathbf{q})}$
 \If{$k=0$}
 \If{$\mathbf{C}_k$\text{ is }$\mathrm{None}$}
-\State $\mathbf{C}^\mathrm{next}_k \gets \Call{initCov}{\mathbf{q}_k, \sigma^2, \rho}$
+\State $\mathbf{C}^\mathrm{next}_k \gets \Call{initCov}{\mathbf{q}_k, \sigma^2, \rho, N_t, N_b}$
 \Else
 \State $\mathbf{C}^\mathrm{next}_k \gets \mathbf{C}_k$
 \EndIf
 \Else
 \State $\mathbf{C}^\mathrm{next}_k \gets \Call{updateCov}{\mathbf{q}_k, T_k, \mathbf{C}_k, F_k ,\beta_2}$
 \EndIf
-\State $\mathrm{sample} \gets \Call{np.random.multivariate\_normal}{\mathbf{q}_k, \mathbf{C}^\mathrm{next}_k, \mathrm{size} \gets N}$
-\State $T^\mathrm{next}_k\gets[\mathbf{q}_{k,j},F(\mathbf{q}_{k,j})]_{j=1}^N$
-\State $\mathbf{C}^k_F \gets \Call{np.zeros}{N_\mathbf{q})}$
+\State $\mathrm{sample} \gets \mathrm{np.random.}\Call{multivariate\_normal}{\mathbf{q}_k, \mathbf{C}^\mathrm{next}_k, \mathrm{size} \gets N}$
+\State $T^\mathrm{next}_k\gets[\Call{pr}{\mathrm{sample}[j]},\Call{F}{\protect\Call{pr}{\mathrm{sample}[j]}}]_{j=0}^{N-1}$
+\State $\mathbf{C}^k_F \gets \mathrm{np.}\Call{zeros}{N_\mathbf{q}}$
 \For{$m=0,\dotsc,N-1$}
 \State $\mathbf{C}^k_F \gets \mathbf{C}^k_F+(T^\mathrm{next}_k[m][0]-\mathbf{q}_k)\cdot(T^\mathrm{next}_k[m][1]-F_k)$
 \EndFor
 \State $\mathbf{C}^k_F \gets 1/(N-1)\cdot\mathbf{C}^k_F$
 \State $\mathbf{d}_k \gets \mathbf{C}^k_F/\|\mathbf{C}^k_F\|_\infty$
-\State $\mathbf{q}^\mathrm{next}_{k}, F^\mathrm{next}_k \gets \Call{LineSearch}{F,\mathbf{q}_k,\mathbf{d}_k,\beta_1,r,\varepsilon,\nu^*,\textproc{pr}}$
+\State $\mathbf{q}^\mathrm{next}_{k}, F^\mathrm{next}_k \gets \Call{LineSearch}{\textproc{F},\mathbf{q}_k,\mathbf{d}_k,\beta_1,r,\varepsilon,\nu^*,\textproc{pr}}$
 \State \Return $\mathbf{q}^\mathrm{next}_k,T^\mathrm{next}_k,\mathbf{C}^\mathrm{next}_k,F^\mathrm{next}_k$
 \EndFunction
 \end{algorithmic}
 \end{algorithm}
 
-The next algorithm uses some functions from the Python package NumPy, which is imported here as $\mathrm{np}$.
+We start the $\textproc{OptStep}$ algorithm by updating the covariance matrix $\mathbf{C}_k$ or, if $k$ is zero, initializing it. In the case that $k$ is zero, we first check if there is a predefined covariance matrix $\mathbf{C}_k$. When there is one, $\mathbf{C}^\mathrm{next}_k$ is set to that matrix. Otherwise, we define $\mathbf{C}^\mathrm{next}_k$ by calling the function $\textproc{initCov}$, which sets the matrix like it is described in \eqref{initCov}.
+
+If $k$ is not zero, we get the updated covariance matrix by calling $\textproc{updateCov}$, which is described in \eqref{updateCov} and algorithm \ref{updateCovAlg}.
+
+This covariance matrix is now used to get a Gaussian distributed sample with $N$ elements around $\mathbf{q}_k$. The projected samples $\Call{pr}{\mathrm{sample}[j]}$ and their respective function values $\Call{F}{\protect\Call{pr}{\mathrm{sample}[j]}}$ for $j=0,\dotsc,N-1$ are stored in the list $T^\mathrm{next}_k$. The definition is here abbreviated as $[\Call{pr}{\mathrm{sample}[j]},\Call{F}{\protect\Call{pr}{\mathrm{sample}[j]}}]_{j=0}^{N-1}$. In the code, this is done with an iteration through a for-loop.
+
+After that, we set $\mathbf{C}^k_F$ like it is defined in \eqref{CqkF}, and we set $\mathbf{d}_k$ to $\mathbf{C}^k_F$ divided by its sup norm. Here, $\|\mathbf{C}^k_F\|_\infty$ is an abbreviation of $\mathrm{np.}\Call{max}{\mathrm{np.}\protect\Call{abs}{\mathbf{C}^k_F}}$.
+
+The next iterate $\mathbf{q}^\mathrm{next}_{k}$ and its function value $F^\mathrm{next}_k$ is now computed with the line search algorithm $\textproc{LineSearch}$, that is shown in algorithm \ref{LineSearchAlg}.
+
+We return $\mathbf{q}^\mathrm{next}_k,T^\mathrm{next}_k,\mathbf{C}^\mathrm{next}_k$ and $F^\mathrm{next}_k$.
 
 %\begin{algorithm}[H]%\footnotesize
 %\caption{Covariance matrix initialization}
@@ -188,30 +210,34 @@ The next algorithm uses some functions from the Python package NumPy, which is i
 %\end{algorithmic}
 %\end{algorithm}
 \begin{algorithm}[H]%\footnotesize
-\caption{Covariance matrix update}
+\caption{\label{updateCovAlg}Covariance matrix update}
 \begin{algorithmic}[1]
 \Function{updateCov}{$\mathbf{q}_k, T_k, \mathbf{C}_k, F_k ,\beta_2$}
 \State $N_\mathbf{q}\gets \Call{len}{\mathbf{q}_k}$
 \State $N\gets \Call{len}{T_k}$
-\State $\mathbf{d}_k \gets \Call{np.zeros}{(N_\mathbf{q}, N_\mathbf{q})}$
+\State $\mathbf{d}^\mathrm{cov}_k \gets \Call{np.zeros}{(N_\mathbf{q}, N_\mathbf{q})}$
 %\State $\mathrm{assert}$ $\mathrm{len}(T_k) == N$
 \For{$m=0,\dotsc,N-1$}
-\State $\mathbf{d}_k \gets d_k + (T_k[m][1]-F_k)\cdot((T_k[m][0]-\mathbf{q}_k).\Call{reshape}{(N_\mathbf{q},1)}\cdot(T_k[m][0]-\mathbf{q}_k).\Call{reshape}{(1,N_\mathbf{q})}-\mathbf{C}_{\mathbf{q}_{k-1}}^{k-1})$
+\State $\mathbf{d}^\mathrm{cov}_k \gets \mathbf{d}^\mathrm{cov}_k + (T_k[m][1]-F_k)\cdot((T_k[m][0]-\mathbf{q}_k).\Call{reshape}{(N_\mathbf{q},1)}\cdot(T_k[m][0]-\mathbf{q}_k).\Call{reshape}{(1,N_\mathbf{q})}-\mathbf{C}_k)$
 \EndFor
-\State $\mathbf{d}_k \gets \mathbf{d}_k/N$
-\State $\mathbf{C}_\mathrm{diag}, \mathbf{d}_\mathrm{diag}\gets\Call{np.zeros}{N_\mathbf{q}}, \Call{np.zeros}{N_\mathbf{q}}$
+\State $\mathbf{d}^\mathrm{cov}_k \gets \mathbf{d}^\mathrm{cov}_k/N$
+\State $\mathbf{C}_\mathrm{diag}, \mathbf{d}_\mathrm{diag}\gets\mathrm{np.}\Call{zeros}{N_\mathbf{q}}, \mathrm{np.}\Call{zeros}{N_\mathbf{q}}$
 \For{$i=0,\dotsc,N_\mathbf{q}-1$}
-\State $\mathbf{C}_\mathrm{diag}[i]\gets\mathbf{C}_{\mathbf{q}_{k-1}}^{k-1}[i, i]$
-\State $\mathbf{d}_\mathrm{diag}[i]\gets\mathbf{d}_k[i, i]$
+\State $\mathbf{C}_\mathrm{diag}[i]\gets\mathbf{C}_k[i, i]$
+\State $\mathbf{d}_\mathrm{diag}[i]\gets\mathbf{d}^\mathrm{cov}_k[i, i]$
 \EndFor
 \State $\beta^\mathrm{iter}_2\gets\beta_2$
-\While{$\Call{np.min}{\mathbf{C}_\mathrm{diag}+\beta^\mathrm{iter}_2*\mathbf{d}_k}<0$}
+\While{$\mathrm{np.}\Call{min}{\mathbf{C}_\mathrm{diag}+\beta^\mathrm{iter}_2*\mathbf{d}_\mathrm{diag}}\leq0$}
 \State $\beta^\mathrm{iter}_2 \gets \beta^\mathrm{iter}_2/2$
 \EndWhile
-\State \Return $\mathbf{C}_k+\beta^\mathrm{iter}_2*\mathbf{d}_k$
+\State \Return $\mathbf{C}_k+\beta^\mathrm{iter}_2*\mathbf{d}^\mathrm{cov}_k$
 \EndFunction
 \end{algorithmic}
 \end{algorithm}
+
+For the update of the covariance matrix, we calculate the step direction $\mathbf{d}^\mathrm{cov}_k$ like in \ref{updateCovDirection} first. Then we want to make sure that the updated covariance matrix has only positive values on its diagonal.
+
+For this purpose, $\mathbf{C}_\mathrm{diag}$ and $\mathbf{d}_\mathrm{diag}$ are defined as the vector of values on the diagonal of $\mathbf{C}_k$ and $\mathbf{d}^\mathrm{cov}_k$ respectively. Then, the step size $\beta^\mathrm{iter}_2$, initialized as $\beta_2$, is halfed until $\mathrm{np.}\Call{min}{\mathbf{C}_\mathrm{diag}+\beta^\mathrm{iter}_2*\mathbf{d}_\mathrm{diag}}$ is positive. Finally, the matrix $\mathbf{C}_k+\beta^\mathrm{iter}_2*\mathbf{d}^\mathrm{cov}_k$ is returned, like in \eqref{updateCov}.
 
 %\begin{algorithm}[H]%\footnotesize
 %\caption{Line search}
@@ -230,23 +256,27 @@ The next algorithm uses some functions from the Python package NumPy, which is i
 %\end{algorithmic}
 %\end{algorithm}
 \begin{algorithm}[H]%\footnotesize
-\caption{Line search}
+\caption{\label{LineSearchAlg}Line search}
 \begin{algorithmic}[1]
-\Function{LineSearch}{$F, \mathbf{q}_k, F_k, \mathbf{d}_k, \beta_1, r, \varepsilon, \nu^*, \textproc{pr} \gets \mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}$}
+\Function{LineSearch}{$\textproc{F}, \mathbf{q}_k, F_k, \mathbf{d}_k, \beta_1, r, \varepsilon, \nu^*, \textproc{pr}$}
 \State $\beta^\mathrm{iter}_1 \gets \beta_1$
 \State $\mathbf{q}^\mathrm{next}_k \gets \Call{pr}{\mathbf{q}_k+\beta^\mathrm{iter}_1\mathbf{d}_k}$
-\State $F^\mathrm{next}_k \gets F(\mathbf{q}^\mathrm{next}_k)$
+\State $F^\mathrm{next}_k \gets \Call{F}{\mathbf{q}^\mathrm{next}_k}$
 \State $\nu \gets 0$
 \While{$F^\mathrm{next}_k-F_k\leq\varepsilon$\text{ and }$\nu<\nu^*$}
 \State $\beta^\mathrm{iter}_1 \gets r\beta^\mathrm{iter}_1$
 \State $\mathbf{q}^\mathrm{next}_k \gets \Call{pr}{\mathbf{q}_k+\beta^\mathrm{iter}_1\mathbf{d}_k}$
 \State $\nu \gets \nu+1$
-\State $F^\mathrm{next}_k \gets F(\mathbf{q}^\mathrm{next}_k)$
+\State $F^\mathrm{next}_k \gets \Call{F}{\mathbf{q}^\mathrm{next}_k}$
 \EndWhile
 \Return $\mathbf{q}^\mathrm{next}_k, F^\mathrm{next}_k$
 \EndFunction
 \end{algorithmic}
 \end{algorithm}
+
+At the start of the line search algorithm, we initialize the step size $\beta^\mathrm{iter}_1$ as $\beta_1$. Then we repeatedly calculate $\mathbf{q}^\mathrm{next}_k = \Call{pr}{\mathbf{q}_k+\beta^\mathrm{iter}_1\mathbf{d}_k}$ and $F^\mathrm{next}_k = \Call{F}{\mathbf{q}^\mathrm{next}_k}$ with simultaneous reduction of $\beta^\mathrm{iter}_1$ by multiplication with $r$ until either $F^\mathrm{next}_k-F_k>\varepsilon$ or $\nu\geq\nu^*$.
+
+After the termination of the while-loop, $\mathbf{q}^\mathrm{next}_k$ and $F^\mathrm{next}_k$ are returned. The reason for stopping the while loop also shows when $\mathbf{q}^\mathrm{next}_k$ is the last iteration of the EnOpt algorithm, as the EnOpt algorithm stops when the function value of the next iteration is not greater than the function value of the last iteration plus $\varepsilon$, i.e. when $F^\mathrm{next}_k>F_k+\varepsilon$.
 
 Now we use this algorithm to optimize our objective function $j$. Since this is a maximization procedure and $j$ should be minimized, we apply $-j$ to the EnOpt algorithm, which gives us:
 
@@ -261,8 +291,10 @@ Now we use this algorithm to optimize our objective function $j$. Since this is 
 \begin{algorithm}[H]%\footnotesize
 \caption{FOM-EnOpt algorithm}
 \begin{algorithmic}[1]
-\Function{FOM-EnOpt}{$\mathbf{q}_0,N,\varepsilon,k^*,\beta_1,\beta_2,r,\nu^*,\sigma^2,\rho$}
-\State \Return $\Call{EnOpt}{-j,\mathbf{q}_0,N,\varepsilon,k^*,\beta_1,\beta_2,r,\nu^*,\sigma^2,\rho}$
+\Function{FOM-EnOpt}{$\mathbf{q}_0,N,\varepsilon,k^*,\beta_1,\beta_2,r,\nu^*,\sigma^2,\rho, N_t, \mathbf{q}\mathrm{\_base}$}
+\State \Return $\Call{EnOpt}{-\textproc{j},\mathbf{q}_0,N,\varepsilon,k^*,\beta_1,\beta_2,r,\nu^*,\sigma^2,\rho, N_t, \protect\Call{len}{\mathbf{q}_\mathrm{base}}}$
 \EndFunction
 \end{algorithmic}
 \end{algorithm}
+
+$\mathbf{q}_\mathrm{base}$ is here a list that consists of the basis functions, so $\Phi$ in \eqref{basisFuncionsList}. There are some more inputs that $\textproc{FOM-EnOpt}$ requires, but we omit these as they are only needed for the calculation of $\textproc{j}$.
