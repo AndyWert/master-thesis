@@ -277,9 +277,17 @@ def optStep(F, q_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, corr
     C_k_new = np.zeros((N_q, N_q))
     if k == 0:
         if C_k is None:
+            fig, ax = plt.subplots(1, 1)
+            ax.plot([0, 1, 2], [0, 1, 0], label='testtest1'.format(k))
+            ax.legend()
+            plt.show()
             C_k_new = initCov(q_k, var, correlationCoeff, nt, nb)
         else:
-            C_k_new = C_k.copy()
+            fig, ax = plt.subplots(1, 1)
+            ax.plot([0, 1, 2], [1, 0, 1], label='testtest2'.format(k))
+            ax.legend()
+            plt.show()
+            C_k_new = C_k
     else:
         C_k_new = updateCov(q_k, T_k, C_k, F_k, beta_2)
     sample = np.random.multivariate_normal(q_k, C_k_new, size=N)
@@ -434,20 +442,21 @@ def evalMLM_delta1(F_ML_k, F, u_k, u_k_next, delta):
     plt.show()
 
 
-def test_DNN(DNN, x_test, y_test, loss_fn):
+def testDNN(DNN, x_val, y_val, loss_fn):
     DNN.eval()
     with torch.inference_mode():
-        test_pred = DNN(x_test).reshape(len(y_test))
-        test_loss = loss_fn(test_pred, y_test)
-        return test_loss
+        pred = DNN(x_val).reshape(len(y_val))
+        val_loss = loss_fn(pred, y_val)
+        return val_loss
 
 
-def train_DNN(DNN, x, y, x_train, y_train, x_test, y_test, normSample, normVal, loss_fn, optimizer, epochs):
+# def trainDNN(DNN, x, y, x_train, y_train, x_val, y_val, normSample, normVal, loss_fn, optimizer, epochs):
+def trainDNN(DNN, x_train, y_train, x_val, y_val, loss_fn, optimizer, epochs, earlyStop):
     wait = 0
-    minimal_test_loss = test_DNN(DNN, x_test, y_test, loss_fn)
-    test_iteration = [minimal_test_loss]
+    minimal_validation_loss = testDNN(DNN, x_val, y_val, loss_fn)
+    val_iteration = [minimal_validation_loss]
     torch.save(DNN.state_dict(), 'checkpoint.pth')
-    for epoch in range(epochs):
+    for epoch in np.arange(1, epochs+1):
         # Training
         """
         with torch.inference_mode():
@@ -496,55 +505,58 @@ def train_DNN(DNN, x, y, x_train, y_train, x_test, y_test, normSample, normVal, 
         optimizer.step(closure)
 
         # Testing
-        test_loss = test_DNN(DNN, x_test, y_test, loss_fn)
-        test_iteration.append(test_loss)
+        val_loss = testDNN(DNN, x_val, y_val, loss_fn)
+        val_iteration.append(val_loss)
         if epoch % 1 == 0:
-            print(f"Epoch: {epoch} | Test loss: {test_loss}")
-            # print(f"Epoch: {epoch} | Train loss: {loss} | Test loss: {test_loss}")
-        if test_loss < minimal_test_loss:
+            print(f"Epoch: {epoch} | Validation loss: {val_loss}")
+            # print(f"Epoch: {epoch} | Train loss: {loss} | Validation loss: {val_loss}")
+        if val_loss < minimal_validation_loss:
             wait = 0
-            minimal_test_loss = test_loss
+            minimal_validation_loss = val_loss
             torch.save(DNN.state_dict(), 'checkpoint.pth')
         else:
             wait += 1
-        if wait >= 20:
+        if wait >= earlyStop:
             DNN.load_state_dict(torch.load('checkpoint.pth'))
             """
             fig, ax = plt.subplots(1, 1)
-            ax.plot(range(len(test_iteration)), test_iteration, label='DNN training test loss')
+            ax.plot(range(len(val_iteration)), val_iteration, label='DNN training validation loss')
             ax.legend()
             plt.show()
             """
-            if len(test_iteration) > 25:
-                """
+            """
+            if len(val_iteration) > 25:
                 fig, ax = plt.subplots(1, 1)
-                ax.plot(range(25), test_iteration[(len(test_iteration)-25):], label='DNN training test loss, last 25 iterations')
+                ax.plot(range(25), val_iteration[(len(val_iteration)-25):], label='DNN training validation loss, last 25 iterations')
                 ax.legend()
                 plt.show()
-                """
+            """
             return  # break
     """
     fig, ax = plt.subplots(1, 1)
-    ax.plot(range(len(test_iteration)), test_iteration, label='DNN training test loss')
+    ax.plot(range(len(val_iteration)), val_iteration, label='DNN training validation loss')
     ax.legend()
     plt.show()
     """
-    if len(test_iteration) > 25:
+    if len(val_iteration) > 25:
         """
         fig, ax = plt.subplots(1, 1)
-        ax.plot(range(25), test_iteration[(len(test_iteration)-25):], label='DNN training test loss, last 25 iterations')
+        ax.plot(range(25), val_iteration[(len(val_iteration)-25):], label='DNN training validation loss, last 25 iterations')
         ax.legend()
         plt.show()
         """
 
-
-def train(sample, V_DNN, minIn, maxIn):
+# trainDNN(DNN, x_train, y_train, x_val, y_val, loss_fn, optimizer, epochs, earlyStop)
+def constructDNN(sample, V_DNN, minIn, maxIn):
     from pymor.models.neural_network import FullyConnectedNN
     from torch import nn
     # from torch.utils.data import DataLoader
+    DNNStructure = V_DNN[0]
+    activFunc = V_DNN[1]
+    restarts = V_DNN[2]
     epochs = V_DNN[3]
-    training_batch_size = V_DNN[4]
-    testing_batch_size = V_DNN[5]
+    earlyStop = V_DNN[4]
+    trainFrac = V_DNN[5]
     learning_rate = V_DNN[6]
     # Setup device agnostic code
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -559,97 +571,25 @@ def train(sample, V_DNN, minIn, maxIn):
     maxOut = np.max(normVal)
     print('normSample: {}'.format(normSample))
     print('normVal: {}'.format(normVal))
-    normSample -= minIn
-    normVal -= minOut
+    normSample = (normSample-minIn)/(maxIn-minIn)
+    normVal = (normVal-minOut)/(maxOut-minOut)
     print('normSample: {}'.format(normSample))
     print('normVal: {}'.format(normVal))
-    normSample /= maxIn-minIn
-    normVal /= maxOut-minOut
-    print('normSample: {}'.format(normSample))
-    print('normVal: {}'.format(normVal))
-    """
-    normSample = []
-    for i in range(len(sample)):
-        normSample.append([sample[i][0].copy(), sample[i][1]])
-    #normSample = sample.copy()
-    minIn = np.min(normSample[0][0])
-    maxIn = np.max(normSample[0][0])
-    minOut = normSample[0][1]
-    maxOut = normSample[0][1]
-    for i in range(1, len(normSample)):
-        minInI = np.min(normSample[i][0])
-        maxInI = np.max(normSample[i][0])
-        minOutI = normSample[i][1]
-        maxOutI = normSample[i][1]
-        if minInI < minIn:
-            minIn = minInI
-        if maxInI > maxIn:
-            maxIn = maxInI
-        if minOutI < minOut:
-            minOut = minOutI
-        if maxOutI > maxOut:
-            maxOut = maxOutI
-    assert minIn != maxIn
-    assert minOut != maxOut
-    for i in range(len(normSample)):
-        normSample[i][0] = (normSample[i][0]-minIn)/(maxIn-minIn)
-        normSample[i][1] = (normSample[i][1]-minOut)/(maxOut-minOut)
-    x = []
-    y = []
-    for i in range(len(normSample)):
-        x.append(torch.from_numpy(normSample[i][0]).to(torch.float32))
-        y.append(torch.tensor(normSample[i][1]).to(torch.float32))
-    x_stacked = torch.stack(x, dim=0)
-    y_stacked = torch.stack(y, dim=0)
-    print(x_stacked[0])
-    print(y_stacked[0])
-    # Create train/test split
-    train_split = int(0.8 * len(x_stacked)) # 80% of data used for training set, 20% for testing 
-    x_train, y_train = x_stacked[:train_split], y_stacked[:train_split]
-    x_test, y_test = x_stacked[train_split:], y_stacked[train_split:]
-    """
     x = torch.from_numpy(normSample).to(torch.float32)
     y = torch.from_numpy(normVal).to(torch.float32)
     print(x)
     print(y)
     # Create train/test split
-    train_split = int(0.8 * len(x))
-    x_train, y_train = x[:train_split], y[:train_split]
-    x_test, y_test = x[train_split:], y[train_split:]
+    trainSplit = int(trainFrac * len(x))
+    x_train, y_train = x[:trainSplit], y[:trainSplit]
+    x_val, y_val = x[trainSplit:], y[trainSplit:]
     # print(x_train)
     # print(y_train)
-    # print(x_test)
-    # print(y_test)
-    # print(len(x_train), len(y_train), len(x_test), len(y_test))
+    # print(x_val)
+    # print(y_val)
+    # print(len(x_train), len(y_train), len(x_val), len(y_val))
 
-    DNN = FullyConnectedNN(V_DNN[0], activation_function=V_DNN[1])
-
-    """
-    class DNNModel(nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.layer_1 = nn.Linear(in_features=len(x[0, :]), out_features=250)
-            self.layer_2 = nn.Linear(in_features=250, out_features=250)
-            self.layer_3 = nn.Linear(in_features=250, out_features=1)
-
-        def forward(self, x):
-            return self.layer_3(torch.tanh(self.layer_2(torch.tanh(self.layer_1(x)))))
-    """
-    """
-    class DNNModel(nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.linear_layer_stack = nn.Sequential(
-                nn.Linear(in_features=len(x[0, :]), out_features=250),
-                nn.ReLU(),
-                nn.Linear(in_features=250, out_features=250),
-                nn.ReLU(),
-                nn.Linear(in_features=250, out_features=1),
-            )
-
-        def forward(self, x):
-            return self.linear_layer_stack(x)
-    """
+    DNN = FullyConnectedNN(DNNStructure, activation_function=activFunc)
 
     # DNN = DNNModel().to(device)
 
@@ -670,24 +610,23 @@ def train(sample, V_DNN, minIn, maxIn):
     optimizer = torch.optim.LBFGS(DNN.parameters(), lr=learning_rate, line_search_fn='strong_wolfe')
 
     x_train = x_train.to(device)
-    x_test = x_test.to(device)
+    x_val = x_val.to(device)
     y_train = y_train.to(device)
-    y_test = y_test.to(device)
-
-    train_DNN(DNN, x, y, x_train, y_train, x_test, y_test, normSample, normVal, loss_fn, optimizer, epochs)
-    DNN_eval = test_DNN(DNN, x_test, y_test, loss_fn)
-    test_loss = [DNN_eval]
-    for i in range(10):
-        DNN_i = FullyConnectedNN(V_DNN[0], activation_function=V_DNN[1])
+    y_val = y_val.to(device)
+    trainDNN(DNN, x_train, y_train, x_val, y_val, loss_fn, optimizer, epochs, earlyStop)
+    DNN_eval = testDNN(DNN, x_val, y_val, loss_fn)
+    val_loss = [DNN_eval]
+    for i in range(restarts):
+        DNN_i = FullyConnectedNN(DNNStructure, activation_function=activFunc)
         optimizer = torch.optim.LBFGS(DNN_i.parameters(), lr=learning_rate, line_search_fn='strong_wolfe')
-        train_DNN(DNN_i, x, y, x_train, y_train, x_test, y_test, normSample, normVal, loss_fn, optimizer, epochs)
-        DNN_i_eval = test_DNN(DNN_i, x_test, y_test, loss_fn)
-        test_loss.append(DNN_i_eval)
+        trainDNN(DNN_i, x_train, y_train, x_val, y_val, loss_fn, optimizer, epochs, earlyStop)
+        DNN_i_eval = testDNN(DNN_i, x_val, y_val, loss_fn)
+        val_loss.append(DNN_i_eval)
         if DNN_i_eval < DNN_eval:
             DNN_eval = DNN_i_eval
             DNN = DNN_i
-    plt.bar(range(len(test_loss)), test_loss)
-    plt.suptitle('test_loss')
+    plt.bar(range(len(val_loss)), val_loss)
+    plt.suptitle('val_loss')
     plt.show()
 
     with torch.inference_mode():
@@ -727,8 +666,8 @@ def train(sample, V_DNN, minIn, maxIn):
         plt.suptitle('sortedFOMOutputs')
         plt.show()
 
-    def f(inp):
-        scaledInput = torch.from_numpy((inp-minIn)/(maxIn-minIn)).to(torch.float32)
+    def f(x_inp):
+        scaledInput = torch.from_numpy((x_inp-minIn)/(maxIn-minIn)).to(torch.float32)
         with torch.inference_mode():
             scaledOutput = DNN(scaledInput)
         # return scaledOutput.numpy()
@@ -737,9 +676,9 @@ def train(sample, V_DNN, minIn, maxIn):
     return f
     """
     training_data = CustomDataset(normSample[V_DNN[2]:])
-    test_data = CustomDataset(normSample[:V_DNN[2]])
+    val_data = CustomDataset(normSample[:V_DNN[2]])
     train_dataloader = DataLoader(training_data, batch_size=training_batch_size, shuffle=True)
-    test_dataloader = DataLoader(test_data, batch_size=testing_batch_size, shuffle=True)
+    val_dataloader = DataLoader(val_data, batch_size=testing_batch_size, shuffle=True)
     DNN = FullyConnectedNN(V_DNN[0], activation_function=V_DNN[1])
     """
     """
@@ -754,13 +693,13 @@ def train(sample, V_DNN, minIn, maxIn):
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.LBFGS(DNN.parameters(), lr=learning_rate, line_search_fn='strong_wolfe')
 
-    DNN_optimizer(DNN, train_dataloader, test_dataloader, loss_fn, optimizer, epochs)
-    DNN_eval = evaluate_DNN(DNN, training_data, test_data, loss_fn)
+    DNN_optimizer(DNN, train_dataloader, val_dataloader, loss_fn, optimizer, epochs)
+    DNN_eval = evaluate_DNN(DNN, training_data, val_data, loss_fn)
     for i in range(25):
         DNN_i = FullyConnectedNN(V_DNN[0], activation_function=V_DNN[1])
         optimizer = torch.optim.LBFGS(DNN_i.parameters(), lr=learning_rate, line_search_fn='strong_wolfe')
-        DNN_optimizer(DNN_i, train_dataloader, test_dataloader, loss_fn, optimizer, epochs)
-        DNN_i_eval = evaluate_DNN(DNN_i, training_data, test_data, loss_fn)
+        DNN_optimizer(DNN_i, train_dataloader, val_dataloader, loss_fn, optimizer, epochs)
+        DNN_i_eval = evaluate_DNN(DNN_i, training_data, val_data, loss_fn)
         if DNN_i_eval < DNN_eval:
             DNN_eval = DNN_i_eval
             DNN = DNN_i
@@ -787,9 +726,9 @@ def train(sample, V_DNN, minIn, maxIn):
     """
 
 
-def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb):
+def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb):
     N_u = len(u_0)
-    # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
+    # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of validation set, number of epochs, training batch size, testing batch size, learning rate
     V_DNN[0].insert(0, N_u)
     V_DNN[0].insert(len(V_DNN[0]), 1)
     var_o = var
@@ -810,7 +749,7 @@ def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, n
     u_k_tilde_check = []
     fails_iter = []
     fails = 0
-    delta = 40
+    delta = delta_init
     while (F_k_tilde > F_k+eps_o and k < k_1_o):
         # u_k = u_k_tilde.copy()
         # F_k = F_k_tilde
@@ -842,7 +781,7 @@ def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, n
 
         while F_k_next <= F_k+eps_o:
             fails += 1
-            F_ML_k = train(T_k, V_DNN, minIn, maxIn)
+            F_ML_k = constructDNN(T_k, V_DNN, minIn, maxIn)
             # evalMLM(F_ML_k, T_k, k)
             F_ML_k_u_k = F_ML_k(u_k)
             deltaList = [delta]
@@ -982,8 +921,8 @@ def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, n
     return u_k, k
 
 
-def ROM_EnOpt(u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
-    return AML_EnOpt(lambda mu: -J(mu, q_base, a, T, grid_intervals, nt)[0], u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, len(q_base))
+def ROM_EnOpt(u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
+    return AML_EnOpt(lambda mu: -J(mu, q_base, a, T, grid_intervals, nt)[0], u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, len(q_base))
 
 
 def result(name, qParamOpt, qParam, out, fom, data, u, y1, y2, a, T, nt, nb, qAnalytical = False):
@@ -1074,19 +1013,21 @@ def opt1():
 
 """
 # optimized control function using the AML EnOpt minimizer
+delta_init = 40
 eps_o = 1e-6
 eps_i = 1e-6
 k_1_o = k_1
 k_1_i = k_1
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
+# V_DNN: neurons per hidden layer, activation function (like torch.tanh), number of restarts, number of epochs, early stop, trainFrac, learning rate
 # V_DNN = [[100, 100, 40], torch.tanh, 50, 100, 100, 10, 1e-4]
-V_DNN = [[500, 500], torch.tanh, 50, 2000, 100, 10, 1e-2]
+V_DNN = [[500, 500], torch.tanh, 10, 1000, 20, 0.8, 1e-2]
 # V_DNN = [[25, 25], torch.tanh, 50, 2000, 100, 10, 1e-5]
 # V_DNN = [[200, 200, 200], torch.tanh, 50, 5000, 100, 10, 1e-5]
 # V_DNN = [[200, 200, 100, 50], torch.tanh, 50, 100, 100, 10, 1e-4]
 # V_DNN = [[25, 25], torch.tanh, 50, 100, 50, 5, 1e-4]
 
-qParamAMLOpt, kAML = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
+qParamAMLOpt, kAML = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
 print(qParamAMLOpt, kAML)
 outAMLOpt, fomAMLOpt, dataAMLOpt, y1AMLOpt, y2AMLOpt = J(qParamAMLOpt, q_base, a, T, grid_intervals, nt)
 uAMLOpt = fomAMLOpt.solve({'a': a})

@@ -92,7 +92,7 @@ The implementation in pseudo code is shown here:
 %\end{algorithmic}
 %\end{algorithm}
 \begin{algorithm}[H]%\footnotesize
-\caption{EnOpt algorithm}
+\caption{\label{EnOptAlg}EnOpt algorithm}
 \begin{algorithmic}[1]
 \Function{EnOpt}{$\textproc{F},\mathbf{q}_0,N,\varepsilon,k^*,\beta_1,\beta_2,r,\nu^*,\sigma^2,\rho, N_t, N_b, \textproc{pr} \gets \mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}, \mathbf{C}_\mathrm{init}\gets\mathrm{None}$}
 \State $F^\mathrm{prev}_{k}\gets \Call{F}{\mathbf{q}_0}$
@@ -227,7 +227,7 @@ We return $\mathbf{q}^\mathrm{next}_k,T^\mathrm{next}_k,\mathbf{C}^\mathrm{next}
 \State $\mathbf{d}_\mathrm{diag}[i]\gets\mathbf{d}^\mathrm{cov}_k[i, i]$
 \EndFor
 \State $\beta^\mathrm{iter}_2\gets\beta_2$
-\While{$\mathrm{np.}\Call{min}{\mathbf{C}_\mathrm{diag}+\beta^\mathrm{iter}_2*\mathbf{d}_\mathrm{diag}}\leq0$}
+\While{$\mathrm{np.}\Call{min}{\mathbf{C}_\mathrm{diag}+\beta^\mathrm{iter}_2\cdot\mathbf{d}_\mathrm{diag}}\leq0$}
 \State $\beta^\mathrm{iter}_2 \gets \beta^\mathrm{iter}_2/2$
 \EndWhile
 \State \Return $\mathbf{C}_k+\beta^\mathrm{iter}_2*\mathbf{d}^\mathrm{cov}_k$
@@ -289,9 +289,9 @@ Now we use this algorithm to optimize our objective function $j$. Since this is 
 %\end{algorithmic}
 %\end{algorithm}
 \begin{algorithm}[H]%\footnotesize
-\caption{FOM-EnOpt algorithm}
+\caption{\label{FOM-EnOpt}FOM-EnOpt algorithm}
 \begin{algorithmic}[1]
-\Function{FOM-EnOpt}{$\mathbf{q}_0,N,\varepsilon,k^*,\beta_1,\beta_2,r,\nu^*,\sigma^2,\rho, N_t, \mathbf{q}\mathrm{\_base}$}
+\Function{FOM-EnOpt}{$\mathbf{q}_0,N,\varepsilon,k^*,\beta_1,\beta_2,r,\nu^*,\sigma^2,\rho, N_t, \mathbf{q}_\mathrm{base}$}
 \State \Return $\Call{EnOpt}{-\textproc{j},\mathbf{q}_0,N,\varepsilon,k^*,\beta_1,\beta_2,r,\nu^*,\sigma^2,\rho, N_t, \protect\Call{len}{\mathbf{q}_\mathrm{base}}}$
 \EndFunction
 \end{algorithmic}
