@@ -141,9 +141,9 @@ The next algorithms use some functions from Python such as $\textproc{len}$ for 
 \State $\mathbf{C}^\mathrm{next}_k \gets \mathrm{np.}\Call{zeros}{(N_\mathbf{q}, N_\mathbf{q})}$
 \If{$k=0$}
 \If{$\mathbf{C}_k$\text{ is }$\mathrm{None}$}
-\State $\mathbf{C}^\mathrm{next}_k \gets \Call{initCov}{\mathbf{q}_k, \sigma^2, \rho, N_t, N_b}$
+\State $\mathbf{C}^\mathrm{next}_k \gets \Call{initCov}{\protect\Call{len}{\mathbf{q}_k}, \sigma^2, \rho, N_t, N_b}$
 \Else
-\State $\mathbf{C}^\mathrm{next}_k \gets \mathbf{C}_k$
+\State $\mathbf{C}^\mathrm{next}_k \gets \mathbf{C}_k.\Call{copy}{\:}$
 \EndIf
 \Else
 \State $\mathbf{C}^\mathrm{next}_k \gets \Call{updateCov}{\mathbf{q}_k, T_k, \mathbf{C}_k, F_k ,\beta_2}$
@@ -156,7 +156,7 @@ The next algorithms use some functions from Python such as $\textproc{len}$ for 
 \EndFor
 \State $\mathbf{C}^k_F \gets 1/(N-1)\cdot\mathbf{C}^k_F$
 \State $\mathbf{d}_k \gets \mathbf{C}^k_F/\|\mathbf{C}^k_F\|_\infty$
-\State $\mathbf{q}^\mathrm{next}_{k}, F^\mathrm{next}_k \gets \Call{LineSearch}{\textproc{F},\mathbf{q}_k,\mathbf{d}_k,\beta_1,r,\varepsilon,\nu^*,\textproc{pr}}$
+\State $\mathbf{q}^\mathrm{next}_{k}, F^\mathrm{next}_k \gets \Call{LineSearch}{\textproc{F},\mathbf{q}_k,F_k,\mathbf{d}_k,\beta_1,r,\varepsilon,\nu^*,\textproc{pr}}$
 \State \Return $\mathbf{q}^\mathrm{next}_k,T^\mathrm{next}_k,\mathbf{C}^\mathrm{next}_k,F^\mathrm{next}_k$
 \EndFunction
 \end{algorithmic}
@@ -266,8 +266,8 @@ For this purpose, $\mathbf{C}_\mathrm{diag}$ and $\mathbf{d}_\mathrm{diag}$ are 
 \While{$F^\mathrm{next}_k-F_k\leq\varepsilon$\text{ and }$\nu<\nu^*$}
 \State $\beta^\mathrm{iter}_1 \gets r\beta^\mathrm{iter}_1$
 \State $\mathbf{q}^\mathrm{next}_k \gets \Call{pr}{\mathbf{q}_k+\beta^\mathrm{iter}_1\mathbf{d}_k}$
-\State $\nu \gets \nu+1$
 \State $F^\mathrm{next}_k \gets \Call{F}{\mathbf{q}^\mathrm{next}_k}$
+\State $\nu \gets \nu+1$
 \EndWhile
 \Return $\mathbf{q}^\mathrm{next}_k, F^\mathrm{next}_k$
 \EndFunction

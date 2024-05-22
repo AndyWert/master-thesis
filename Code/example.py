@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from torch.utils.data import Dataset
 from pymor.basic import *
 import matplotlib.pyplot as plt
 from pymor.algorithms.timestepping import TimeStepper
@@ -109,7 +108,7 @@ class CrankNicolsonTimeStepper(TimeStepper):
                 yield U, t
 
 
-def parabolic_equation(q, T, grid_intervals=50, nt=50):
+def parabolic_equation(q, T, grid_intervals=50, nt=10):
     """Return a parabolic equation.
 
     Parameters
@@ -159,7 +158,7 @@ def parabolic_equation(q, T, grid_intervals=50, nt=50):
 
 
 # objective function
-def J(param, q_base, a, T, grid_intervals=50, nt=50):
+def J(param, q_base, a, T, grid_intervals=50, nt=10):
     alpha = np.pi**(-4)
     # setting the control function q
     # q_base = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
@@ -179,7 +178,6 @@ def J(param, q_base, a, T, grid_intervals=50, nt=50):
     uMinusUHath = u.space.empty(reserve=nt+1)
     qh = u.space.empty(reserve=nt+1)
     grid = data['grid']
-    boundary_info = data['boundary_info']
     for i in range(nt+1):
         qh.append(u.space.from_numpy(q.evaluate(grid.centers(grid.dim), q.parameters.parse({'t': i/nt*T}))))
         uMinusUHath.append(u[i][0]-u.space.from_numpy(uHat.evaluate(grid.centers(grid.dim), uHat.parameters.parse({'a': a, 't': i/nt*T}))))
@@ -200,7 +198,7 @@ def L_BFGS_B_minimizer(init, a, T, grid_intervals, nt, q_base):
 
 
 # L2- and LInf-error between a function u and the analytical minimizer uBar
-def error(err, u, T, product, nt=50):
+def error(err, u, T, product, nt=10):
     absInfErr = np.max(err.sup_norm())
     relInfErr = np.max(err.sup_norm())/np.max(u.sup_norm())
     t = np.linspace(0, T, num=nt+1)
@@ -218,38 +216,24 @@ def error(err, u, T, product, nt=50):
 
 def lineSearch(F, q_k, F_k, d_k, beta, r, eps, nu_1, proj):
     beta_k = beta
-    q_k_new = proj(q_k+beta_k*d_k)
-    F_k_new = F(q_k_new)
+    q_k_next = proj(q_k+beta_k*d_k)
+    F_k_next = F(q_k_next)
     nu = 0
-    beta_k_list = [beta_k]
-    while (F_k_new-F_k <= eps and nu < nu_1):
+    while (F_k_next-F_k <= eps and nu < nu_1):
         beta_k = r*beta_k
-        beta_k_list.append(beta_k)
-        q_k_new = proj(q_k+beta_k*d_k)
-        F_k_new = F(q_k_new)
+        q_k_next = proj(q_k+beta_k*d_k)
+        F_k_next = F(q_k_next)
         nu = nu+1
-    """
-    fig, ax = plt.subplots(1, 1)
-    ax.plot([0, 1], [nu, nu], label='line search iterations')
-    ax.legend()
-    plt.show()
-    fig, ax = plt.subplots(1, 1)
-    ax.plot(range(len(beta_k_list)), beta_k_list, label='beta_k')
-    ax.legend()
-    plt.show()
-    """
-    return q_k_new, F_k_new
+    return q_k_next, F_k_next
 
 
-def initCov(q_k, var, correlationCoeff, nt, nb):
-    N_q = len(q_k)
-    C_k_new = np.zeros((N_q, N_q))
+def initCov(N_q, var, correlationCoeff, nt, nb):
+    C_k_next = np.zeros((N_q, N_q))
     for k in range(nb):
         for i in range(nt+1):
             for j in range(nt+1):
-                # change if more basis functions
-                C_k_new[k*(nt+1)+i, k*(nt+1)+j] = var**2*correlationCoeff**(np.abs(i-j))*1/(1-correlationCoeff**2)
-    return C_k_new
+                C_k_next[k*(nt+1)+i, k*(nt+1)+j] = var[k]**2*correlationCoeff**(np.abs(i-j))*1/(1-correlationCoeff**2)
+    return C_k_next
 
 
 def updateCov(q_k, T_k, C_k, F_k, beta):
@@ -259,72 +243,47 @@ def updateCov(q_k, T_k, C_k, F_k, beta):
     for m in range(N):
         d_k_cov = d_k_cov+(T_k[m][1]-F_k)*((T_k[m][0]-q_k).reshape((N_q, 1))*(T_k[m][0]-q_k).reshape((1, N_q))-C_k)
     d_k_cov = d_k_cov / N
-    # beta_3 = np.max(np.abs(C_k)) * beta
-    # return C_k + beta_3*d_k_cov / np.max(np.abs(d_k_cov))
     C_k_diag = np.zeros(N_q)
     d_k_cov_diag = np.zeros(N_q)
     for i in range(N_q):
         C_k_diag[i] = C_k[i, i]
         d_k_cov_diag[i] = d_k_cov[i, i]
     beta_iter = beta
-    while (np.min(C_k_diag+beta_iter*d_k_cov_diag) < 0):
+    while (np.min(C_k_diag+beta_iter*d_k_cov_diag) <= 0):
         beta_iter /= 2
     return C_k + beta_iter*d_k_cov
 
 
 def optStep(F, q_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, nt, nb, proj=lambda mu: mu):
     N_q = len(q_k)
-    C_k_new = np.zeros((N_q, N_q))
+    C_k_next = np.zeros((N_q, N_q))
     if k == 0:
         if C_k is None:
-            fig, ax = plt.subplots(1, 1)
-            ax.plot([0, 1, 2], [0, 1, 0], label='testtest1'.format(k))
-            ax.legend()
-            plt.show()
-            C_k_new = initCov(q_k, var, correlationCoeff, nt, nb)
+            C_k_next = initCov(len(q_k), var, correlationCoeff, nt, nb)
         else:
-            fig, ax = plt.subplots(1, 1)
-            ax.plot([0, 1, 2], [1, 0, 1], label='testtest2'.format(k))
-            ax.legend()
-            plt.show()
-            C_k_new = C_k
+            C_k_next = C_k.copy()
     else:
-        C_k_new = updateCov(q_k, T_k, C_k, F_k, beta_2)
-    sample = np.random.multivariate_normal(q_k, C_k_new, size=N)
-    T_k_new = []
+        C_k_next = updateCov(q_k, T_k, C_k, F_k, beta_2)
+    sample = np.random.multivariate_normal(q_k, C_k_next, size=N)
+    T_k_next = []
     for i in range(N):
-        T_k_new.append([proj(sample[i]), F(proj(sample[i]))])
-        # T_k_new.append([sample[i], F(sample[i])])
+        T_k_next.append([proj(sample[i]), F(proj(sample[i]))])
+        # T_k_next.append([sample[i], F(sample[i])])
     C_F = np.zeros(N_q)
     for m in range(N):
-        C_F = C_F+(T_k_new[m][0]-q_k)*(T_k_new[m][1]-F_k)
+        C_F = C_F+(T_k_next[m][0]-q_k)*(T_k_next[m][1]-F_k)
     C_F = 1/(N-1)*C_F
-    """
-    print('\n')
-    print('q_k: {}'.format(q_k))
-    print('T_k_new: {}'.format(T_k_new[:5]))
-    print('F_k: {}'.format(F_k))
-    print('C_F: {}'.format(C_F))
-    print('np.max(np.abs(C_F)): {}'.format(np.max(np.abs(C_F))))
-    """
     d_k = C_F/np.max(np.abs(C_F))
-    """
-    t = np.linspace(0, 0.1, N_q)
-    fig, ax = plt.subplots(1, 1)
-    ax.plot(t, d_k, label='EnOpt d_k: {}'.format(k))
-    ax.legend()
-    plt.show()
-    """
-    q_k_new, F_k_new = lineSearch(F, q_k, F_k, d_k, beta_1, r, eps, nu_1, proj)
+    q_k_next, F_k_next = lineSearch(F, q_k, F_k, d_k, beta_1, r, eps, nu_1, proj)
 
-    t = np.linspace(0, 0.1, nt+1)
-    for i in range(nb):
-        fig, ax = plt.subplots(1, 1)
-        ax.plot(t, q_k_new[i*(nt+1):(i+1)*(nt+1)], label='EnOpt q_k[{}]: {}'.format(i, k))
-        ax.legend()
-        plt.show()
+    if showPlots:
+        t = np.linspace(0, 0.1, nt+1)
+        for i in range(nb):
+            plt.plot(t, q_k_next[i*(nt+1):(i+1)*(nt+1)], label='EnOpt q_k: basis function {}, iteration {}'.format(i, k))
+            plt.legend()
+            plt.show()
 
-    return q_k_new, T_k_new, C_k_new, F_k_new
+    return q_k_next, T_k_next, C_k_next, F_k_next
 
 
 def enOpt(F, q_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb, proj=lambda mu: mu, Cov=None):
@@ -450,50 +409,13 @@ def testDNN(DNN, x_val, y_val, loss_fn):
         return val_loss
 
 
-# def trainDNN(DNN, x, y, x_train, y_train, x_val, y_val, normSample, normVal, loss_fn, optimizer, epochs):
 def trainDNN(DNN, x_train, y_train, x_val, y_val, loss_fn, optimizer, epochs, earlyStop):
     wait = 0
     minimal_validation_loss = testDNN(DNN, x_val, y_val, loss_fn)
     val_iteration = [minimal_validation_loss]
     torch.save(DNN.state_dict(), 'checkpoint.pth')
+    # Training
     for epoch in np.arange(1, epochs+1):
-        # Training
-        """
-        with torch.inference_mode():
-            # print(x[0])
-            # y_preds = DNN(x).reshape(len(y))
-            # print('y_preds: {}'.format(y_preds))
-            # print('y: {}'.format(y))
-            # print('diff: {}'.format(y_preds-y))
-
-            sortedDNNOutputs = []
-            sortedFOMOutputs = []
-            sortSample = []
-            for i in range(len(normSample)):
-                sortSample.append([normSample[i, :], normVal[i]])
-            for i in range(len(normSample)):
-                jMin = 0
-                sampleMin = sortSample[0][1]
-                for j in range(len(sortSample)):
-                    if sortSample[j][1] < sampleMin:
-                        jMin = j
-                        sampleMin = sortSample[j][1]
-                sortedFOMOutputs.append(sampleMin)
-                sortedDNNOutputs.append(DNN(torch.from_numpy(sortSample[jMin][0]).to(torch.float32)).detach().numpy()[0])
-                sortSample.pop(jMin)
-            # print(range(len(sortedDNNOutputs)))
-            # print(sortedDNNOutputs)
-            minSortedDNNOutputs = np.min(sortedDNNOutputs)
-            plt.bar(range(len(sortedDNNOutputs)), sortedDNNOutputs)
-            plt.suptitle('sortedDNNOutputs, epoch {}'.format(epoch))
-            plt.show()
-            # plt.bar(range(len(sortedDNNOutputs)), sortedDNNOutputs-minSortedDNNOutputs)
-            # plt.suptitle('translated sortedDNNOutputs, epoch {}'.format(epoch))
-            # plt.show()
-            plt.bar(range(len(sortedFOMOutputs)), sortedFOMOutputs)
-            plt.suptitle('sortedFOMOutputs, epoch {}'.format(epoch))
-            plt.show()
-        """
         DNN.train()
 
         def closure():
@@ -509,7 +431,6 @@ def trainDNN(DNN, x_train, y_train, x_val, y_val, loss_fn, optimizer, epochs, ea
         val_iteration.append(val_loss)
         if epoch % 1 == 0:
             print(f"Epoch: {epoch} | Validation loss: {val_loss}")
-            # print(f"Epoch: {epoch} | Train loss: {loss} | Validation loss: {val_loss}")
         if val_loss < minimal_validation_loss:
             wait = 0
             minimal_validation_loss = val_loss
@@ -518,39 +439,29 @@ def trainDNN(DNN, x_train, y_train, x_val, y_val, loss_fn, optimizer, epochs, ea
             wait += 1
         if wait >= earlyStop:
             DNN.load_state_dict(torch.load('checkpoint.pth'))
-            """
-            fig, ax = plt.subplots(1, 1)
-            ax.plot(range(len(val_iteration)), val_iteration, label='DNN training validation loss')
-            ax.legend()
-            plt.show()
-            """
-            """
-            if len(val_iteration) > 25:
-                fig, ax = plt.subplots(1, 1)
-                ax.plot(range(25), val_iteration[(len(val_iteration)-25):], label='DNN training validation loss, last 25 iterations')
-                ax.legend()
+            if showPlots:
+                plt.plot(range(len(val_iteration)), val_iteration, label='DNN training validation loss')
+                plt.legend()
                 plt.show()
-            """
-            return  # break
-    """
-    fig, ax = plt.subplots(1, 1)
-    ax.plot(range(len(val_iteration)), val_iteration, label='DNN training validation loss')
-    ax.legend()
-    plt.show()
-    """
-    if len(val_iteration) > 25:
-        """
-        fig, ax = plt.subplots(1, 1)
-        ax.plot(range(25), val_iteration[(len(val_iteration)-25):], label='DNN training validation loss, last 25 iterations')
-        ax.legend()
-        plt.show()
-        """
+                if len(val_iteration) > earlyStop+5:
+                    plt.plot(range(earlyStop+5), val_iteration[(len(val_iteration)-(earlyStop+5)):], label='DNN training validation loss, last iterations')
+                    plt.legend()
+                    plt.show()
 
-# trainDNN(DNN, x_train, y_train, x_val, y_val, loss_fn, optimizer, epochs, earlyStop)
+            return  # break
+    if showPlots:
+        plt.plot(range(len(val_iteration)), val_iteration, label='DNN training validation loss')
+        plt.legend()
+        plt.show()
+        if len(val_iteration) > earlyStop+5:
+            plt.plot(range(earlyStop+5), val_iteration[(len(val_iteration)-(earlyStop+5)):], label='DNN training validation loss, last iterations')
+            plt.legend()
+            plt.show()
+
+
 def constructDNN(sample, V_DNN, minIn, maxIn):
     from pymor.models.neural_network import FullyConnectedNN
     from torch import nn
-    # from torch.utils.data import DataLoader
     DNNStructure = V_DNN[0]
     activFunc = V_DNN[1]
     restarts = V_DNN[2]
@@ -569,44 +480,19 @@ def constructDNN(sample, V_DNN, minIn, maxIn):
         normVal[i] = sample[i][1]
     minOut = np.min(normVal)
     maxOut = np.max(normVal)
-    print('normSample: {}'.format(normSample))
-    print('normVal: {}'.format(normVal))
     normSample = (normSample-minIn)/(maxIn-minIn)
     normVal = (normVal-minOut)/(maxOut-minOut)
-    print('normSample: {}'.format(normSample))
-    print('normVal: {}'.format(normVal))
     x = torch.from_numpy(normSample).to(torch.float32)
     y = torch.from_numpy(normVal).to(torch.float32)
-    print(x)
-    print(y)
     # Create train/test split
     trainSplit = int(trainFrac * len(x))
     x_train, y_train = x[:trainSplit], y[:trainSplit]
     x_val, y_val = x[trainSplit:], y[trainSplit:]
-    # print(x_train)
-    # print(y_train)
-    # print(x_val)
-    # print(y_val)
-    # print(len(x_train), len(y_train), len(x_val), len(y_val))
 
     DNN = FullyConnectedNN(DNNStructure, activation_function=activFunc)
 
-    # DNN = DNNModel().to(device)
-
-    # print(DNN.state_dict())
-    # print(list(DNN.parameters()))
-    # print(DNN.parameters().dtype)
-    """
-    with torch.inference_mode():
-        print(x[0])
-        y_preds = DNN(x).reshape(len(y))
-        print('y_preds: {}'.format(y_preds))
-        print('y: {}'.format(y))
-        print('diff: {}'.format(y_preds-y))
-    """
     DNN.to(device)
     loss_fn = nn.MSELoss()
-    # optimizer = torch.optim.SGD(params=DNN.parameters(), lr=learning_rate)
     optimizer = torch.optim.LBFGS(DNN.parameters(), lr=learning_rate, line_search_fn='strong_wolfe')
 
     x_train = x_train.to(device)
@@ -625,304 +511,206 @@ def constructDNN(sample, V_DNN, minIn, maxIn):
         if DNN_i_eval < DNN_eval:
             DNN_eval = DNN_i_eval
             DNN = DNN_i
-    plt.bar(range(len(val_loss)), val_loss)
-    plt.suptitle('val_loss')
-    plt.show()
+    if showPlots:
+        plt.bar(range(len(val_loss)), val_loss)
+        plt.suptitle('validation loss')
+        plt.show()
 
-    with torch.inference_mode():
-        print(x[0])
-        y_preds = DNN(x).reshape(len(y))
-        print('y_preds: {}'.format(y_preds))
-        print('y: {}'.format(y))
-        print('diff: {}'.format(y_preds-y))
+    if showPlots:
+        with torch.inference_mode():
+            y_preds = DNN(x).reshape(len(y))
 
-        sortedDNNOutputs = []
-        sortedFOMOutputs = []
-        sortSample = []
-        for i in range(len(normSample)):
-            sortSample.append([normSample[i, :], normVal[i]])
-        for i in range(len(normSample)):
-            jMin = 0
-            sampleMin = sortSample[0][1]
-            for j in range(len(sortSample)):
-                if sortSample[j][1] < sampleMin:
-                    jMin = j
-                    sampleMin = sortSample[j][1]
-            sortedFOMOutputs.append(sampleMin)
-            sortedDNNOutputs.append(DNN(torch.from_numpy(sortSample[jMin][0]).to(torch.float32)).detach().numpy()[0])
-            sortSample.pop(jMin)
-        print(range(len(sortedDNNOutputs)))
-        print(sortedDNNOutputs)
-        minSortedDNNOutputs = np.min(sortedDNNOutputs)
-        plt.bar(range(len(sortedDNNOutputs)), sortedDNNOutputs)
-        plt.suptitle('sortedDNNOutputs')
-        plt.show()
-        """
-        plt.bar(range(len(sortedDNNOutputs)), sortedDNNOutputs-minSortedDNNOutputs)
-        plt.suptitle('translated sortedDNNOutputs')
-        plt.show()
-        """
-        plt.bar(range(len(sortedFOMOutputs)), sortedFOMOutputs)
-        plt.suptitle('sortedFOMOutputs')
-        plt.show()
+            sortedDNNOutputs = []
+            sortedFOMOutputs = []
+            sortSample = []
+            for i in range(len(normSample)):
+                sortSample.append([normSample[i, :], normVal[i]])
+            for i in range(len(normSample)):
+                jMin = 0
+                sampleMin = sortSample[0][1]
+                for j in range(len(sortSample)):
+                    if sortSample[j][1] < sampleMin:
+                        jMin = j
+                        sampleMin = sortSample[j][1]
+                sortedFOMOutputs.append(sampleMin)
+                sortedDNNOutputs.append(DNN(torch.from_numpy(sortSample[jMin][0]).to(torch.float32)).detach().numpy()[0])
+                sortSample.pop(jMin)
+            minSortedDNNOutputs = np.min(sortedDNNOutputs)
+            plt.bar(range(len(sortedDNNOutputs)), sortedDNNOutputs)
+            plt.suptitle('sorted DNN outputs')
+            plt.show()
+            plt.bar(range(len(sortedFOMOutputs)), sortedFOMOutputs)
+            plt.suptitle('sorted FOM function values')
+            plt.show()
 
     def f(x_inp):
         scaledInput = torch.from_numpy((x_inp-minIn)/(maxIn-minIn)).to(torch.float32)
         with torch.inference_mode():
             scaledOutput = DNN(scaledInput)
-        # return scaledOutput.numpy()
-        print('scaledOutput.numpy()[0]: {}'.format(scaledOutput.numpy()[0]))
+        print('scaled DNN output: {}'.format(scaledOutput.numpy()[0]))
         return scaledOutput.numpy()[0]*(maxOut-minOut)+minOut
     return f
-    """
-    training_data = CustomDataset(normSample[V_DNN[2]:])
-    val_data = CustomDataset(normSample[:V_DNN[2]])
-    train_dataloader = DataLoader(training_data, batch_size=training_batch_size, shuffle=True)
-    val_dataloader = DataLoader(val_data, batch_size=testing_batch_size, shuffle=True)
-    DNN = FullyConnectedNN(V_DNN[0], activation_function=V_DNN[1])
-    """
-    """
-    # initialization
-    for name, param in DNN.named_parameters():
-        if 'bias' in name:
-            param = torch.zeros(param.size())
-        else:
-            param = torch.from_numpy(np.random.multivariate_normal(u_k, C_k_new)
-    """
-    """
-    loss_fn = nn.MSELoss()
-    optimizer = torch.optim.LBFGS(DNN.parameters(), lr=learning_rate, line_search_fn='strong_wolfe')
-
-    DNN_optimizer(DNN, train_dataloader, val_dataloader, loss_fn, optimizer, epochs)
-    DNN_eval = evaluate_DNN(DNN, training_data, val_data, loss_fn)
-    for i in range(25):
-        DNN_i = FullyConnectedNN(V_DNN[0], activation_function=V_DNN[1])
-        optimizer = torch.optim.LBFGS(DNN_i.parameters(), lr=learning_rate, line_search_fn='strong_wolfe')
-        DNN_optimizer(DNN_i, train_dataloader, val_dataloader, loss_fn, optimizer, epochs)
-        DNN_i_eval = evaluate_DNN(DNN_i, training_data, val_data, loss_fn)
-        if DNN_i_eval < DNN_eval:
-            DNN_eval = DNN_i_eval
-            DNN = DNN_i
-    # DNN(torch.from_numpy(sample[m][0]).to(torch.float32)) approx sample[m][1] for all m
-    return lambda mu: DNN(torch.from_numpy((mu-minIn)/(maxIn-minIn)).to(torch.float32)).detach().numpy()[0]*(maxOut-minOut)+minOut
-    """
-    """
-    def out(x):
-        if np.min(x) >= minIn and np.max(x) <= maxIn:
-            return DNN(torch.from_numpy((x-minIn)/(maxIn-minIn)).to(torch.float32)).detach().numpy()[0]
-        else:
-            return 0.
-    def out1(x):
-        out = DNN(torch.from_numpy((x-minIn)/(maxIn-minIn)).to(torch.float32)).detach().numpy()[0]
-        if out < 0:
-            return 0.
-        elif out > 1:
-            return 1.
-        else:
-            return out
-    # return out
-    # return out1
-    return lambda mu: DNN(torch.from_numpy((mu-minIn)/(maxIn-minIn)).to(torch.float32)).detach().numpy()[0]
-    """
 
 
-def AML_EnOpt(F, u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb):
-    N_u = len(u_0)
-    # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of validation set, number of epochs, training batch size, testing batch size, learning rate
-    V_DNN[0].insert(0, N_u)
-    V_DNN[0].insert(len(V_DNN[0]), 1)
-    var_o = var
-    var_i = var_o  # /100
-    # var_i_list = [var_i]
-    F_k = F(u_0)
+def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb):
+    N_q = len(q_0)
+    F_k = F(q_0)
     F_k_next = F_k
-    u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_0, N, 0, [], None, F_k, beta_1, beta_2, r, eps_o, nu_1, var_o, correlationCoeff, nt, nb)
+    q_k_tilde, T_k, C_k, F_k_tilde = optStep(F, q_0, N, 0, [], None, F_k, beta_1, beta_2, r, eps_o, nu_1, var, correlationCoeff, nt, nb)
     t = np.linspace(0, T, num=nt+1)
-    for i in range(nb):
-        fig, ax = plt.subplots(1, 1)
-        ax.plot(t, u_k_tilde[i*(nt+1):(i+1)*(nt+1)], label='u_k_tilde[{}]: {}'.format(i, 1))
-        ax.legend()
-        plt.show()
+    if showPlots:
+        for i in range(nb):
+            plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label='q_k_tilde: basis function {}, outer iteration {}'.format(i, 1))
+            plt.legend()
+            plt.show()
     k = 1
-    u_k = u_0
-    u_k_next = u_k.copy()
-    u_k_tilde_check = []
+    q_k = q_0
+    q_k_next = q_k.copy()
+    q_k_tilde_check = []
     fails_iter = []
     fails = 0
     delta = delta_init
     while (F_k_tilde > F_k+eps_o and k < k_1_o):
-        # u_k = u_k_tilde.copy()
-        # F_k = F_k_tilde
         fails -= 1
-        T_k_x = np.zeros((N, N_u))
+        T_k_x = np.zeros((N, N_q))
         for i in range(N):
             T_k_x[i, :] = T_k[i][0]
-        minIn = np.zeros(N_u)
-        maxIn = np.zeros(N_u)
-        for i in range(N_u):
+        minIn = np.zeros(N_q)
+        maxIn = np.zeros(N_q)
+        for i in range(N_q):
             minIn[i] = np.min(T_k_x[:, i])
             maxIn[i] = np.max(T_k_x[:, i])
-        u_k_tilde_check_iter = 0
-        if np.all(u_k_tilde == projectionSample(u_k_tilde, minIn, maxIn)):
-            u_k_tilde_check_iter = 1
-        u_k_tilde_check.append(u_k_tilde_check_iter)
-        """
-        evalMLM(F_ML_k, T_k, k)
-        F_k_next = F_k
-        F_ML_k_u_k = F_ML_k(u_k)
-        # C_k_inv = LA.inv(C_k)
-        maxDiff = 0
-        for i in range(len(T_k)):
-            diff = np.min(np.abs(u_k-T_k[i][0]))
-            if diff > maxDiff:
-                maxDiff = diff
-        """
-        d_k = np.abs(u_k-u_k_tilde)
+        if showPlots:
+            q_k_tilde_check_iter = 0
+            if np.all(q_k_tilde == projectionSample(q_k_tilde, minIn, maxIn)):
+                q_k_tilde_check_iter = 1
+            q_k_tilde_check.append(q_k_tilde_check_iter)
+
+        d_k = np.abs(q_k-q_k_tilde)
 
         while F_k_next <= F_k+eps_o:
             fails += 1
             F_ML_k = constructDNN(T_k, V_DNN, minIn, maxIn)
-            # evalMLM(F_ML_k, T_k, k)
-            F_ML_k_u_k = F_ML_k(u_k)
+            F_ML_k_q_k = F_ML_k(q_k)
             deltaList = [delta]
-            # C_k_inv = LA.inv(C_k)
-            """
-            maxDiff = 0
-            for i in range(len(T_k)):
-                diff = np.min(np.abs(u_k-T_k[i][0]))
-                if diff > maxDiff:
-                    maxDiff = diff
-            var_i = maxDiff/50
-            """
             trustRegionFlag = True
             while trustRegionFlag:
                 d_k_iter = delta * d_k
-                u_k_tilde_check2 = 0
-                if np.all(u_k_tilde == projection(u_k_tilde, u_k, d_k_iter)):
-                    u_k_tilde_check2 = 1
-                fig, ax = plt.subplots(1, 1)
-                ax.plot([0, 1], [u_k_tilde_check2, u_k_tilde_check2], label='u_k_tilde_check2')
-                ax.legend()
-                plt.show()
-                T_k_check = 0
-                for i in range(len(T_k)):
-                    if np.all(T_k[i][0] == projection(T_k[i][0], u_k, d_k_iter)):
-                        T_k_check += 1
-                fig, ax = plt.subplots(1, 1)
-                ax.plot([0, 1], [T_k_check, T_k_check], label='T_k_check')
-                ax.legend()
-                plt.show()
-                # u_k_next = enOpt1(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, F, proj=lambda mu: projection(mu, u_k, delta), Cov=C_k)[0]
-                u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, nt, nb, proj=lambda mu: projection(mu, u_k, d_k_iter), Cov=C_k)[0]
-                # u_k_next = enOpt(F_ML_k, u_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var_i, correlationCoeff, nt, nb, proj=lambda mu: projection(mu, u_k, d_k_iter))[0]
-                print(u_k_next)
-                F_k_next = F(u_k_next)
-                rho_k = (F_k_next-F_k)/(F_ML_k(u_k_next)-F_ML_k_u_k)
+                if showPlots:
+                    q_k_tilde_check2 = 0
+                    if np.all(q_k_tilde == projection(q_k_tilde, q_k, d_k_iter)):
+                        q_k_tilde_check2 = 1
+                    plt.plot([0, 1], [q_k_tilde_check2, q_k_tilde_check2], label='q_k_tilde_check2')
+                    plt.legend()
+                    plt.show()
+                    T_k_check = 0
+                    for i in range(len(T_k)):
+                        if np.all(T_k[i][0] == projection(T_k[i][0], q_k, d_k_iter)):
+                            T_k_check += 1
+                    fig, ax = plt.subplots(1, 1)
+                    plt.plot([0, 1], [T_k_check, T_k_check], label='T_k_check')
+                    plt.legend()
+                    plt.show()
+                q_k_next = enOpt(F_ML_k, q_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb, proj=lambda mu: projection(mu, q_k, d_k_iter), Cov=C_k)[0]
+                F_k_next = F(q_k_next)
+                rho_k = (F_k_next-F_k)/(F_ML_k(q_k_next)-F_ML_k_q_k)
                 if rho_k < 0.25:
                     delta *= 0.25
                 else:
-                    # if rho_k > 0.75 and np.max(np.abs(C_k_inv.dot(u_k-u_k_next))) == delta:
-                    if rho_k > 0.75 and np.any(np.abs(u_k-u_k_next)-d_k_iter == 0):
+                    if rho_k > 0.75 and np.any(np.abs(q_k-q_k_next)-d_k_iter == 0):
                         delta *= 2
                 if rho_k > 0:
                     trustRegionFlag = False
                 deltaList.append(delta)
+            if showPlots:
+                plt.plot(range(len(deltaList)), deltaList, label='delta')
+                plt.legend()
+                plt.show()
+
+        if showPlots:
+            fails_iter.append(fails)
+            for i in range(nb):
+                plt.plot(t, q_k_next[i*(nt+1):(i+1)*(nt+1)], label='q_k_next: basis function {}, outer iteration {}'.format(i, k))
+                plt.legend()
+                plt.show()
+            for i in range(nb):
+                for j in range(len(T_k)):
+                    plt.plot(t, T_k[j][0][i*(nt+1):(i+1)*(nt+1)], label='samples: basis function {}, outer iteration {} '.format(i, k))
+                plt.show()
+            T_k_min_q = T_k[0][0].copy()
+            T_k_min_dist = LA.norm(T_k_min_q-q_k)
+            T_k_max_q = T_k[0][0].copy()
+            T_k_max_dist = LA.norm(T_k_max_q-q_k)
+            for i in range(len(T_k)):
+                dist = LA.norm(T_k[i][0]-q_k)
+                if dist < T_k_min_dist:
+                    T_k_min_dist = dist
+                    T_k_min_q = T_k[i][0].copy()
+                if dist > T_k_max_dist:
+                    T_k_max_dist = dist
+                    T_k_max_q = T_k[i][0].copy()
+            for i in range(nb):
+                plt.plot(t, q_k[i*(nt+1):(i+1)*(nt+1)], label='q_k: {}'.format(k))
+                plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label='q_k_tilde[{}]: {}'.format(i, k))
+                plt.plot(t, q_k_next[i*(nt+1):(i+1)*(nt+1)], label='q_k_next[{}]: {}'.format(i, k))
+                plt.plot(t, T_k_min_q[i*(nt+1):(i+1)*(nt+1)], label='T_k_min[{}]: {}'.format(i, k))
+                plt.plot(t, T_k_max_q[i*(nt+1):(i+1)*(nt+1)], label='T_k_max[{}]: {}'.format(i, k))
+                plt.legend()
+                plt.show()
+            fig, ax = plt.subplots(1, 1)
+            ax.plot([0, 1], [LA.norm(q_k_tilde-q_k), LA.norm(q_k_tilde-q_k)], label='q_k_tilde dist: {}'.format(k))
+            # ax.plot([0,1], [LA.norm(q_k_next-q_k), LA.norm(q_k_next-q_k)], label='q_k_next dist: {}'.format(k))
+            ax.plot([0, 1], [T_k_min_dist, T_k_min_dist], label='T_k_min dist: {}'.format(k))
+            ax.plot([0, 1], [T_k_max_dist, T_k_max_dist], label='T_k_max dist: {}'.format(k))
+            ax.legend()
+            plt.show()
+            fig, ax = plt.subplots(1, 1)
+            ax.plot([0, 1], [LA.norm(q_k_tilde-q_k), LA.norm(q_k_tilde-q_k)], label='q_k_tilde dist: {}'.format(k))
+            ax.plot([0, 1], [LA.norm(q_k_next-q_k), LA.norm(q_k_next-q_k)], label='q_k_next dist: {}'.format(k))
+            ax.plot([0, 1], [T_k_min_dist, T_k_min_dist], label='T_k_min dist: {}'.format(k))
+            ax.plot([0, 1], [T_k_max_dist, T_k_max_dist], label='T_k_max dist: {}'.format(k))
+            ax.legend()
+            plt.show()
+            """
+            q_k_diff = q_k_next-q_k_tilde
+            fig, ax = plt.subplots(1, 1)
+            ax.plot(t, q_k_diff, label='q_k_diff: {}'.format(k))
+            ax.legend()
+            plt.show()
+            """
+        q_k_tilde, T_k, C_k, F_k_tilde = optStep(F, q_k_next, N, k, T_k, C_k, F_k_next, beta_1, beta_2, r, eps_o, nu_1, var, correlationCoeff, nt, nb)
+        if showPlots:
+            covList = []
+            for i in range(len(C_k)):
+                covList.append(C_k[i, i])
+            tCov = range(len(C_k))
+            fig, ax = plt.subplots(1, 1)
+            ax.plot(tCov, covList, label='Cov')
+            ax.legend()
+            plt.show()
+            for i in range(nb):
                 fig, ax = plt.subplots(1, 1)
-                ax.plot(range(len(deltaList)), deltaList, label='delta')
+                ax.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label='q_k_tilde[{}]: {}'.format(i, k+1))
                 ax.legend()
                 plt.show()
-            # evalMLM_delta(F_ML_k, F, u_k, u_k_next, delta)
-            # evalMLM_delta1(F_ML_k, F, u_k, u_k_next, delta)
-            fig, ax = plt.subplots(1, 1)
-            ax.plot(range(len(deltaList)), deltaList, label='delta')
-            ax.legend()
-            plt.show()
-
-        fails_iter.append(fails)
-        for i in range(nb):
-            fig, ax = plt.subplots(1, 1)
-            ax.plot(t, u_k_next[i*(nt+1):(i+1)*(nt+1)], label='u_k_next[{}]: {}'.format(i, k))
-            ax.legend()
-            plt.show()
-        for i in range(nb):
-            fig, ax = plt.subplots(1, 1)
-            for j in range(len(T_k)):
-                ax.plot(t, T_k[j][0][i*(nt+1):(i+1)*(nt+1)], label='samples[{}]: '.format(i, k))
-            plt.show()
-        T_k_min_u = T_k[0][0].copy()
-        T_k_min_dist = LA.norm(T_k_min_u-u_k)
-        T_k_max_u = T_k[0][0].copy()
-        T_k_max_dist = LA.norm(T_k_max_u-u_k)
-        for i in range(len(T_k)):
-            dist = LA.norm(T_k[i][0]-u_k)
-            if dist < T_k_min_dist:
-                T_k_min_dist = dist
-                T_k_min_u = T_k[i][0].copy()
-            if dist > T_k_max_dist:
-                T_k_max_dist = dist
-                T_k_max_u = T_k[i][0].copy()
-        for i in range(nb):
-            fig, ax = plt.subplots(1, 1)
-            ax.plot(t, u_k[i*(nt+1):(i+1)*(nt+1)], label='u_k: {}'.format(k))
-            ax.plot(t, u_k_tilde[i*(nt+1):(i+1)*(nt+1)], label='u_k_tilde[{}]: {}'.format(i, k))
-            ax.plot(t, u_k_next[i*(nt+1):(i+1)*(nt+1)], label='u_k_next[{}]: {}'.format(i, k))
-            ax.plot(t, T_k_min_u[i*(nt+1):(i+1)*(nt+1)], label='T_k_min[{}]: {}'.format(i, k))
-            ax.plot(t, T_k_max_u[i*(nt+1):(i+1)*(nt+1)], label='T_k_max[{}]: {}'.format(i, k))
-            ax.legend()
-            plt.show()
-        fig, ax = plt.subplots(1, 1)
-        ax.plot([0, 1], [LA.norm(u_k_tilde-u_k), LA.norm(u_k_tilde-u_k)], label='u_k_tilde dist: {}'.format(k))
-        # ax.plot([0,1], [LA.norm(u_k_next-u_k), LA.norm(u_k_next-u_k)], label='u_k_next dist: {}'.format(k))
-        ax.plot([0, 1], [T_k_min_dist, T_k_min_dist], label='T_k_min dist: {}'.format(k))
-        ax.plot([0, 1], [T_k_max_dist, T_k_max_dist], label='T_k_max dist: {}'.format(k))
-        ax.legend()
-        plt.show()
-        fig, ax = plt.subplots(1, 1)
-        ax.plot([0, 1], [LA.norm(u_k_tilde-u_k), LA.norm(u_k_tilde-u_k)], label='u_k_tilde dist: {}'.format(k))
-        ax.plot([0, 1], [LA.norm(u_k_next-u_k), LA.norm(u_k_next-u_k)], label='u_k_next dist: {}'.format(k))
-        ax.plot([0, 1], [T_k_min_dist, T_k_min_dist], label='T_k_min dist: {}'.format(k))
-        ax.plot([0, 1], [T_k_max_dist, T_k_max_dist], label='T_k_max dist: {}'.format(k))
-        ax.legend()
-        plt.show()
-        """
-        u_k_diff = u_k_next-u_k_tilde
-        fig, ax = plt.subplots(1, 1)
-        ax.plot(t, u_k_diff, label='u_k_diff: {}'.format(k))
-        ax.legend()
-        plt.show()
-        """
-        u_k_tilde, T_k, C_k, F_k_tilde = optStep(F, u_k_next, N, k, T_k, C_k, F_k_next, beta_1, beta_2, r, eps_o, nu_1, var_o, correlationCoeff, nt, nb)
-        covList = []
-        for i in range(len(C_k)):
-            covList.append(C_k[i, i])
-        tCov = range(len(C_k))
-        fig, ax = plt.subplots(1, 1)
-        ax.plot(tCov, covList, label='Cov')
-        ax.legend()
-        plt.show()
-        for i in range(nb):
-            fig, ax = plt.subplots(1, 1)
-            ax.plot(t, u_k_tilde[i*(nt+1):(i+1)*(nt+1)], label='u_k_tilde[{}]: {}'.format(i, k+1))
-            ax.legend()
-            plt.show()
         F_k = F_k_next
-        u_k = u_k_next.copy()
+        q_k = q_k_next.copy()
         k = k+1
-        # var_i *= 0.1
-    fig, ax = plt.subplots(1, 1)
-    ax.plot(range(len(u_k_tilde_check)), u_k_tilde_check, label='u_k_tilde_check')
-    ax.legend()
-    plt.show()
-    fig, ax = plt.subplots(1, 1)
-    ax.plot(range(len(fails_iter)), fails_iter, label='fails')
-    ax.legend()
-    plt.show()
+    if showPlots:
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(range(len(q_k_tilde_check)), q_k_tilde_check, label='q_k_tilde_check')
+        ax.legend()
+        plt.show()
+        fig, ax = plt.subplots(1, 1)
+        ax.plot(range(len(fails_iter)), fails_iter, label='fails')
+        ax.legend()
+        plt.show()
     print('fails: {}'.format(fails))
-    return u_k, k
+    return q_k, k
 
 
-def ROM_EnOpt(u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
-    return AML_EnOpt(lambda mu: -J(mu, q_base, a, T, grid_intervals, nt)[0], u_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, len(q_base))
+def ROM_EnOpt(q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
+    return AML_EnOpt(lambda mu: -J(mu, q_base, a, T, grid_intervals, nt)[0], q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, len(q_base))
 
 
 def result(name, qParamOpt, qParam, out, fom, data, u, y1, y2, a, T, nt, nb, qAnalytical = False):
@@ -991,7 +779,7 @@ def analytical():
     result('Analytical', qParam, qParam, out, fom, data, u, y1, y2, a, T, nt, nb, qAnalytical=True)
 
 
-# optimized control function using the EnOpt minimizer
+showPlots = True
 N = 100
 eps = 1e-6
 k_1 = 1000
@@ -999,10 +787,11 @@ beta_1 = 1
 beta_2 = 1
 r = 0.5
 nu_1 = 10
-var = 0.1
+var = [0.1]
+assert len(var) == len(q_base)
 correlationCoeff = 0.9
-
-
+"""
+# optimized control function using the EnOpt minimizer
 qParamOpt, k = FOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
 outOpt, fomOpt, dataOpt, y1Opt, y2Opt = J(qParamOpt, q_base, a, T, grid_intervals, nt)
 uOpt = fomOpt.solve({'a': a})
@@ -1010,8 +799,8 @@ uOpt = fomOpt.solve({'a': a})
 
 def opt1():
     result('EnOpt', qParamOpt, qParam, outOpt, fomOpt, dataOpt, uOpt, y1Opt, y2Opt, a, T, nt, nb)
-
 """
+
 # optimized control function using the AML EnOpt minimizer
 delta_init = 40
 eps_o = 1e-6
@@ -1021,7 +810,7 @@ k_1_i = k_1
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), number of restarts, number of epochs, early stop, trainFrac, learning rate
 # V_DNN = [[100, 100, 40], torch.tanh, 50, 100, 100, 10, 1e-4]
-V_DNN = [[500, 500], torch.tanh, 10, 1000, 20, 0.8, 1e-2]
+V_DNN = [[nb*(nt+1), 500, 500, 1], torch.tanh, 10, 1000, 20, 0.8, 1e-2]
 # V_DNN = [[25, 25], torch.tanh, 50, 2000, 100, 10, 1e-5]
 # V_DNN = [[200, 200, 200], torch.tanh, 50, 5000, 100, 10, 1e-5]
 # V_DNN = [[200, 200, 100, 50], torch.tanh, 50, 100, 100, 10, 1e-4]
@@ -1035,11 +824,11 @@ uAMLOpt = fomAMLOpt.solve({'a': a})
 
 def opt2():
     result('AML_EnOpt', qParamAMLOpt, qParam, outAMLOpt, fomAMLOpt, dataAMLOpt, uAMLOpt, y1AMLOpt, y2AMLOpt, a, T, nt, nb)
-"""
+
 """
 # optimized control function using the L_BFGS_B_minimizer
 qParamOptBFGS = L_BFGS_B_minimizer(init, a, T, grid_intervals, nt, q_base)
-outOptBFGS, fomOptBFGS, dataOptBFGS, y1OptBFGS, y2OptBFGS = J(qParamOptBFGS, a, T, grid_intervals, nt)
+outOptBFGS, fomOptBFGS, dataOptBFGS, y1OptBFGS, y2OptBFGS = J(qParamOptBFGS, q_base, a, T, grid_intervals, nt)
 uOptBFGS = fomOptBFGS.solve({'a': a})
 
 

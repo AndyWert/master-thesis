@@ -44,9 +44,9 @@ To prevent overfitting, we use early stopping. For early stopping, we evaluate t
 abort the training and use $\mathbf{W}^{(k^*)}$
 \end{itemize}
 
-So we abort the training if the minimum loss is not decreasing over a prescribed number of consecutive epochs. Our reasoning behind that is that the loss on the validation set is not srictly decreasing and can even increase over some epochs, but that is fine for us as long as we can decrease the loss over time.
+So we abort the training if the minimum loss is not decreasing over a prescribed number of consecutive epochs. Our reasoning behind this is that the loss on the validation set is not srictly decreasing and can even increase over some epochs, but that is fine for us as long as we can decrease the loss over time.
 
-To summarize, the training of one neural network is shown in algorithm \ref{trainDNN}. It takes the initialization of the neural network ($\mathrm{DNN}$), the inputs and outputs of the training set ($x_\mathrm{train}, y_\mathrm{train}$), the inputs and outputs of the validation set ($x_\mathrm{val}, y_\mathrm{val}$), the loss function ($\textproc{loss\_fn}$), the optimizer ($\mathrm{optimizer}$), the number of training epochs ($\mathrm{epochs}$) and the number ($\mathrm{earlyStop}$) that describes after how many iterations without improvement of the validation loss the training gets aborted.
+We present now the construction of a neural network that approximates a function $f:\mathbb{R}^n\to\mathbb{R}$ with $n\in\mathbb{N}$. The training of one neural network is shown in algorithm \ref{trainDNN}. It takes the initialization of the neural network ($\mathrm{DNN}$), the inputs and outputs of the training set ($x_\mathrm{train}, y_\mathrm{train}$), the inputs and outputs of the validation set ($x_\mathrm{val}, y_\mathrm{val}$), the loss function ($\textproc{loss\_fn}$), the optimizer ($\mathrm{optimizer}$), the number of training epochs ($\mathrm{epochs}$) and the number ($\mathrm{earlyStop}$) that describes after how many iterations without improvement of the validation loss the training gets aborted.
 
 In our algorithm, the loss function is chosen as the mean squared error loss and we use the L-BFGS optimizer with strong Wolfe line-search as our optimizer. The number of training epochs is only the maximum number of iterations since we apply early stopping to our training algorithm. Usually, the training terminates earlier because the loss over the validation set is not decreasing further.
 
@@ -54,6 +54,8 @@ The function $\textproc{testDNN}$ in algorithm \ref{trainDNN} returns the loss o
 \begin{displaymath}
 T_\mathrm{val}=\{((x_\mathrm{val})_1,(y_\mathrm{val})_1),\dotsc,((x_\mathrm{val})_{N_\mathrm{val}},(y_\mathrm{val})_{N_\mathrm{val}})\}.
 \end{displaymath}
+
+In addition, some funtions are imported from the Python package PyTorch. These functions are identified by the beginning `$\mathrm{torch.}$'.
 
 \begin{algorithm}[H]%\footnotesize
 \caption{\label{trainDNN}DNN training}
@@ -93,7 +95,7 @@ T_\mathrm{val}=\{((x_\mathrm{val})_1,(y_\mathrm{val})_1),\dotsc,((x_\mathrm{val}
 \end{algorithmic}
 \end{algorithm}
 
-We start the algorithm $\textproc{trainDNN}$ by initializing the variable $\mathrm{wait}$, which indicates the number of training epochs without a decrease of the loss on the evaluation set, as zero and the variable $\mathrm{minimalValidationLoss}$, which shows the loss that was achieved '$\mathrm{wait}$' epochs ago, as the loss on the validation set for the DNN before the training begins. Then the weights and biases of the DNN are saved in the file '$\mathrm{checkpoint.pth}$'.
+We start the algorithm $\textproc{trainDNN}$ by initializing the variable $\mathrm{wait}$, which indicates the number of training epochs without a decrease of the loss on the evaluation set, as zero and the variable $\mathrm{minimalValidationLoss}$, which shows the loss that was achieved '$\mathrm{wait}$' epochs ago, as the loss on the validation set for the DNN before the training begins. Then the weights and biases of the DNN are saved in the file `$\mathrm{checkpoint.pth}$'.
 
 After that, the following operations are executed in every training epoch. The procedures that are performed between line \ref{startTrainStep} and line \ref{endTrainStep} can be described as doing one optimization step with the $\mathrm{optimizer}$ to decrease the loss on the training set by adjusting the weights and biases of the DNN. Then we check if the loss on the evaluation set is currently smaller than the minimal validation loss over all previous epochs.
 
@@ -107,7 +109,7 @@ Since we search for local minima of the loss function, the initial value $\mathb
 
 For the training of the DNN, we perform multiple restarts of the training algorithm with different initializations of $\mathbf{W}^{(0)}$ which minimizes the dependence of our neural network from the initial values. After we have trained enough DNNs, we select the neural network $\Phi_{\mathbf{W}^*}$ that has the smallest evaluation loss $\mathscr{L}(\Phi_{\mathbf{W}^*},T_\mathrm{val})$ over all restarts.
 
-Before the whole algorithm for the construction of the DNN is presented, we look at the data that we use for the training. If we sample the inputs in a small area, it is likely that the corresponding outputs are also close to each other. Since we convert the values for the training of the neural network from double to float, it can even happen that the converted inputs or outputs are constant. In that case, the digits of these values that differ from each other get cut off at the conversion.
+Before the whole algorithm for the construction of the DNN is presented, we look at the data that we use for the training. If we sample the inputs in a small area, it is likely that the corresponding outputs are also close to each other. Since we convert the values for the training of the neural network from 64-bit floating point numbers to 32-bit floating point numbers, it can even happen that the converted inputs or outputs are constant. In that case, the digits of these values that differ from each other get cut off at the conversion.
 
 We want the values of the inputs and outputs to be distributed in such a way that significant differences are correctly represented. For that, the inputs $x\in\mathbb{R}^n$ and outputs $y\in\mathbb{R}$ are scaled to $\tilde{x}\in[0,1]^n$ and $\tilde{y}\in[0,1]$.
 
@@ -139,13 +141,13 @@ Now, $\tilde{x}$ and $\tilde{y}$ are calculated as
 \tilde{x}_i&=\frac{x_i-x^\mathrm{low}_i}{x^\mathrm{upp}_i-x^\mathrm{low}_i}\text{ for }i=1,\dotsc,n,&\tilde{y}&=\frac{y-y^\mathrm{low}}{y^\mathrm{upp}-y^\mathrm{low}}.
 \end{align}
 
-After we have trained the neural network, we need to rescale the DNN outputs so that we have a proper approximation of the function $f$. The output $\Phi(\tilde{x})$ of the DNN $\Phi$ is rescaled with the calculation $\Phi(\tilde{x})\cdot(y^\mathrm{upp}-y^\mathrm{low})+y^\mathrm{low}$.
+After we have trained the neural network, the DNN outputs need to be rescaled so that we get a proper approximation of the function $f$. The output $\Phi(\tilde{x})$ of the DNN $\Phi$ is rescaled with the calculation $\Phi(\tilde{x})\cdot(y^\mathrm{upp}-y^\mathrm{low})+y^\mathrm{low}$.
 %\begin{eqnarray*}
 %\tilde{x}_i&=\frac{x_i-x^\mathrm{low}_i}{x^\mathrm{upp}_i-x^\mathrm{low}_i}&\text{ for }i=1,\dotsc,n,\\
 %\tilde{y}&=\frac{y-y^\mathrm{low}}{y^\mathrm{upp}-y^\mathrm{low}},&
 %\end{eqnarray*}
 
-To summarize this, we present now the construction of a DNN as pseudo code in algorithm \ref{DNNConstruction}. Training parameters like the neural network structure ``$\mathrm{DNNStructure}$'', the activation function ``$\textproc{activFunc}$'', the number of restarts of different DNN initializations ``$\mathrm{restarts}$'', the number of training epochs ``$\mathrm{epochs}$'', the number of epochs without decrease of the evaluation loss after which early stopping is applied ``$\mathrm{earlyStop}$'', the fraction of the sample that is used for training ``$\mathrm{trainFrac}$'' and the learning rate ``$\mathrm{learning\_rate}$'' are stored in $V_\mathrm{DNN}$. We denote $x^\mathrm{low}$ as $\mathrm{minIn}$, $x^\mathrm{upp}$ as $\mathrm{maxIn}$, $y^\mathrm{low}$ as $\mathrm{minOut}$ and $y^\mathrm{upp}$ as $\mathrm{maxOut}$. $\mathrm{minIn}$ and $\mathrm{maxIn}$ are calculated before the construction of the DNN and are taken as an input. The function $\textproc{FullyConnectedNN}$ is imported from $\mathrm{pymor.models.neural\_network}$. It builds a neural network with Kaiming initialization where the number of neurons in each layer gets specified by the first and the activation function of the neural network by the second argument.
+To summarize this, we present now the construction of a DNN as pseudo code in algorithm \ref{DNNConstruction}. Training parameters like the neural network structure ``$\mathrm{DNNStructure}$'', the activation function ``$\textproc{activFunc}$'', the number of restarts of different DNN initializations ``$\mathrm{restarts}$'', the number of training epochs ``$\mathrm{epochs}$'', the number of epochs without decrease of the evaluation loss after which early stopping is applied ``$\mathrm{earlyStop}$'', the fraction of the sample that is used for training ``$\mathrm{trainFrac}$'' and the learning rate ``$\mathrm{learning\_rate}$'' are stored in $V_\mathrm{DNN}$. We denote $x^\mathrm{low}$ as $\mathrm{minIn}$, $x^\mathrm{upp}$ as $\mathrm{maxIn}$, $y^\mathrm{low}$ as $\mathrm{minOut}$ and $y^\mathrm{upp}$ as $\mathrm{maxOut}$. $\mathrm{minIn}$ and $\mathrm{maxIn}$ are calculated before the construction of the DNN and are taken as an input. The function $\textproc{FullyConnectedNN}$ is imported from $\mathrm{pymor.models.neural\_network}$ which is included in the Python package pyMor. It builds a neural network with Kaiming initialization where the number of neurons in each layer gets specified by the first and the activation function of the neural network by the second argument.
 
 \begin{algorithm}[H]%\footnotesize
 \caption{\label{DNNConstruction}DNN construction}
@@ -181,7 +183,7 @@ To summarize this, we present now the construction of a DNN as pseudo code in al
 \For{$i=1,\dotsc,\mathrm{restarts}$}
 \State $\textproc{DNN}_i \gets \Call{FullyConnectedNN}{\mathrm{DNNStructure}, \textproc{activation\_function}\gets\textproc{activFunc}}$
 \State $\mathrm{optimizer} \gets \mathrm{torch.optim.}\Call{LBFGS}{\protect\Call{DNN$_i$.parameters}{\:}, \mathrm{lr}\gets\mathrm{learning\_rate}, \mathrm{line\_search\_fn}\gets\mathrm{'strong\_wolfe'}}$
-\State $\Call{trainDNN}{\mathrm{DNN}_i, x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{val}, y_\mathrm{val}, \textproc{loss\_fn}, \textproc{optimizer}, \mathrm{epochs}}$
+\State $\Call{trainDNN}{\mathrm{DNN}_i, x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{val}, y_\mathrm{val}, \textproc{loss\_fn}, \mathrm{optimizer}, \mathrm{epochs}, \mathrm{earlyStop}}$
 \State $\mathrm{evalDNN}_i \gets \Call{testDNN}{\textproc{DNN}_i, x_\mathrm{val}, y_\mathrm{val}, \textproc{loss\_fn}}$
 \If{$\mathrm{evalDNN}_i<\mathrm{evalDNN}$}
 \State $\mathrm{evalDNN} \gets \mathrm{evalDNN}_i$
@@ -234,7 +236,7 @@ We describe now the Adaptive-ML-EnOpt algorithm. This algorithm takes a function
 \begin{algorithm}[H]%\footnotesize
 \caption{\label{AML-EnOpt}Adaptive-ML-EnOpt algorithm}
 \begin{algorithmic}[1]
-\Function{AML-EnOpt}{$\textproc{F},\mathbf{q}_0,N,\varepsilon_o,\varepsilon_i,k_o^*,k_i^*,V_{\mathrm{DNN}},\delta_\mathrm{init}\beta_1, \beta_2,r,\nu^*,\sigma^2,\rho, N_t, N_b$}
+\Function{AML-EnOpt}{$\textproc{F},\mathbf{q}_0,N,\varepsilon_o,\varepsilon_i,k_o^*,k_i^*,V_{\mathrm{DNN}},\delta_\mathrm{init},\beta_1, \beta_2,r,\nu^*,\sigma^2,\rho, N_t, N_b$}
 \State $N_\mathbf{q}\gets\Call{len}{\mathbf{q}_0}$
 \State $F_k\gets \Call{F}{\mathbf{q}_0}$
 \State $F^\mathrm{next}_k \gets F_k$
@@ -279,7 +281,7 @@ We describe now the Adaptive-ML-EnOpt algorithm. This algorithm takes a function
 \EndIf
 \EndWhile
 \EndWhile
-\State\label{FOMOptStepAML2} $\tilde{\mathbf{q}}_k,T_k,\mathbf{C}_k,\tilde{F}_k\gets\Call{OptStep}{\textproc{F},\mathbf{q}^\mathrm{next}_k,N,k,T_k,\mathbf{C}_k, F^\mathrm{next}_k, \beta_1, \beta_2, r, \varepsilon ,\nu^*, \sigma^2, \rho, N_t, N_b}$
+\State\label{FOMOptStepAML2} $\tilde{\mathbf{q}}_k,T_k,\mathbf{C}_k,\tilde{F}_k\gets\Call{OptStep}{\textproc{F},\mathbf{q}^\mathrm{next}_k,N,k,T_k,\mathbf{C}_k, F^\mathrm{next}_k, \beta_1, \beta_2, r, \varepsilon_o ,\nu^*, \sigma^2, \rho, N_t, N_b}$
 \State $F_k \gets F^\mathrm{next}_k$
 \State $\mathbf{q}_k \gets \mathbf{q}^\mathrm{next}_k\Call{.copy}{\:}$
 \State $k\gets k+1$
@@ -301,7 +303,9 @@ The next iterate $\mathbf{q}^\mathrm{next}_k$ is now computed by calling the EnO
 
 To examine the quality of the iterate $\mathbf{q}^\mathrm{next}_k$ and the surrogate $\textproc{F$_\mathrm{ML}^k$}$, $\rho_k$ is defined in line \ref{rhoKDef}. If $\rho_k<0.25$, the surrogate is not sufficiently accurate for us and we decrease the trust region by multiplying $\delta$ with $0.25$. If the condition in line \ref{goodTRCond} is true, the surrogate is a sufficiently good approximation of $F$ and from $\mathrm{np.}\Call{any}{\mathrm{np.}\protect\Call{abs}{\mathbf{q}_k-\mathbf{q}^\mathrm{next}_k}-\mathbf{d}^\mathrm{iter}_k = 0}$ follows that $\mathbf{q}^\mathrm{next}_k$ is at the border of the trust region. In this case the trust region is extended by multiplying $\delta$ with $2$. If $\rho_k$ is greater than zero, we leave the inner while-loop since $F^\mathrm{next}_k$ is greater than $F_k$. The denominator in line \ref{rhoKDef}, $\Call{F$_\mathrm{ML}^k$}{\mathbf{q}^\mathrm{next}_k}-\Call{F$_\mathrm{ML}^k$}{\mathbf{q}_k}$, should be positive because $\mathbf{q}^\mathrm{next}_k$ results from the EnOpt algorithm on $\textproc{F$_\mathrm{ML}^k$}$ with the initialization $\mathbf{q}_k$.
 
-If the condition in line \ref{outerWhileAML} is still not satisfied, the same procedure is repeated with another surrogate. If it is satisfied, $\tilde{\mathbf{q}}_k,T_k,\mathbf{C}_k,\tilde{F}_k$ is updated in line \ref{FOMOptStepAML2} similar to line \ref{FOMOptStepAML1}. $\tilde{F}_k$ is used again in line \ref{F_k_tilde_check} to check if an improvement of the FOM function value by more than $\varepsilon_o$ is possible until the condition in this line is no longer satisfied.
+If the condition in line \ref{outerWhileAML} is still not satisfied, the same procedure is repeated with another surrogate. If it is satisfied, $\tilde{\mathbf{q}}_k,T_k,\mathbf{C}_k,\tilde{F}_k$ is updated in line \ref{FOMOptStepAML2} similar to line \ref{FOMOptStepAML1}. $\tilde{F}_k$ is used again in line \ref{F_k_tilde_check} to check if an improvement of the FOM function value by more than $\varepsilon_o$ is possible until the condition in this line is no longer satisfied.\\
+
+We minimize our objective funtion $j$ now by applying $-j$ to the Adaptive-ML-EnOpt algorithm as it is shown in algorithm \ref{ROM-EnOpt}.
 
 \begin{algorithm}[H]%\footnotesize
 \caption{\label{ROM-EnOpt}ROM-EnOpt algorithm}
