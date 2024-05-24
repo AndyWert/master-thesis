@@ -4,6 +4,14 @@ from pymor.basic import *
 import matplotlib.pyplot as plt
 from pymor.algorithms.timestepping import TimeStepper
 from numpy import linalg as LA
+import time
+
+# global values
+trainingTime = 0
+FOMEvaluations = 0
+surrogateEvaluations = 0
+outerIterations = 0
+innerIterations = 0
 
 
 class CrankNicolsonTimeStepper(TimeStepper):
@@ -159,6 +167,8 @@ def parabolic_equation(q, T, grid_intervals=50, nt=10):
 
 # objective function
 def J(param, q_base, a, T, grid_intervals=50, nt=10):
+    global FOMEvaluations
+    FOMEvaluations += FOMEvaluations
     alpha = np.pi**(-4)
     # setting the control function q
     # q_base = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
@@ -254,7 +264,13 @@ def updateCov(q_k, T_k, C_k, F_k, beta):
     return C_k + beta_iter*d_k_cov
 
 
-def optStep(F, q_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, nt, nb, proj=lambda mu: mu):
+def optStep(F, q_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, nt, nb, proj=lambda mu: mu, FOM=True):
+    global outerIterations
+    global innerIterations
+    if FOM:
+        outerIterations += 1
+    else:
+        innerIterations += 1
     N_q = len(q_k)
     C_k_next = np.zeros((N_q, N_q))
     if k == 0:
@@ -286,15 +302,15 @@ def optStep(F, q_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, corr
     return q_k_next, T_k_next, C_k_next, F_k_next
 
 
-def enOpt(F, q_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb, proj=lambda mu: mu, Cov=None):
+def enOpt(F, q_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb, proj=lambda mu: mu, Cov=None, FOM=True):
     F_k_prev = F(q_0)
-    q_k, T_k, C_k, F_k = optStep(F, q_0, N, 0, [], Cov, F_k_prev, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, nt, nb, proj)
+    q_k, T_k, C_k, F_k = optStep(F, q_0, N, 0, [], Cov, F_k_prev, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, nt, nb, proj, FOM)
     k = 1
     while (F_k > F_k_prev+eps and k < k_1):
         F_k_prev = F_k
         q_k, T_k, C_k, F_k = optStep(F, q_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, nt, nb, proj)
         k = k+1
-    return q_k, k
+    return q_k, F_k
 
 
 def FOM_EnOpt(q_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
@@ -544,6 +560,8 @@ def constructDNN(sample, V_DNN, minIn, maxIn):
             plt.show()
 
     def f(x_inp):
+        global surrogateEvaluations
+        surrogateEvaluations += 1
         scaledInput = torch.from_numpy((x_inp-minIn)/(maxIn-minIn)).to(torch.float32)
         with torch.inference_mode():
             scaledOutput = DNN(scaledInput)
@@ -553,6 +571,9 @@ def constructDNN(sample, V_DNN, minIn, maxIn):
 
 
 def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb):
+    global trainingTime
+    # initialize the surrogate value that gets returned
+    surrogateValue = 0
     N_q = len(q_0)
     F_k = F(q_0)
     F_k_next = F_k
@@ -590,7 +611,10 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
 
         while F_k_next <= F_k+eps_o:
             fails += 1
+            startTraining = time.time()
             F_ML_k = constructDNN(T_k, V_DNN, minIn, maxIn)
+            endTraining = time.time()
+            trainingTime = trainingTime + (endTraining - startTraining)
             F_ML_k_q_k = F_ML_k(q_k)
             deltaList = [delta]
             trustRegionFlag = True
@@ -607,13 +631,13 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
                     for i in range(len(T_k)):
                         if np.all(T_k[i][0] == projection(T_k[i][0], q_k, d_k_iter)):
                             T_k_check += 1
-                    fig, ax = plt.subplots(1, 1)
                     plt.plot([0, 1], [T_k_check, T_k_check], label='T_k_check')
                     plt.legend()
                     plt.show()
-                q_k_next = enOpt(F_ML_k, q_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb, proj=lambda mu: projection(mu, q_k, d_k_iter), Cov=C_k)[0]
+                q_k_next = enOpt(F_ML_k, q_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb, proj=lambda mu: projection(mu, q_k, d_k_iter), Cov=C_k, FOM=False)[0]
                 F_k_next = F(q_k_next)
-                rho_k = (F_k_next-F_k)/(F_ML_k(q_k_next)-F_ML_k_q_k)
+                surrogateValue = F_ML_k(q_k_next)
+                rho_k = (F_k_next-F_k)/(surrogateValue-F_ML_k_q_k)
                 if rho_k < 0.25:
                     delta *= 0.25
                 else:
@@ -657,19 +681,17 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
                 plt.plot(t, T_k_max_q[i*(nt+1):(i+1)*(nt+1)], label='T_k_max[{}]: {}'.format(i, k))
                 plt.legend()
                 plt.show()
-            fig, ax = plt.subplots(1, 1)
-            ax.plot([0, 1], [LA.norm(q_k_tilde-q_k), LA.norm(q_k_tilde-q_k)], label='q_k_tilde dist: {}'.format(k))
-            # ax.plot([0,1], [LA.norm(q_k_next-q_k), LA.norm(q_k_next-q_k)], label='q_k_next dist: {}'.format(k))
-            ax.plot([0, 1], [T_k_min_dist, T_k_min_dist], label='T_k_min dist: {}'.format(k))
-            ax.plot([0, 1], [T_k_max_dist, T_k_max_dist], label='T_k_max dist: {}'.format(k))
-            ax.legend()
+            plt.plot([0, 1], [LA.norm(q_k_tilde-q_k), LA.norm(q_k_tilde-q_k)], label='q_k_tilde dist: {}'.format(k))
+            # plt.plot([0,1], [LA.norm(q_k_next-q_k), LA.norm(q_k_next-q_k)], label='q_k_next dist: {}'.format(k))
+            plt.plot([0, 1], [T_k_min_dist, T_k_min_dist], label='T_k_min dist: {}'.format(k))
+            plt.plot([0, 1], [T_k_max_dist, T_k_max_dist], label='T_k_max dist: {}'.format(k))
+            plt.legend()
             plt.show()
-            fig, ax = plt.subplots(1, 1)
-            ax.plot([0, 1], [LA.norm(q_k_tilde-q_k), LA.norm(q_k_tilde-q_k)], label='q_k_tilde dist: {}'.format(k))
-            ax.plot([0, 1], [LA.norm(q_k_next-q_k), LA.norm(q_k_next-q_k)], label='q_k_next dist: {}'.format(k))
-            ax.plot([0, 1], [T_k_min_dist, T_k_min_dist], label='T_k_min dist: {}'.format(k))
-            ax.plot([0, 1], [T_k_max_dist, T_k_max_dist], label='T_k_max dist: {}'.format(k))
-            ax.legend()
+            plt.plot([0, 1], [LA.norm(q_k_tilde-q_k), LA.norm(q_k_tilde-q_k)], label='q_k_tilde dist: {}'.format(k))
+            plt.plot([0, 1], [LA.norm(q_k_next-q_k), LA.norm(q_k_next-q_k)], label='q_k_next dist: {}'.format(k))
+            plt.plot([0, 1], [T_k_min_dist, T_k_min_dist], label='T_k_min dist: {}'.format(k))
+            plt.plot([0, 1], [T_k_max_dist, T_k_max_dist], label='T_k_max dist: {}'.format(k))
+            plt.legend()
             plt.show()
             """
             q_k_diff = q_k_next-q_k_tilde
@@ -684,29 +706,25 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
             for i in range(len(C_k)):
                 covList.append(C_k[i, i])
             tCov = range(len(C_k))
-            fig, ax = plt.subplots(1, 1)
-            ax.plot(tCov, covList, label='Cov')
-            ax.legend()
+            plt.plot(tCov, covList, label='Cov')
+            plt.legend()
             plt.show()
             for i in range(nb):
-                fig, ax = plt.subplots(1, 1)
-                ax.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label='q_k_tilde[{}]: {}'.format(i, k+1))
-                ax.legend()
+                plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label='q_k_tilde[{}]: {}'.format(i, k+1))
+                plt.legend()
                 plt.show()
         F_k = F_k_next
         q_k = q_k_next.copy()
         k = k+1
     if showPlots:
-        fig, ax = plt.subplots(1, 1)
-        ax.plot(range(len(q_k_tilde_check)), q_k_tilde_check, label='q_k_tilde_check')
-        ax.legend()
+        plt.plot(range(len(q_k_tilde_check)), q_k_tilde_check, label='q_k_tilde_check')
+        plt.legend()
         plt.show()
-        fig, ax = plt.subplots(1, 1)
-        ax.plot(range(len(fails_iter)), fails_iter, label='fails')
-        ax.legend()
+        plt.plot(range(len(fails_iter)), fails_iter, label='fails')
+        plt.legend()
         plt.show()
     print('fails: {}'.format(fails))
-    return q_k, k
+    return q_k, F_k, surrogateValue
 
 
 def ROM_EnOpt(q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
@@ -781,7 +799,7 @@ def analytical():
 
 showPlots = True
 N = 100
-eps = 1e-6
+eps = 1e-3
 k_1 = 1000
 beta_1 = 1
 beta_2 = 1
@@ -803,7 +821,7 @@ def opt1():
 
 # optimized control function using the AML EnOpt minimizer
 delta_init = 40
-eps_o = 1e-6
+eps_o = 1e-3
 eps_i = 1e-6
 k_1_o = k_1
 k_1_i = k_1
@@ -816,6 +834,43 @@ V_DNN = [[nb*(nt+1), 500, 500, 1], torch.tanh, 10, 1000, 20, 0.8, 1e-2]
 # V_DNN = [[200, 200, 100, 50], torch.tanh, 50, 100, 100, 10, 1e-4]
 # V_DNN = [[25, 25], torch.tanh, 50, 100, 50, 5, 1e-4]
 
+
+def evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
+    global outerIterations
+    global innerIterations
+    global FOMEvaluations
+    global surrogateEvaluations
+    global trainingTime
+    method = 'AML-EnOpt'
+    outerIterationsStart = outerIterations
+    innerIterationsStart = innerIterations
+    FOMEvaluationsStart = FOMEvaluations
+    surrogateEvaluationsStart = surrogateEvaluations
+    trainingTimeStart = trainingTime
+    startAlg = time.time()
+    q, FOMValue, surrogateValue = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
+    endAlg = time.time()
+    outerIterationsEnd = outerIterations
+    innerIterationsEnd = innerIterations
+    FOMEvaluationsEnd = FOMEvaluations
+    surrogateEvaluationsEnd = surrogateEvaluations
+    trainingTimeEnd = trainingTime
+    return q, method, FOMValue, surrogateValue, outerIterationsEnd-outerIterationsStart, innerIterationsEnd-innerIterationsStart, FOMEvaluationsStart-FOMEvaluationsEnd, surrogateEvaluationsEnd-surrogateEvaluationsStart, trainingTimeEnd-trainingTimeStart, endAlg-startAlg
+
+
+def evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
+    global outerIterations
+    global FOMEvaluations
+    method = 'FOM-EnOpt'
+    outerIterationsStart = outerIterations
+    FOMEvaluationsStart = FOMEvaluations
+    startAlg = time.time()
+    q, FOMValue = FOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
+    endAlg = time.time()
+    outerIterationsEnd = outerIterations
+    FOMEvaluationsEnd = FOMEvaluations
+    return q, method, FOMValue, outerIterationsEnd-outerIterationsStart, FOMEvaluationsStart-FOMEvaluationsEnd, endAlg-startAlg
+"""
 qParamAMLOpt, kAML = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
 print(qParamAMLOpt, kAML)
 outAMLOpt, fomAMLOpt, dataAMLOpt, y1AMLOpt, y2AMLOpt = J(qParamAMLOpt, q_base, a, T, grid_intervals, nt)
@@ -824,7 +879,7 @@ uAMLOpt = fomAMLOpt.solve({'a': a})
 
 def opt2():
     result('AML_EnOpt', qParamAMLOpt, qParam, outAMLOpt, fomAMLOpt, dataAMLOpt, uAMLOpt, y1AMLOpt, y2AMLOpt, a, T, nt, nb)
-
+"""
 """
 # optimized control function using the L_BFGS_B_minimizer
 qParamOptBFGS = L_BFGS_B_minimizer(init, a, T, grid_intervals, nt, q_base)
