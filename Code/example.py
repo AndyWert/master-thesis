@@ -168,7 +168,7 @@ def parabolic_equation(q, T, grid_intervals=50, nt=10):
 # objective function
 def J(param, q_base, a, T, grid_intervals=50, nt=10):
     global FOMEvaluations
-    FOMEvaluations += FOMEvaluations
+    FOMEvaluations += 1
     alpha = np.pi**(-4)
     # setting the control function q
     # q_base = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
@@ -292,29 +292,32 @@ def optStep(F, q_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, corr
     d_k = C_F/np.max(np.abs(C_F))
     q_k_next, F_k_next = lineSearch(F, q_k, F_k, d_k, beta_1, r, eps, nu_1, proj)
 
-    if showPlots:
-        t = np.linspace(0, 0.1, nt+1)
-        for i in range(nb):
-            plt.plot(t, q_k_next[i*(nt+1):(i+1)*(nt+1)], label='EnOpt q_k: basis function {}, iteration {}'.format(i, k))
-            plt.legend()
-            plt.show()
-
     return q_k_next, T_k_next, C_k_next, F_k_next
 
 
 def enOpt(F, q_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb, proj=lambda mu: mu, Cov=None, FOM=True):
     F_k_prev = F(q_0)
+    functionValues = [F_k_prev]
     q_k, T_k, C_k, F_k = optStep(F, q_0, N, 0, [], Cov, F_k_prev, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, nt, nb, proj, FOM)
+    functionValues.append(F_k)
     k = 1
     while (F_k > F_k_prev+eps and k < k_1):
         F_k_prev = F_k
-        q_k, T_k, C_k, F_k = optStep(F, q_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, nt, nb, proj)
+        q_k, T_k, C_k, F_k = optStep(F, q_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, nt, nb, proj, FOM)
+        functionValues.append(F_k)
+        if showPlots or (FOM and showOuterIterationPlots):
+            t = np.linspace(0, 0.1, nt+1)
+            for i in range(nb):
+                plt.plot(t, q_k[i*(nt+1):(i+1)*(nt+1)], label='EnOpt q_k: basis function {}, iteration {}'.format(i, k))
+                plt.legend()
+                plt.show()
         k = k+1
-    return q_k, F_k
+    return q_k, functionValues
 
 
 def FOM_EnOpt(q_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
-    return enOpt(lambda mu: -J(mu, q_base, a, T, grid_intervals, nt)[0], q_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, len(q_base))
+    q, FOMValues = enOpt(lambda mu: -J(mu, q_base, a, T, grid_intervals, nt)[0], q_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, len(q_base))
+    return q, -np.array(FOMValues)
 
 
 def projection(x, u_k, d_k):
@@ -333,88 +336,6 @@ def projectionSample(x, minIn, maxIn):
         if xProj[i] > maxIn[i]:
             xProj[i] = maxIn[i]
     return xProj
-
-
-def evalMLM(F_ML_k, T_k, k):
-    x = range(len(T_k))
-    y_FOM = np.zeros(len(T_k))
-    y_ML = np.zeros(len(T_k))
-    y_diff = np.zeros(len(T_k))
-    for i in range(len(T_k)):
-        y_FOM[i] = T_k[i][1]
-        y_ML[i] = F_ML_k(T_k[i][0])
-        y_diff[i] = F_ML_k(T_k[i][0])-T_k[i][1]
-    plt.bar(x, y_FOM)
-    plt.suptitle('FOM values: {}'.format(k))
-    plt.show()
-    plt.bar(x, y_ML)
-    plt.suptitle('ML values: {}'.format(k))
-    plt.show()
-    plt.bar(x, y_diff)
-    plt.suptitle('ML-error: {}'.format(k))
-    plt.show()
-
-
-def evalMLM_delta(F_ML_k, F, u_k, u_k_next, delta):
-    MLM_val = []
-    FOM_val = []
-    diff = []
-    l2_dist = []
-    u = u_k.copy()-delta
-    tr = F_ML_k(u_k)
-    for i in range(21):
-        F_ML_k_u = F_ML_k(u)-tr
-        F_u = F(u)-tr
-        MLM_val.append(F_ML_k_u)
-        FOM_val.append(F_u)
-        diff.append(F_ML_k_u-F_u)
-        l2_dist.append(LA.norm(u-u_k_next))
-        u += delta/10
-    F_ML_k_u_k_next = F_ML_k(u_k_next)-tr
-    F_u_k_next = F(u_k_next)-tr
-    MLM_val.append(F_ML_k_u_k_next)
-    FOM_val.append(F_u_k_next)
-    diff.append(F_ML_k_u_k_next-F_u_k_next)
-    plt.bar(range(len(MLM_val)), MLM_val)
-    plt.suptitle('translated u_k and u_k_next MLM-values')
-    plt.show()
-    plt.bar(range(len(FOM_val)), FOM_val)
-    plt.suptitle('translated u_k and u_k_next FOM-values')
-    plt.show()
-    plt.bar(range(len(l2_dist)), l2_dist)
-    plt.suptitle('l2 distance to u_k_next')
-    plt.show()
-
-
-def evalMLM_delta1(F_ML_k, F, u_k, u_k_next, delta):
-    MLM_val = []
-    FOM_val = []
-    diff = []
-    l2_dist = []
-    u = u_k.copy()-delta
-    tr = F(u_k)
-    for i in range(21):
-        F_ML_k_u = F_ML_k(u)-tr
-        F_u = F(u)-tr
-        MLM_val.append(F_ML_k_u)
-        FOM_val.append(F_u)
-        diff.append(F_ML_k_u-F_u)
-        l2_dist.append(LA.norm(u-u_k_next))
-        u += delta/10
-    F_ML_k_u_k_next = F_ML_k(u_k_next)-tr
-    F_u_k_next = F(u_k_next)-tr
-    MLM_val.append(F_ML_k_u_k_next)
-    FOM_val.append(F_u_k_next)
-    diff.append(F_ML_k_u_k_next-F_u_k_next)
-    plt.bar(range(len(MLM_val)), MLM_val)
-    plt.suptitle('translated u_k and u_k_next MLM-values')
-    plt.show()
-    plt.bar(range(len(FOM_val)), FOM_val)
-    plt.suptitle('translated u_k and u_k_next FOM-values')
-    plt.show()
-    plt.bar(range(len(l2_dist)), l2_dist)
-    plt.suptitle('l2 distance to u_k_next')
-    plt.show()
 
 
 def testDNN(DNN, x_val, y_val, loss_fn):
@@ -572,10 +493,12 @@ def constructDNN(sample, V_DNN, minIn, maxIn):
 
 def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb):
     global trainingTime
-    # initialize the surrogate value that gets returned
+    # initialize the surrogate function
     surrogateValue = 0
     N_q = len(q_0)
     F_k = F(q_0)
+    FOMValues = [F_k]
+    surrogateValuesOuterIteration = []
     F_k_next = F_k
     q_k_tilde, T_k, C_k, F_k_tilde = optStep(F, q_0, N, 0, [], None, F_k, beta_1, beta_2, r, eps_o, nu_1, var, correlationCoeff, nt, nb)
     t = np.linspace(0, T, num=nt+1)
@@ -634,9 +557,9 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
                     plt.plot([0, 1], [T_k_check, T_k_check], label='T_k_check')
                     plt.legend()
                     plt.show()
-                q_k_next = enOpt(F_ML_k, q_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb, proj=lambda mu: projection(mu, q_k, d_k_iter), Cov=C_k, FOM=False)[0]
+                q_k_next, surrogateValuesInnerIteration = enOpt(F_ML_k, q_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb, proj=lambda mu: projection(mu, q_k, d_k_iter), Cov=C_k, FOM=False)
                 F_k_next = F(q_k_next)
-                surrogateValue = F_ML_k(q_k_next)
+                surrogateValue = surrogateValuesInnerIteration[-1]
                 rho_k = (F_k_next-F_k)/(surrogateValue-F_ML_k_q_k)
                 if rho_k < 0.25:
                     delta *= 0.25
@@ -651,12 +574,15 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
                 plt.legend()
                 plt.show()
 
-        if showPlots:
-            fails_iter.append(fails)
+        FOMValues.append(F_k_next)
+        surrogateValuesOuterIteration.append(surrogateValue)
+        fails_iter.append(fails)
+        if showOuterIterationPlots:
             for i in range(nb):
                 plt.plot(t, q_k_next[i*(nt+1):(i+1)*(nt+1)], label='q_k_next: basis function {}, outer iteration {}'.format(i, k))
                 plt.legend()
                 plt.show()
+        if showPlots:
             for i in range(nb):
                 for j in range(len(T_k)):
                     plt.plot(t, T_k[j][0][i*(nt+1):(i+1)*(nt+1)], label='samples: basis function {}, outer iteration {} '.format(i, k))
@@ -675,31 +601,22 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
                     T_k_max_q = T_k[i][0].copy()
             for i in range(nb):
                 plt.plot(t, q_k[i*(nt+1):(i+1)*(nt+1)], label='q_k: {}'.format(k))
-                plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label='q_k_tilde[{}]: {}'.format(i, k))
-                plt.plot(t, q_k_next[i*(nt+1):(i+1)*(nt+1)], label='q_k_next[{}]: {}'.format(i, k))
-                plt.plot(t, T_k_min_q[i*(nt+1):(i+1)*(nt+1)], label='T_k_min[{}]: {}'.format(i, k))
-                plt.plot(t, T_k_max_q[i*(nt+1):(i+1)*(nt+1)], label='T_k_max[{}]: {}'.format(i, k))
+                plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label='q_k_tilde: basis function {}, outer iteration {}'.format(i, k))
+                plt.plot(t, q_k_next[i*(nt+1):(i+1)*(nt+1)], label='q_k_next: basis function {}, outer iteration {}'.format(i, k))
+                plt.plot(t, T_k_min_q[i*(nt+1):(i+1)*(nt+1)], label='T_k_min: basis function {}, outer iteration {}'.format(i, k))
+                plt.plot(t, T_k_max_q[i*(nt+1):(i+1)*(nt+1)], label='T_k_max: basis function {}, outer iteration {}'.format(i, k))
                 plt.legend()
                 plt.show()
-            plt.plot([0, 1], [LA.norm(q_k_tilde-q_k), LA.norm(q_k_tilde-q_k)], label='q_k_tilde dist: {}'.format(k))
-            # plt.plot([0,1], [LA.norm(q_k_next-q_k), LA.norm(q_k_next-q_k)], label='q_k_next dist: {}'.format(k))
-            plt.plot([0, 1], [T_k_min_dist, T_k_min_dist], label='T_k_min dist: {}'.format(k))
-            plt.plot([0, 1], [T_k_max_dist, T_k_max_dist], label='T_k_max dist: {}'.format(k))
-            plt.legend()
+            names = ['T_k_min', 'T_k_max', 'q_k_tilde']
+            values = [T_k_min_dist, T_k_max_dist, LA.norm(q_k_tilde-q_k)]
+            plt.bar(names, values)
+            plt.suptitle('L2 distance to q_k, iteration {}'.format(k))
             plt.show()
-            plt.plot([0, 1], [LA.norm(q_k_tilde-q_k), LA.norm(q_k_tilde-q_k)], label='q_k_tilde dist: {}'.format(k))
-            plt.plot([0, 1], [LA.norm(q_k_next-q_k), LA.norm(q_k_next-q_k)], label='q_k_next dist: {}'.format(k))
-            plt.plot([0, 1], [T_k_min_dist, T_k_min_dist], label='T_k_min dist: {}'.format(k))
-            plt.plot([0, 1], [T_k_max_dist, T_k_max_dist], label='T_k_max dist: {}'.format(k))
-            plt.legend()
+            names = ['T_k_min', 'T_k_max', 'q_k_tilde', 'q_k_next']
+            values = [T_k_min_dist, T_k_max_dist, LA.norm(q_k_tilde-q_k), LA.norm(q_k_next-q_k)]
+            plt.bar(names, values)
+            plt.suptitle('L2 distance to q_k, iteration {}'.format(k))
             plt.show()
-            """
-            q_k_diff = q_k_next-q_k_tilde
-            fig, ax = plt.subplots(1, 1)
-            ax.plot(t, q_k_diff, label='q_k_diff: {}'.format(k))
-            ax.legend()
-            plt.show()
-            """
         q_k_tilde, T_k, C_k, F_k_tilde = optStep(F, q_k_next, N, k, T_k, C_k, F_k_next, beta_1, beta_2, r, eps_o, nu_1, var, correlationCoeff, nt, nb)
         if showPlots:
             covList = []
@@ -710,25 +627,26 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
             plt.legend()
             plt.show()
             for i in range(nb):
-                plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label='q_k_tilde[{}]: {}'.format(i, k+1))
+                plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label='q_k_tilde: basis function {}, outer iteration {}'.format(i, k+1))
                 plt.legend()
                 plt.show()
         F_k = F_k_next
         q_k = q_k_next.copy()
         k = k+1
     if showPlots:
-        plt.plot(range(len(q_k_tilde_check)), q_k_tilde_check, label='q_k_tilde_check')
+        plt.plot(range(len(q_k_tilde_check)), q_k_tilde_check, label='q_k_tilde inside the sample')
         plt.legend()
         plt.show()
         plt.plot(range(len(fails_iter)), fails_iter, label='fails')
         plt.legend()
         plt.show()
     print('fails: {}'.format(fails))
-    return q_k, F_k, surrogateValue
+    return q_k, FOMValues, surrogateValuesOuterIteration
 
 
 def ROM_EnOpt(q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
-    return AML_EnOpt(lambda mu: -J(mu, q_base, a, T, grid_intervals, nt)[0], q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, len(q_base))
+    q, FOMValues, surrogateValuesOuterIteration = AML_EnOpt(lambda mu: -J(mu, q_base, a, T, grid_intervals, nt)[0], q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, len(q_base))
+    return q, -np.array(FOMValues), -np.array(surrogateValuesOuterIteration)
 
 
 def result(name, qParamOpt, qParam, out, fom, data, u, y1, y2, a, T, nt, nb, qAnalytical = False):
@@ -797,7 +715,8 @@ def analytical():
     result('Analytical', qParam, qParam, out, fom, data, u, y1, y2, a, T, nt, nb, qAnalytical=True)
 
 
-showPlots = True
+showOuterIterationPlots = False
+showPlots = False
 N = 100
 eps = 1e-3
 k_1 = 1000
@@ -848,14 +767,14 @@ def evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1
     surrogateEvaluationsStart = surrogateEvaluations
     trainingTimeStart = trainingTime
     startAlg = time.time()
-    q, FOMValue, surrogateValue = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
+    q, FOMValues, surrogateValues = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
     endAlg = time.time()
     outerIterationsEnd = outerIterations
     innerIterationsEnd = innerIterations
     FOMEvaluationsEnd = FOMEvaluations
     surrogateEvaluationsEnd = surrogateEvaluations
     trainingTimeEnd = trainingTime
-    return q, method, FOMValue, surrogateValue, outerIterationsEnd-outerIterationsStart, innerIterationsEnd-innerIterationsStart, FOMEvaluationsStart-FOMEvaluationsEnd, surrogateEvaluationsEnd-surrogateEvaluationsStart, trainingTimeEnd-trainingTimeStart, endAlg-startAlg
+    return q, method, FOMValues, surrogateValues, outerIterationsEnd-outerIterationsStart, innerIterationsEnd-innerIterationsStart, FOMEvaluationsEnd-FOMEvaluationsStart, surrogateEvaluationsEnd-surrogateEvaluationsStart, trainingTimeEnd-trainingTimeStart, endAlg-startAlg
 
 
 def evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
@@ -865,11 +784,14 @@ def evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCo
     outerIterationsStart = outerIterations
     FOMEvaluationsStart = FOMEvaluations
     startAlg = time.time()
-    q, FOMValue = FOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
+    q, FOMValues = FOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
     endAlg = time.time()
     outerIterationsEnd = outerIterations
     FOMEvaluationsEnd = FOMEvaluations
-    return q, method, FOMValue, outerIterationsEnd-outerIterationsStart, FOMEvaluationsStart-FOMEvaluationsEnd, endAlg-startAlg
+    return q, method, FOMValues, outerIterationsEnd-outerIterationsStart, FOMEvaluationsEnd-FOMEvaluationsStart, endAlg-startAlg
+
+
+# def compareEnOpt(init, N, eps, eps_o, eps_i, k_1, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
 """
 qParamAMLOpt, kAML = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
 print(qParamAMLOpt, kAML)
