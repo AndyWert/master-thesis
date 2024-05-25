@@ -6,6 +6,18 @@ from pymor.algorithms.timestepping import TimeStepper
 from numpy import linalg as LA
 import time
 
+plt.style.use('style.mplstyle')
+
+#plt.rcParams.update({
+#    "text.usetex": True,
+#    "font.family": "serif",
+#    "figure.figsize": (4.9, 3.5),
+#    "font.size": 10.95,
+#    "axes.titlesize": "medium",
+#    "figure.titlesize": "medium",
+#    "text.latex.preamble": "\usepackage{amsmath}\usepackage{amssymb}"
+#})
+
 # global values
 trainingTime = 0
 FOMEvaluations = 0
@@ -300,6 +312,13 @@ def enOpt(F, q_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, n
     functionValues = [F_k_prev]
     q_k, T_k, C_k, F_k = optStep(F, q_0, N, 0, [], Cov, F_k_prev, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, nt, nb, proj, FOM)
     functionValues.append(F_k)
+    if showPlots or (FOM and showOuterIterationPlots):
+        t = np.linspace(0, 0.1, nt+1)
+        for i in range(nb):
+            plt.plot(t, q_k[i*(nt+1):(i+1)*(nt+1)], label=r'$\mathbf{q}_{k}$')
+            plt.suptitle('EnOpt: basis function {}, iteration {}'.format(i+1, 1))
+            plt.legend()
+            plt.show()
     k = 1
     while (F_k > F_k_prev+eps and k < k_1):
         F_k_prev = F_k
@@ -308,7 +327,8 @@ def enOpt(F, q_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, n
         if showPlots or (FOM and showOuterIterationPlots):
             t = np.linspace(0, 0.1, nt+1)
             for i in range(nb):
-                plt.plot(t, q_k[i*(nt+1):(i+1)*(nt+1)], label='EnOpt q_k: basis function {}, iteration {}'.format(i, k))
+                plt.plot(t, q_k[i*(nt+1):(i+1)*(nt+1)], label=r'$\mathbf{q}_{k}$')
+                plt.suptitle('EnOpt: basis function {}, iteration {}'.format(i+1, k+1))
                 plt.legend()
                 plt.show()
         k = k+1
@@ -493,6 +513,7 @@ def constructDNN(sample, V_DNN, minIn, maxIn):
 
 def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb):
     global trainingTime
+    global T
     # initialize the surrogate function
     surrogateValue = 0
     N_q = len(q_0)
@@ -504,18 +525,17 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
     t = np.linspace(0, T, num=nt+1)
     if showPlots:
         for i in range(nb):
-            plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label='q_k_tilde: basis function {}, outer iteration {}'.format(i, 1))
+            plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label=r'$\tilde{\mathbf{q}}_k$')
+            plt.suptitle('AML-EnOpt: basis function {}, iteration {}'.format(i+1, 0))
             plt.legend()
             plt.show()
     k = 1
     q_k = q_0
     q_k_next = q_k.copy()
-    q_k_tilde_check = []
     fails_iter = []
     fails = 0
     delta = delta_init
     while (F_k_tilde > F_k+eps_o and k < k_1_o):
-        fails -= 1
         T_k_x = np.zeros((N, N_q))
         for i in range(N):
             T_k_x[i, :] = T_k[i][0]
@@ -524,16 +544,11 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
         for i in range(N_q):
             minIn[i] = np.min(T_k_x[:, i])
             maxIn[i] = np.max(T_k_x[:, i])
-        if showPlots:
-            q_k_tilde_check_iter = 0
-            if np.all(q_k_tilde == projectionSample(q_k_tilde, minIn, maxIn)):
-                q_k_tilde_check_iter = 1
-            q_k_tilde_check.append(q_k_tilde_check_iter)
 
         d_k = np.abs(q_k-q_k_tilde)
 
+        tr = 1
         while F_k_next <= F_k+eps_o:
-            fails += 1
             startTraining = time.time()
             F_ML_k = constructDNN(T_k, V_DNN, minIn, maxIn)
             endTraining = time.time()
@@ -547,14 +562,15 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
                     q_k_tilde_check2 = 0
                     if np.all(q_k_tilde == projection(q_k_tilde, q_k, d_k_iter)):
                         q_k_tilde_check2 = 1
-                    plt.plot([0, 1], [q_k_tilde_check2, q_k_tilde_check2], label='q_k_tilde_check2')
+                    plt.bar([1], [q_k_tilde_check2])
+                    plt.suptitle(r'check if $\tilde{\mathbf{q}}_k$ is in TR')
                     plt.legend()
                     plt.show()
                     T_k_check = 0
                     for i in range(len(T_k)):
                         if np.all(T_k[i][0] == projection(T_k[i][0], q_k, d_k_iter)):
                             T_k_check += 1
-                    plt.plot([0, 1], [T_k_check, T_k_check], label='T_k_check')
+                    plt.plot([0, 1], [T_k_check, T_k_check], label=r'$T_k$ check')
                     plt.legend()
                     plt.show()
                 q_k_next, surrogateValuesInnerIteration = enOpt(F_ML_k, q_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var, correlationCoeff, nt, nb, proj=lambda mu: projection(mu, q_k, d_k_iter), Cov=C_k, FOM=False)
@@ -570,22 +586,27 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
                     trustRegionFlag = False
                 deltaList.append(delta)
             if showPlots:
-                plt.plot(range(len(deltaList)), deltaList, label='delta')
+                plt.plot(range(len(deltaList)), deltaList, label=r'$\delta$')
+                plt.suptitle(r'$\delta$'+' during TR-method {}, outer iteration {}'.format(tr, k))
                 plt.legend()
                 plt.show()
+            tr += 1
 
+        fails += tr-2
         FOMValues.append(F_k_next)
         surrogateValuesOuterIteration.append(surrogateValue)
         fails_iter.append(fails)
         if showOuterIterationPlots:
             for i in range(nb):
-                plt.plot(t, q_k_next[i*(nt+1):(i+1)*(nt+1)], label='q_k_next: basis function {}, outer iteration {}'.format(i, k))
+                plt.plot(t, q_k_next[i*(nt+1):(i+1)*(nt+1)], label=r'$\mathbf{q}^\mathrm{next}_k$')
+                plt.suptitle('AML-EnOpt: basis function {}, iteration {}'.format(i+1, k))
                 plt.legend()
                 plt.show()
         if showPlots:
             for i in range(nb):
                 for j in range(len(T_k)):
-                    plt.plot(t, T_k[j][0][i*(nt+1):(i+1)*(nt+1)], label='samples: basis function {}, outer iteration {} '.format(i, k))
+                    plt.plot(t, T_k[j][0][i*(nt+1):(i+1)*(nt+1)])
+                plt.suptitle('samples: basis function {}, outer iteration {} '.format(i+1, k))
                 plt.show()
             T_k_min_q = T_k[0][0].copy()
             T_k_min_dist = LA.norm(T_k_min_q-q_k)
@@ -600,22 +621,23 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
                     T_k_max_dist = dist
                     T_k_max_q = T_k[i][0].copy()
             for i in range(nb):
-                plt.plot(t, q_k[i*(nt+1):(i+1)*(nt+1)], label='q_k: {}'.format(k))
-                plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label='q_k_tilde: basis function {}, outer iteration {}'.format(i, k))
-                plt.plot(t, q_k_next[i*(nt+1):(i+1)*(nt+1)], label='q_k_next: basis function {}, outer iteration {}'.format(i, k))
-                plt.plot(t, T_k_min_q[i*(nt+1):(i+1)*(nt+1)], label='T_k_min: basis function {}, outer iteration {}'.format(i, k))
-                plt.plot(t, T_k_max_q[i*(nt+1):(i+1)*(nt+1)], label='T_k_max: basis function {}, outer iteration {}'.format(i, k))
+                plt.plot(t, T_k_min_q[i*(nt+1):(i+1)*(nt+1)], label=r'$T_k$ min')
+                plt.plot(t, T_k_max_q[i*(nt+1):(i+1)*(nt+1)], label=r'$T_k$ max')
+                plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label=r'$\tilde{\mathbf{q}}_k$')
+                plt.plot(t, q_k_next[i*(nt+1):(i+1)*(nt+1)], label=r'$\mathbf{q}^\mathrm{next}_k$')
+                plt.plot(t, q_k[i*(nt+1):(i+1)*(nt+1)], label=r'$\mathfb{q}_k$')
+                plt.suptitle('AML-EnOpt: basis function {}, iteration {}'.format(i+1, k))
                 plt.legend()
                 plt.show()
-            names = ['T_k_min', 'T_k_max', 'q_k_tilde']
+            names = [r'$T_k$ min', r'$T_k$ max', r'$\tilde{\mathbf{q}}_k$']
             values = [T_k_min_dist, T_k_max_dist, LA.norm(q_k_tilde-q_k)]
             plt.bar(names, values)
-            plt.suptitle('L2 distance to q_k, iteration {}'.format(k))
+            plt.suptitle(r'$L^2$-distance to $\mathbf{q}_k$,'+' iteration {}'.format(k))
             plt.show()
-            names = ['T_k_min', 'T_k_max', 'q_k_tilde', 'q_k_next']
+            names = [r'$T_k$ min', r'$T_k$ max', r'$\tilde{\mathbf{q}}_k$', r'$\mathbf{q}^\mathrm{next}_k$']
             values = [T_k_min_dist, T_k_max_dist, LA.norm(q_k_tilde-q_k), LA.norm(q_k_next-q_k)]
             plt.bar(names, values)
-            plt.suptitle('L2 distance to q_k, iteration {}'.format(k))
+            plt.suptitle(r'$L^2$-distance to $\mathbf{q}_k$,'+' iteration {}'.format(k))
             plt.show()
         q_k_tilde, T_k, C_k, F_k_tilde = optStep(F, q_k_next, N, k, T_k, C_k, F_k_next, beta_1, beta_2, r, eps_o, nu_1, var, correlationCoeff, nt, nb)
         if showPlots:
@@ -623,21 +645,21 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
             for i in range(len(C_k)):
                 covList.append(C_k[i, i])
             tCov = range(len(C_k))
-            plt.plot(tCov, covList, label='Cov')
-            plt.legend()
-            plt.show()
             for i in range(nb):
-                plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label='q_k_tilde: basis function {}, outer iteration {}'.format(i, k+1))
+                plt.bar(tCov[i*(nt+1):(i+1)*(nt+1)], covList[i*(nt+1):(i+1)*(nt+1)])
+                plt.suptitle('Variance: basis function {}, outer iteration {}'.format(i+1, k))
+                plt.show()
+            for i in range(nb):
+                plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label=r'$\tilde{\mathbf{q}}_k$')
+                plt.suptitle('AML-EnOpt: basis function {}, iteration {}'.format(i+1, k))
                 plt.legend()
                 plt.show()
         F_k = F_k_next
         q_k = q_k_next.copy()
         k = k+1
     if showPlots:
-        plt.plot(range(len(q_k_tilde_check)), q_k_tilde_check, label='q_k_tilde inside the sample')
-        plt.legend()
-        plt.show()
-        plt.plot(range(len(fails_iter)), fails_iter, label='fails')
+        plt.plot(np.arange(1, len(fails_iter)+1), fails_iter, label='fails')
+        plt.suptitle('number of fails, iteration {}'.format(k))
         plt.legend()
         plt.show()
     print('fails: {}'.format(fails))
@@ -715,8 +737,8 @@ def analytical():
     result('Analytical', qParam, qParam, out, fom, data, u, y1, y2, a, T, nt, nb, qAnalytical=True)
 
 
-showOuterIterationPlots = False
-showPlots = False
+showOuterIterationPlots = True
+showPlots = True
 N = 100
 eps = 1e-3
 k_1 = 1000
@@ -754,12 +776,42 @@ V_DNN = [[nb*(nt+1), 500, 500, 1], torch.tanh, 10, 1000, 20, 0.8, 1e-2]
 # V_DNN = [[25, 25], torch.tanh, 50, 100, 50, 5, 1e-4]
 
 
+def evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
+    global outerIterations
+    global FOMEvaluations
+    nb = len(q_base)
+    method = 'FOM-EnOpt'
+    outerIterationsStart = outerIterations
+    FOMEvaluationsStart = FOMEvaluations
+    startAlg = time.time()
+    q, FOMValues = FOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
+    endAlg = time.time()
+    runTimeTotal = (endAlg-startAlg)/60
+    outerIterationsEnd = outerIterations
+    outerIterationsTotal = outerIterationsEnd-outerIterationsStart
+    FOMEvaluationsEnd = FOMEvaluations
+    FOMEvaluationsTotal = FOMEvaluationsEnd-FOMEvaluationsStart
+    for i in range(nb):
+        plt.plot(np.linspace(0, T, num=nt+1), q[i*(nt+1):(i+1)*(nt+1)], label=r'$\mathbf{q}$')
+        plt.suptitle('FOM-EnOpt output')
+        plt.legend()
+        plt.show()
+    print('Output: {}\n'.format(q))
+    print('Method: {}\n'.format(method))
+    print('FOM values: {}\n'.format(FOMValues))
+    print('Number of outer iterations: {}\n'.format(outerIterationsTotal))
+    print('Number of FOM evaluations: {}\n'.format(FOMEvaluationsTotal))
+    print('Total run time (minutes): {}\n'.format(runTimeTotal))
+    return q, method, FOMValues, outerIterationsTotal, FOMEvaluationsTotal, runTimeTotal
+
+
 def evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
     global outerIterations
     global innerIterations
     global FOMEvaluations
     global surrogateEvaluations
     global trainingTime
+    nb = len(q_base)
     method = 'AML-EnOpt'
     outerIterationsStart = outerIterations
     innerIterationsStart = innerIterations
@@ -769,26 +821,99 @@ def evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1
     startAlg = time.time()
     q, FOMValues, surrogateValues = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
     endAlg = time.time()
+    runTimeTotal = (endAlg-startAlg)/60
     outerIterationsEnd = outerIterations
+    outerIterationsTotal = outerIterationsEnd-outerIterationsStart
     innerIterationsEnd = innerIterations
+    innerIterationsTotal = innerIterationsEnd-innerIterationsStart
     FOMEvaluationsEnd = FOMEvaluations
+    FOMEvaluationsTotal = FOMEvaluationsEnd-FOMEvaluationsStart
     surrogateEvaluationsEnd = surrogateEvaluations
+    surrogateEvaluationsTotal = surrogateEvaluationsEnd-surrogateEvaluationsStart
     trainingTimeEnd = trainingTime
-    return q, method, FOMValues, surrogateValues, outerIterationsEnd-outerIterationsStart, innerIterationsEnd-innerIterationsStart, FOMEvaluationsEnd-FOMEvaluationsStart, surrogateEvaluationsEnd-surrogateEvaluationsStart, trainingTimeEnd-trainingTimeStart, endAlg-startAlg
+    trainingTimeTotal = (trainingTimeEnd-trainingTimeStart)/60
+    for i in range(nb):
+        plt.plot(np.linspace(0, T, num=nt+1), q[i*(nt+1):(i+1)*(nt+1)], label=r'$\mathbf{q}$')
+        plt.suptitle('ROM-EnOpt output')
+        plt.legend()
+        plt.show()
+    print('Output: {}\n'.format(q))
+    print('Method: {}\n'.format(method))
+    print('FOM values: {}\n'.format(FOMValues))
+    print('Surrogate values: {}\n'.format(surrogateValues))
+    print('Number of outer iterations: {}\n'.format(outerIterationsTotal))
+    print('Number of inner iterations: {}\n'.format(innerIterationsTotal))
+    print('Number of FOM evaluations: {}\n'.format(FOMEvaluationsTotal))
+    print('Number of surrogate evalutations: {}\n'.format(surrogateEvaluationsTotal))
+    print('Training time (minutes): {}\n'.format(trainingTimeTotal))
+    print('Total run time (minutes): {}\n'.format(runTimeTotal))
+    return q, method, FOMValues, surrogateValues, outerIterationsTotal, innerIterationsTotal, FOMEvaluationsTotal, surrogateEvaluationsTotal, trainingTimeTotal, runTimeTotal
 
 
-def evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
-    global outerIterations
-    global FOMEvaluations
-    method = 'FOM-EnOpt'
-    outerIterationsStart = outerIterations
-    FOMEvaluationsStart = FOMEvaluations
-    startAlg = time.time()
-    q, FOMValues = FOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
-    endAlg = time.time()
-    outerIterationsEnd = outerIterations
-    FOMEvaluationsEnd = FOMEvaluations
-    return q, method, FOMValues, outerIterationsEnd-outerIterationsStart, FOMEvaluationsEnd-FOMEvaluationsStart, endAlg-startAlg
+# runs the FOM_EnOpt algorithm rep times
+def testFOM_EnOpt(rep, init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
+    global showOuterIterationPlots
+    global showPlots
+    showOuterIterationPlotsSave = showOuterIterationPlots
+    showPlotsSave = showPlots
+    showOuterIterationPlots = False
+    showPlots = False
+    q, method, FOMValues, FOMValuesOut, outerIterationsTotal, FOMEvaluationsTotal, runTimeTotal = [], [], [], [], [], [], []
+    for i in range(rep):
+        qIter, methodIter, FOMValuesIter, outerIterationsTotalIter, FOMEvaluationsTotalIter, runTimeTotalIter = evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
+        q.append(qIter)
+        method.append(methodIter)
+        FOMValues.append(FOMValuesIter)
+        FOMValuesOut.append(FOMValuesIter[-1])
+        outerIterationsTotal.append(outerIterationsTotalIter)
+        FOMEvaluationsTotal.append(FOMEvaluationsTotalIter)
+        runTimeTotal.append(runTimeTotalIter)
+    print('Output: {}\n'.format(q))
+    print('Method: {}\n'.format(method))
+    print('FOM values: {}\n'.format(FOMValues))
+    print('FOM output values: {}\n'.format(FOMValues))
+    print('Number of outer iterations: {}\n'.format(outerIterationsTotal))
+    print('Number of FOM evaluations: {}\n'.format(FOMEvaluationsTotal))
+    print('Total run time (minutes): {}\n'.format(runTimeTotal))
+    showOuterIterationPlots = showOuterIterationPlotsSave
+    showPlots = showPlotsSave
+
+
+# runs the ROM_EnOpt algorithm rep times
+def testROM_EnOpt(rep, init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
+    global showOuterIterationPlots
+    global showPlots
+    showOuterIterationPlotsSave = showOuterIterationPlots
+    showPlotsSave = showPlots
+    showOuterIterationPlots = False
+    showPlots = False
+    q, method, FOMValues, FOMValuesOut, surrogateValues, outerIterationsTotal, innerIterationsTotal, FOMEvaluationsTotal, surrogateEvaluationsTotal, trainingTimeTotal, runTimeTotal = [], [], [], [], [], [], [], [], [], [], []
+    for i in range(rep):
+        qIter, methodIter, FOMValuesIter, surrogateValuesIter, outerIterationsTotalIter, innerIterationsTotalIter, FOMEvaluationsTotalIter, surrogateEvaluationsTotalIter, trainingTimeTotalIter, runTimeTotalIter = evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
+        q.append(qIter)
+        method.append(methodIter)
+        FOMValues.append(FOMValuesIter)
+        FOMValuesOut.append(FOMValuesIter[-1])
+        surrogateValues.append(surrogateValuesIter)
+        outerIterationsTotal.append(outerIterationsTotalIter)
+        innerIterationsTotal.append(innerIterationsTotal)
+        FOMEvaluationsTotal.append(FOMEvaluationsTotalIter)
+        surrogateEvaluationsTotal.append(surrogateEvaluationsTotal)
+        trainingTimeTotal.append(trainingTimeTotal)
+        runTimeTotal.append(runTimeTotalIter)
+    print('Output: {}\n'.format(q))
+    print('Method: {}\n'.format(method))
+    print('FOM values: {}\n'.format(FOMValues))
+    print('FOM output values: {}\n'.format(FOMValues))
+    print('Surrogate values: {}\n'.format(surrogateValues))
+    print('Number of outer iterations: {}\n'.format(outerIterationsTotal))
+    print('Number of inner iterations: {}\n'.format(innerIterationsTotal))
+    print('Number of FOM evaluations: {}\n'.format(FOMEvaluationsTotal))
+    print('Number of surrogate evalutations: {}\n'.format(surrogateEvaluationsTotal))
+    print('Training time (minutes): {}\n'.format(trainingTimeTotal))
+    print('Total run time (minutes): {}\n'.format(runTimeTotal))
+    showOuterIterationPlots = showOuterIterationPlotsSave
+    showPlots = showPlotsSave
 
 
 # def compareEnOpt(init, N, eps, eps_o, eps_i, k_1, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
