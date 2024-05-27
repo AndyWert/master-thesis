@@ -622,7 +622,7 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
                 plt.plot(t, T_k_max_q[i*(nt+1):(i+1)*(nt+1)], label=r'$T_k$ max')
                 plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label=r'$\tilde{\mathbf{q}}_k$')
                 plt.plot(t, q_k_next[i*(nt+1):(i+1)*(nt+1)], label=r'$\mathbf{q}^\mathrm{next}_k$')
-                plt.plot(t, q_k[i*(nt+1):(i+1)*(nt+1)], label=r'$\mathfb{q}_k$')
+                plt.plot(t, q_k[i*(nt+1):(i+1)*(nt+1)], label=r'$\mathbf{q}_k$')
                 plt.suptitle('AML-EnOpt: basis function {}, iteration {}'.format(i+1, k))
                 plt.legend()
                 plt.show()
@@ -737,7 +737,7 @@ def analytical():
 showOuterIterationPlots = True
 showPlots = True
 N = 100
-eps = 1e-6
+eps = 1e-3
 k_1 = 1000
 beta_1 = 1
 beta_2 = 1
@@ -759,8 +759,8 @@ def opt1():
 
 # optimized control function using the AML EnOpt minimizer
 delta_init = 50
-eps_o = 1e-6
-eps_i = 1e-6
+eps_o = 1e-3
+eps_i = 1e-3
 k_1_o = k_1
 k_1_i = k_1
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
@@ -872,6 +872,11 @@ def compareEnOpt(init, N, eps, eps_o, eps_i, k_1, k_1_o, k_1_i, V_DNN, delta_ini
     plt.plot(range(len(FOMValues)), FOMValues, label='FOM-EnOpt')
     plt.plot(np.arange(1, len(surrogateValuesAML)+1), surrogateValuesAML, label='AML-EnOpt')
     plt.plot(range(len(FOMValuesAML)), FOMValuesAML, label='FOM value')
+    plt.suptitle('Comparison of the function values')
+    plt.legend()
+    plt.show()
+    plt.plot(np.arange(1, len(surrogateValuesAML)+1), surrogateValuesAML, label='AML-EnOpt', color = 'y')
+    plt.plot(range(len(FOMValuesAML)), FOMValuesAML, label='FOM value', color = 'g')
     plt.suptitle('Comparison of the function values')
     plt.legend()
     plt.show()
