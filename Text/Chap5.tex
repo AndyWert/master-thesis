@@ -1,44 +1,93 @@
 \chapter{Numerical experiments}
 
 %\footnotesize
-\begin{tabular}{|l|l|l|l|l|l|}
+\begin{tabular}{ll}
 \hline
-Method & Iteration & FOM value  & \multicolumn{3}{l|}{Surrogate value}\\%& FOM eval. & Surrogate eval. & Training time (min) & $T_\mathrm{total}$ (min) & Speedup\\
+Parameter & Value\\
+\hline
+Elements of the initial constant control vector $\mathbf{q}_0$ & -40\\
+Initial step size $\beta_1$ & $1$\\
+Initial covariance matrix adaption step size $\beta_2$ & $1$\\
+Initial trust region step size $\delta_\mathrm{init}$ & $50$\\
+Step size contraction $r$ & $0.5$\\
+Maximum step size trials $\nu^*$ & $10$\\
+Initial control-type variance $\sigma^2_1$ & $0.1$\\
+Constant correlation factor $\rho$ & $0.9$\\
+Perturbation size $N$ & $100$\\
+FOM-EnOpt $\varepsilon$ & $10^{-8}$\\
+Tolerances Adaptive-ML-EnOpt inner iteration $\varepsilon_i$ & $10^{-8}$\\
+Adaptive-ML-EnOpt outer iteration $\varepsilon_o$ & $10^{-8}$\\
+%& $$\\
+\hline
+\end{tabular}
+
+%\footnotesize
+\begin{tabular}{|l|l|l|l|}
+\hline
+Method & Iteration & FOM value  & Surrogate value \\%& FOM eval. & Surrogate eval. & Training time (min) & $T_\mathrm{total}$ (min) & Speedup\\
 \hline
 \hline
-$\mathrm{FOM-EnOpt}$ & $1$ & $$ & \multicolumn{3}{l|}{-}\\%& $2839$ & - & - & $54.86$ & - \\
-\cline{2-6}
- & $2$ & $$ & \multicolumn{3}{l|}{-}\\%& $2839$ & - & - & $54.86$ & - \\
-\cline{2-6}
- & $3$ & $$ & \multicolumn{3}{l|}{-}\\%& $2839$ & - & - & $54.86$ & - \\
-\cline{2-6}
- & $4$ & $$ & \multicolumn{3}{l|}{-}\\%& $2839$ & - & - & $54.86$ & - \\
-\cline{2-6}
- & $5$ & $$ & \multicolumn{3}{l|}{-}\\%& $2839$ & - & - & $54.86$ & - \\
+$\mathrm{FOM-EnOpt}$ & $1$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+\cline{2-4}
+ & $2$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+\cline{2-4}
+ & $3$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
  \hline
-$\mathrm{AML-EnOpt}$ & $1$ & $$ & \multicolumn{3}{l|}{$$}\\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
-\cline{2-6}
- & $2$ & $$ & \multicolumn{3}{l|}{$$}\\%& $2839$ & - & - & $54.86$ & - \\
-\cline{2-6}
- & $3$ & $$ & \multicolumn{3}{l|}{$$}\\%& $2839$ & - & - & $54.86$ & - \\
-\cline{2-6}
- & $4$ & $$ & \multicolumn{3}{l|}{$$}\\%& $2839$ & - & - & $54.86$ & - \\
-\cline{2-6}
- & $5$ & $$ & \multicolumn{3}{l|}{$$}\\%& $2839$ & - & - & $54.86$ & - \\
+$\mathrm{AML-EnOpt}$ & $1$ & $$ & $$ \\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
+\cline{2-4}
+ & $2$ & $$ & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+\cline{2-4}
+ & $3$ & $$ & $$ \\%& $2839$ & - & - & $54.86$ & - \\
 \hline
-\multicolumn{6}{l}{}\\
+\multicolumn{4}{l}{}\\
 \hline
-Method & Iteration & Outer iter. & Inner iter. & & \\%& FOM eval. & Surrogate eval. & Training time (min) & $T_\mathrm{total}$ (min) & Speedup\\
-\hline
-$\mathrm{FOM-EnOpt}$ & $1$ & $6.400\cdot10^8$ & - & $28$ & - \\%& $2839$ & - & - & $54.86$ & - \\
-$\mathrm{AML-EnOpt}$ & $1$ & $7.013\cdot10^8$ & $6.968\cdot10^8$ & $4$ & $233$ \\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
-\hline
-\multicolumn{6}{l}{}\\
-\hline
-FOM eval. & Iteration & Surrogate eval. & Training time (min) & $T_\mathrm{total}$ (min) &  \\
+Method & Iteration & Outer iterations  & Inner iterations \\%& FOM eval. & Surrogate eval. & Training time (min) & $T_\mathrm{total}$ (min) & Speedup\\
 \hline
 \hline
-$2839$ & $1$ & - & - & $54.86$ & - \\
-$407$ & $1$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
+$\mathrm{FOM-EnOpt}$ & $1$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+\cline{2-4}
+ & $2$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+\cline{2-4}
+ & $3$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+ \hline
+$\mathrm{AML-EnOpt}$ & $1$ & $$ & $$ \\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
+\cline{2-4}
+ & $2$ & $$ & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+\cline{2-4}
+ & $3$ & $$ & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+\hline
+\multicolumn{4}{l}{}\\
+\hline
+Method & Iteration & FOM evaluations  & Surrogate evaluations \\%& FOM eval. & Surrogate eval. & Training time (min) & $T_\mathrm{total}$ (min) & Speedup\\
+\hline
+\hline
+$\mathrm{FOM-EnOpt}$ & $1$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+\cline{2-4}
+ & $2$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+\cline{2-4}
+ & $3$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+ \hline
+$\mathrm{AML-EnOpt}$ & $1$ & $$ & $$ \\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
+\cline{2-4}
+ & $2$ & $$ & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+\cline{2-4}
+ & $3$ & $$ & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+\hline
+\multicolumn{4}{l}{}\\
+\hline
+Method & Iteration &Training time (min)  & Total run time (min) \\%& FOM eval. & Surrogate eval. & Training time (min) & $T_\mathrm{total}$ (min) & Speedup\\
+\hline
+\hline
+$\mathrm{FOM-EnOpt}$ & $1$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+\cline{2-4}
+ & $2$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+\cline{2-4}
+ & $3$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+ \hline
+$\mathrm{AML-EnOpt}$ & $1$ & $$ & $$ \\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
+\cline{2-4}
+ & $2$ & $$ & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+\cline{2-4}
+ & $3$ & $$ & $$ \\%& $2839$ & - & - & $54.86$ & - \\
 \hline
 \end{tabular}

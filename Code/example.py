@@ -760,7 +760,7 @@ def opt1():
 # optimized control function using the AML EnOpt minimizer
 delta_init = 50
 eps_o = 1e-3
-eps_i = 1e-3
+eps_i = 1e-8
 k_1_o = k_1
 k_1_i = k_1
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
