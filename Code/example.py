@@ -22,7 +22,6 @@ plt.style.use('style.mplstyle')
 trainingTime = 0
 FOMEvaluations = 0
 surrogateEvaluations = 0
-outerIterations = 0
 innerIterations = 0
 
 
@@ -276,8 +275,10 @@ def updateCov(q_k, T_k, C_k, F_k, beta):
     return C_k + beta_iter*d_k_cov
 
 
-def optStep(F, q_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, nt, nb, proj=lambda mu: mu):
+def optStep(F, q_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, nt, nb, proj=lambda mu: mu, FOM=True):
     global innerIterations
+    if not FOM:
+        innerIterations += 1
     N_q = len(q_k)
     C_k_next = np.zeros((N_q, N_q))
     if k == 0:
@@ -303,12 +304,9 @@ def optStep(F, q_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, corr
 
 
 def enOpt(F, q_0, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, T, nt, nb, proj=lambda mu: mu, Cov=None, FOM=True):
-    global outerIterations
     F_k_prev = F(q_0)
     functionValues = [F_k_prev]
     q_k, T_k, C_k, F_k = optStep(F, q_0, N, 0, [], Cov, F_k_prev, beta_1, beta_2, r, eps, nu_1, var, correlationCoeff, nt, nb, proj, FOM)
-    if FOM:
-        outerIterations += 1
     functionValues.append(F_k)
     if showPlots or (FOM and showOuterIterationPlots):
         t = np.linspace(0, T, nt+1)
@@ -361,7 +359,7 @@ def testDNN(DNN, x_val, y_val, loss_fn):
     with torch.inference_mode():
         pred = DNN(x_val).reshape(len(y_val))
         val_loss = loss_fn(pred, y_val)
-        return val_loss
+        return val_loss.cpu().detach().numpy()
 
 
 def trainDNN(DNN, x_train, y_train, x_val, y_val, loss_fn, optimizer, epochs, earlyStop):
@@ -458,6 +456,7 @@ def constructDNN(sample, V_DNN, minIn, maxIn):
     val_loss = [DNN_eval]
     for i in range(restarts):
         DNN_i = FullyConnectedNN(DNNStructure, activation_function=activFunc)
+        DNN_i.to(device)
         optimizer = torch.optim.LBFGS(DNN_i.parameters(), lr=learning_rate, line_search_fn='strong_wolfe')
         trainDNN(DNN_i, x_train, y_train, x_val, y_val, loss_fn, optimizer, epochs, earlyStop)
         DNN_i_eval = testDNN(DNN_i, x_val, y_val, loss_fn)
@@ -472,7 +471,7 @@ def constructDNN(sample, V_DNN, minIn, maxIn):
 
     if showPlots:
         with torch.inference_mode():
-            y_preds = DNN(x).reshape(len(y))
+            y_preds = DNN(x.to(device)).reshape(len(y))
 
             sortedDNNOutputs = []
             sortedFOMOutputs = []
@@ -487,7 +486,7 @@ def constructDNN(sample, V_DNN, minIn, maxIn):
                         jMin = j
                         sampleMin = sortSample[j][1]
                 sortedFOMOutputs.append(sampleMin)
-                sortedDNNOutputs.append(DNN(torch.from_numpy(sortSample[jMin][0]).to(torch.float32)).detach().numpy()[0])
+                sortedDNNOutputs.append(DNN(torch.from_numpy(sortSample[jMin][0]).to(torch.float32).to(device)).cpu().detach().numpy()[0])
                 sortSample.pop(jMin)
             minSortedDNNOutputs = np.min(sortedDNNOutputs)
             plt.bar(range(len(sortedDNNOutputs)), sortedDNNOutputs)
@@ -500,19 +499,19 @@ def constructDNN(sample, V_DNN, minIn, maxIn):
     def f(x_inp):
         global surrogateEvaluations
         surrogateEvaluations += 1
-        scaledInput = torch.from_numpy((x_inp-minIn)/(maxIn-minIn)).to(torch.float32)
+        scaledInput = torch.from_numpy((x_inp-minIn)/(maxIn-minIn)).to(torch.float32).to(device)
         with torch.inference_mode():
-            scaledOutput = DNN(scaledInput)
+            scaledOutput = DNN(scaledInput).cpu()
         print('Scaled DNN output: {}'.format(scaledOutput.numpy()[0]))
         return scaledOutput.numpy()[0]*(maxOut-minOut)+minOut
-    return f
+    return f, DNN_eval
 
 
 def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, T, nt, nb):
-    global outerIterations
     global trainingTime
     # initialize the surrogate function
     surrogateValue = 0
+    surrogateEval = []
     N_q = len(q_0)
     F_k = F(q_0)
     FOMValues = [F_k]
@@ -544,10 +543,11 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
 
         d_k = np.abs(q_k-q_k_tilde)
 
+        DNN_eval = 0
         tr = 1
         while F_k_next <= F_k+eps_o:
             startTraining = time.time()
-            F_ML_k = constructDNN(T_k, V_DNN, minIn, maxIn)
+            F_ML_k, DNN_eval = constructDNN(T_k, V_DNN, minIn, maxIn)
             endTraining = time.time()
             trainingTime = trainingTime + (endTraining - startTraining)
             F_ML_k_q_k = F_ML_k(q_k)
@@ -589,7 +589,7 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
             tr += 1
 
         fails += tr-2
-        outerIterations += 1
+        surrogateEval.append(DNN_eval)
         FOMValues.append(F_k_next)
         surrogateValuesOuterIteration.append(surrogateValue)
         fails_iter.append(fails)
@@ -660,12 +660,12 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, 
         plt.legend()
         plt.show()
     print('Fails: {}'.format(fails))
-    return q_k, FOMValues, surrogateValuesOuterIteration
+    return q_k, FOMValues, surrogateValuesOuterIteration, surrogateEval
 
 
 def ROM_EnOpt(q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
-    q, FOMValues, surrogateValuesOuterIteration = AML_EnOpt(lambda mu: -J(mu, q_base, a, T, grid_intervals, nt)[0], q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, T, nt, len(q_base))
-    return q, -np.array(FOMValues), -np.array(surrogateValuesOuterIteration)
+    q, FOMValues, surrogateValuesOuterIteration, surrogateEval = AML_EnOpt(lambda mu: -J(mu, q_base, a, T, grid_intervals, nt)[0], q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, T, nt, len(q_base))
+    return q, -np.array(FOMValues), -np.array(surrogateValuesOuterIteration), surrogateEval
 
 
 def result(name, qParamOpt, qParam, out, fom, data, u, y1, y2, a, T, nt, nb, qAnalytical = False):
@@ -737,7 +737,7 @@ def analytical():
 showOuterIterationPlots = True
 showPlots = True
 N = 100
-eps = 1e-3
+eps = 1e-6
 k_1 = 1000
 beta_1 = 1
 beta_2 = 1
@@ -758,8 +758,8 @@ def opt1():
 """
 
 # optimized control function using the AML EnOpt minimizer
-delta_init = 40
-eps_o = 1e-3
+delta_init = 50
+eps_o = 1e-6
 eps_i = 1e-6
 k_1_o = k_1
 k_1_i = k_1
@@ -771,22 +771,19 @@ V_DNN = [[nb*(nt+1), 500, 500, 1], torch.tanh, 10, 1000, 20, 0.8, 1e-2]
 # V_DNN = [[200, 200, 200], torch.tanh, 50, 5000, 100, 10, 1e-5]
 # V_DNN = [[200, 200, 100, 50], torch.tanh, 50, 100, 100, 10, 1e-4]
 # V_DNN = [[25, 25], torch.tanh, 50, 100, 50, 5, 1e-4]
-DNNStruct = [[nb*(nt+1), 5, 5, 1], [nb*(nt+1), 25, 25, 1]]
+DNNStruct = [[nb*(nt+1), 5, 5, 1], [nb*(nt+1), 25, 25, 1], [nb*(nt+1), 50, 50, 1]]
 
 
 def evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
-    global outerIterations
     global FOMEvaluations
     nb = len(q_base)
     method = 'FOM-EnOpt'
-    outerIterationsStart = outerIterations
     FOMEvaluationsStart = FOMEvaluations
     startAlg = time.time()
     q, FOMValues = FOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
     endAlg = time.time()
     runTimeTotal = (endAlg-startAlg)/60
-    outerIterationsEnd = outerIterations
-    outerIterationsTotal = outerIterationsEnd-outerIterationsStart
+    outerIterationsTotal = len(FOMValues)-1
     FOMEvaluationsEnd = FOMEvaluations
     FOMEvaluationsTotal = FOMEvaluationsEnd-FOMEvaluationsStart
     for i in range(nb):
@@ -804,24 +801,21 @@ def evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCo
 
 
 def evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
-    global outerIterations
     global innerIterations
     global FOMEvaluations
     global surrogateEvaluations
     global trainingTime
     nb = len(q_base)
     method = 'AML-EnOpt'
-    outerIterationsStart = outerIterations
     innerIterationsStart = innerIterations
     FOMEvaluationsStart = FOMEvaluations
     surrogateEvaluationsStart = surrogateEvaluations
     trainingTimeStart = trainingTime
     startAlg = time.time()
-    q, FOMValues, surrogateValues = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
+    q, FOMValues, surrogateValues, surrogateEval = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
     endAlg = time.time()
     runTimeTotal = (endAlg-startAlg)/60
-    outerIterationsEnd = outerIterations
-    outerIterationsTotal = outerIterationsEnd-outerIterationsStart
+    outerIterationsTotal = len(FOMValues)-1
     innerIterationsEnd = innerIterations
     innerIterationsTotal = innerIterationsEnd-innerIterationsStart
     FOMEvaluationsEnd = FOMEvaluations
@@ -843,16 +837,17 @@ def evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1
     print('Number of inner iterations: {}\n'.format(innerIterationsTotal))
     print('Number of FOM evaluations: {}\n'.format(FOMEvaluationsTotal))
     print('Number of surrogate evalutations: {}\n'.format(surrogateEvaluationsTotal))
+    print('MSE loss :{}\n'.format(surrogateEval))
     print('Training time (minutes): {}\n'.format(trainingTimeTotal))
     print('Total run time (minutes): {}\n'.format(runTimeTotal))
-    return q, method, FOMValues, surrogateValues, outerIterationsTotal, innerIterationsTotal, FOMEvaluationsTotal, surrogateEvaluationsTotal, trainingTimeTotal, runTimeTotal
+    return q, method, FOMValues, surrogateValues, outerIterationsTotal, innerIterationsTotal, FOMEvaluationsTotal, surrogateEvaluationsTotal, surrogateEval, trainingTimeTotal, runTimeTotal
 
 
-def compareEnOpt(init, N, eps, eps_o, eps_i, k_1, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base, analytical=False):
+def compareEnOpt(init, N, eps, eps_o, eps_i, k_1, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base, analytical=True):
     nb = len(q_base)
     t = np.linspace(0, T, nt+1)
     q, method, FOMValues, outerIterationsTotal, FOMEvaluationsTotal, runTimeTotal = evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
-    qAML, methodAML, FOMValuesAML, surrogateValuesAML, outerIterationsTotalAML, innerIterationsTotalAML, FOMEvaluationsTotalAML, surrogateEvaluationsTotalAML, trainingTimeTotalAML, runTimeTotalAML = evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
+    qAML, methodAML, FOMValuesAML, surrogateValuesAML, outerIterationsTotalAML, innerIterationsTotalAML, FOMEvaluationsTotalAML, surrogateEvaluationsTotalAML, surrogateEvalAML, trainingTimeTotalAML, runTimeTotalAML = evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
     print('FOM-EnOpt output: {}\n'.format(q))
     print('FOM-EnOpt FOM values: {}\n'.format(FOMValues))
     print('FOM-EnOpt number of outer iterations: {}\n'.format(outerIterationsTotal))
@@ -900,14 +895,48 @@ def compareEnOpt(init, N, eps, eps_o, eps_i, k_1, k_1_o, k_1_i, V_DNN, delta_ini
 
 
 def compare_AML_EnOpt_DNN(DNNStruct, init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
+    q = []
+    method = []
     FOMValues = []
+    surrogateValues = []
+    outerIterationsTotal = []
+    innerIterationsTotal = []
+    FOMEvaluationsTotal = []
+    surrogateEvaluationsTotal = []
+    surrogateEval = []
+    trainingTimeTotal = []
+    runTimeTotal = []
     V_DNN_i = V_DNN.copy()
     for i in range(len(DNNStruct)):
         V_DNN_i[0] = DNNStruct[i]
-        FOMValuesIter = evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)[2]
+        qIter, methodIter, FOMValuesIter, surrogateValuesIter, outerIterationsTotalIter, innerIterationsTotalIter, FOMEvaluationsTotalIter, surrogateEvaluationsTotalIter, surrogateEvalIter, trainingTimeTotalIter, runTimeTotalIter = evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN_i, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
+        q.append(qIter)
+        method.append(methodIter)
         FOMValues.append(FOMValuesIter)
+        surrogateValues.append(surrogateValuesIter)
+        outerIterationsTotal.append(outerIterationsTotalIter)
+        innerIterationsTotal.append(innerIterationsTotalIter)
+        FOMEvaluationsTotal.append(FOMEvaluationsTotalIter)
+        surrogateEvaluationsTotal.append(surrogateEvaluationsTotalIter)
+        surrogateEval.append(surrogateEvalIter)
+        trainingTimeTotal.append(trainingTimeTotalIter)
+        runTimeTotal.append(runTimeTotalIter)
     for i in range(len(DNNStruct)):
         plt.plot(range(len(FOMValues[i])), FOMValues[i], label='{}'.format(DNNStruct[i]))
+        print('\nOutput for the DNN structure {}: {}\n'.format(DNNStruct[i], q[i]))
+        print('Method for the DNN structure {}: {}\n'.format(DNNStruct[i], method[i]))
+        print('FOM values for the DNN structure {}: {}\n'.format(DNNStruct[i], FOMValues[i]))
+        print('Surrogate values for the DNN structure {}: {}\n'.format(DNNStruct[i], surrogateValues[i]))
+        print('Number of outer iterations for the DNN structure {}: {}\n'.format(DNNStruct[i], outerIterationsTotal[i]))
+        print('Number of inner iterations for the DNN structure {}: {}\n'.format(DNNStruct[i], innerIterationsTotal[i]))
+        print('Number of FOM evaluations for the DNN structure {}: {}\n'.format(DNNStruct[i], FOMEvaluationsTotal[i]))
+        print('Number of surrogate evalutations for the DNN structure {}: {}\n'.format(DNNStruct[i], surrogateEvaluationsTotal[i]))
+        print('Training time (minutes) for the DNN structure {}: {}\n'.format(DNNStruct[i], trainingTimeTotal[i]))
+        print('Total run time (minutes) for the DNN structure {}: {}\n'.format(DNNStruct[i], runTimeTotal[i]))
+        print('MSE loss for the DNN structure {}: {}'.format(DNNStruct[i], surrogateEval[i]))
+        print('Minimum MSE loss for the DNN structure {}: {}'.format(DNNStruct[i], np.min(surrogateEval[i])))
+        print('Maximum MSE loss for the DNN structure {}: {}'.format(DNNStruct[i], np.max(surrogateEval[i])))
+        print('Average MSE loss for the DNN structure {}: {}\n'.format(DNNStruct[i], np.sum(surrogateEval[i])/len(surrogateEval[i])))
     plt.suptitle('Comparison of the FOM values for different DNN structures')
     plt.legend()
     plt.show()
@@ -934,10 +963,16 @@ def testFOM_EnOpt(rep, init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlat
     print('Output: {}\n'.format(q))
     print('Method: {}\n'.format(method))
     print('FOM values: {}\n'.format(FOMValues))
-    print('FOM output values: {}\n'.format(FOMValues))
+    print('Output FOM values: {}'.format(FOMValuesOut))
+    print('Minimum output FOM values: {}'.format(np.min(FOMValuesOut)))
+    print('Maximum output FOM values: {}'.format(np.max(FOMValuesOut)))
+    print('Average output FOM values: {}\n'.format(np.sum(FOMValuesOut)/len(FOMValuesOut)))
     print('Number of outer iterations: {}\n'.format(outerIterationsTotal))
     print('Number of FOM evaluations: {}\n'.format(FOMEvaluationsTotal))
     print('Total run time (minutes): {}\n'.format(runTimeTotal))
+    print('Minimum total run time (minutes): {}\n'.format(np.min(runTimeTotal)))
+    print('Maximum total run time (minutes): {}\n'.format(np.max(runTimeTotal)))
+    print('Average total run time (minutes): {}\n'.format(np.sum(runTimeTotal)/len(runTimeTotal)))
     showOuterIterationPlots = showOuterIterationPlotsSave
     showPlots = showPlotsSave
 
@@ -950,14 +985,15 @@ def testROM_EnOpt(rep, init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, b
     showPlotsSave = showPlots
     showOuterIterationPlots = False
     showPlots = False
-    q, method, FOMValues, FOMValuesOut, surrogateValues, outerIterationsTotal, innerIterationsTotal, FOMEvaluationsTotal, surrogateEvaluationsTotal, trainingTimeTotal, runTimeTotal = [], [], [], [], [], [], [], [], [], [], []
+    q, method, FOMValues, FOMValuesOut, surrogateValues, surrogateValuesOut, outerIterationsTotal, innerIterationsTotal, FOMEvaluationsTotal, surrogateEvaluationsTotal, trainingTimeTotal, runTimeTotal = [], [], [], [], [], [], [], [], [], [], []
     for i in range(rep):
-        qIter, methodIter, FOMValuesIter, surrogateValuesIter, outerIterationsTotalIter, innerIterationsTotalIter, FOMEvaluationsTotalIter, surrogateEvaluationsTotalIter, trainingTimeTotalIter, runTimeTotalIter = evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
+        qIter, methodIter, FOMValuesIter, surrogateValuesIter, outerIterationsTotalIter, innerIterationsTotalIter, FOMEvaluationsTotalIter, surrogateEvaluationsTotalIter, surrogateEvalIter, trainingTimeTotalIter, runTimeTotalIter = evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
         q.append(qIter)
         method.append(methodIter)
         FOMValues.append(FOMValuesIter)
         FOMValuesOut.append(FOMValuesIter[-1])
         surrogateValues.append(surrogateValuesIter)
+        surrogateValuesOut.append(surrogateValuesIter[-1])
         outerIterationsTotal.append(outerIterationsTotalIter)
         innerIterationsTotal.append(innerIterationsTotalIter)
         FOMEvaluationsTotal.append(FOMEvaluationsTotalIter)
@@ -967,19 +1003,28 @@ def testROM_EnOpt(rep, init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, b
     print('Output: {}\n'.format(q))
     print('Method: {}\n'.format(method))
     print('FOM values: {}\n'.format(FOMValues))
-    print('FOM output values: {}\n'.format(FOMValues))
+    print('Output FOM values: {}'.format(FOMValuesOut))
+    print('Minimum output FOM values: {}'.format(np.min(FOMValuesOut)))
+    print('Maximum output FOM values: {}'.format(np.max(FOMValuesOut)))
+    print('Average output FOM values: {}\n'.format(np.sum(FOMValuesOut)/len(FOMValuesOut)))
     print('Surrogate values: {}\n'.format(surrogateValues))
+    print('output surrogate values: {}\n'.format(surrogateValuesOut))
     print('Number of outer iterations: {}\n'.format(outerIterationsTotal))
     print('Number of inner iterations: {}\n'.format(innerIterationsTotal))
     print('Number of FOM evaluations: {}\n'.format(FOMEvaluationsTotal))
     print('Number of surrogate evalutations: {}\n'.format(surrogateEvaluationsTotal))
-    print('Training time (minutes): {}\n'.format(trainingTimeTotal))
-    print('Total run time (minutes): {}\n'.format(runTimeTotal))
+    print('Training time (minutes): {}'.format(trainingTimeTotal))
+    print('Minimum training time (minutes): {}'.format(np.min(trainingTimeTotal)))
+    print('Maximum training time (minutes): {}'.format(np.max(trainingTimeTotal)))
+    print('Average training time (minutes): {}\n'.format(np.sum(trainingTimeTotal)/len(trainingTimeTotal)))
+    print('Total run time (minutes): {}'.format(runTimeTotal))
+    print('Minimum total run time (minutes): {}'.format(np.min(runTimeTotal)))
+    print('Maximum total run time (minutes): {}'.format(np.max(runTimeTotal)))
+    print('Average total run time (minutes): {}\n'.format(np.sum(runTimeTotal)/len(runTimeTotal)))
     showOuterIterationPlots = showOuterIterationPlotsSave
     showPlots = showPlotsSave
 
 
-# def compareEnOpt(init, N, eps, eps_o, eps_i, k_1, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
 """
 qParamAMLOpt, kAML = ROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base)
 print(qParamAMLOpt, kAML)
