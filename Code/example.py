@@ -727,10 +727,10 @@ showInnerIterationPlots = False
 showPlots = False
 inspectDNNStructures = False
 N = 100
-eps = 1e-6
+eps = 1e-9
 k_1 = 1000
 beta_1 = 1
-beta_2 = 1
+beta_2 = 0.1
 r = 0.5
 nu_1 = 10
 var = [0.1]
@@ -740,21 +740,19 @@ correlationCoeff = 0.9
 
 # optimized control functional using the AML EnOpt minimizer
 delta_init = 50
-eps_o = 1e-6
-eps_i = 1e-9
+eps_o = 1e-7
+eps_i = 1e-12
 k_1_o = k_1
 k_1_i = k_1
 k_tr = 5
-# V_DNN: neurons per hidden layer, activation function (like torch.tanh), size of test set, number of epochs, training batch size, testing batch size, learning rate
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), number of restarts, number of epochs, early stop, trainFrac, learning rate
 # V_DNN = [[100, 100, 40], torch.tanh, 50, 100, 100, 10, 1e-4]
-V_DNN = [[nb*(nt+1), 10, 10, 1], torch.tanh, 10, 1000, 20, 0.8, 1e-2]
+V_DNN = [[nb*(nt+1), 200, 200, 1], torch.tanh, 3, 1000, 15, 0.8, 1e-2]
 # V_DNN = [[25, 25], torch.tanh, 50, 2000, 100, 10, 1e-5]
 # V_DNN = [[200, 200, 200], torch.tanh, 50, 5000, 100, 10, 1e-5]
 # V_DNN = [[200, 200, 100, 50], torch.tanh, 50, 100, 100, 10, 1e-4]
 # V_DNN = [[25, 25], torch.tanh, 50, 100, 50, 5, 1e-4]
-# addDNNStruct = [[nb*(nt+1), 5, 5, 1], [nb*(nt+1), 25, 25, 1], [nb*(nt+1), 50, 50, 1]]
-addDNNStruct = [[nb*(nt+1), 25, 25, 1], [nb*(nt+1), 35, 35, 1], [nb*(nt+1), 50, 50, 1], [nb*(nt+1), 100, 100, 1], [nb*(nt+1), 200, 200, 1], [nb*(nt+1), 350, 350, 1], [nb*(nt+1), 500, 500, 1]]
+addDNNStruct = [[nb*(nt+1), 25, 25, 1], [nb*(nt+1), 35, 35, 1], [nb*(nt+1), 50, 50, 1], [nb*(nt+1), 100, 100, 1], [nb*(nt+1), 350, 350, 1], [nb*(nt+1), 500, 500, 1]]
 
 
 def evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):
@@ -883,17 +881,25 @@ def compareEnOpt(init, N, eps, eps_o, eps_i, k_1, k_1_o, k_1_i, V_DNN, delta_ini
     plt.plot(np.arange(1, len(surrogateValuesAML)+1), surrogateValuesAML, label='AML-EnOpt surr. functional')
     plt.plot(range(len(FOMValuesAML)), FOMValuesAML, label='AML-EnOpt obj. functional value')
     plt.title('Comparison of the functional values')
-    plt.xlabel('Iteration')
+    plt.xlabel('Outer iteration')
     plt.ylabel('Functional values')
     plt.legend()
     plt.show()
     plt.plot(np.arange(1, len(surrogateValuesAML)+1), surrogateValuesAML, label='AML-EnOpt surr. functional', c='tab:orange')
     plt.plot(range(len(FOMValuesAML)), FOMValuesAML, label='AML-EnOpt obj. functional value', c='tab:green')
     plt.title('Comparison of the functional values')
-    plt.xlabel('Iteration')
+    plt.xlabel('Outer iteration')
     plt.ylabel('Functional values')
     plt.legend()
     plt.show()
+    if len(FOMValuesAML)>5:
+        plt.plot(np.arange(len(surrogateValuesAML)-4, len(surrogateValuesAML)+1), surrogateValuesAML[(len(surrogateValuesAML)-5):], label='AML-EnOpt surr. functional', c='tab:orange')
+        plt.plot(np.arange(len(FOMValuesAML)-5, len(FOMValuesAML)), FOMValuesAML[(len(FOMValuesAML)-5):], label='AML-EnOpt obj. functional value', c='tab:green')
+        plt.title('Comparison of the functional values, last iterations')
+        plt.xlabel('Outer iteration')
+        plt.ylabel('Functional values')
+        plt.legend()
+        plt.show()
     for i in range(nb):
         plt.plot(t, q[i*(nt+1):(i+1)*(nt+1)], label='FOM-EnOpt')
         plt.plot(t, qAML[i*(nt+1):(i+1)*(nt+1)], label='AML-EnOpt')
@@ -973,6 +979,16 @@ def compare_AML_EnOpt_DNN(addDNNStruct, init, N, eps_o, eps_i, k_1_o, k_1_i, V_D
     plt.ylabel('FOM objective functional value')
     plt.legend()
     plt.show()
+    minIter = np.min(outerIterationsTotal)
+    if minIter > 1:
+        for i in range(len(DNNStruct)):
+            plt.plot(np.arange(minIter-1, len(FOMValues[i])), FOMValues[i][(minIter-1):], label='{}'.format(DNNStruct[i]))
+        plt.title('Comparison of the FOM values for different DNN structures, \n last iterations')
+        plt.xlabel('Iteration')
+        plt.ylabel('FOM objective functional value')
+        plt.legend()
+        plt.show()
+    return q, method, FOMValues, surrogateValues, outerIterationsTotal, innerIterationsTotal, FOMEvaluationsTotal, surrogateEvaluationsTotal, surrogateEval, surrogateTrain, trainingTimeTotal, runTimeTotal
 
 
 # performance test that runs the FOM_EnOpt algorithm rep times

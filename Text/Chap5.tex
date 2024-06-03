@@ -1,5 +1,36 @@
 \chapter{Numerical experiments}
 
+In this chapter we are going to measure the performance of our algorithms by applying them to an example of the weak problem \eqref{weakProb}. For this purpose, the solution of this problem is derived first. Afterwards, we compare the analytical solution with the solution from the FOM-EnOpt and the AML-EnOpt algorithm. Additionally, we examine how the optimization algorithms behave if parameters such as the step size are changed or if other neural network training parameters are used.
+
+\section{Example of an analytical problem}
+
+Here we consider the problem \eqref{weakProb} on $\Omega\times I=(0,1)^2\times(0,0.1)$ with homogeneous Dirichlet boundary conditions. The following example is originally described in \cite{doi:10.1137/070694016}.
+
+To define the functions in \eqref{weakProb}, we use the eigenfunction
+\begin{displaymath}
+w_a(t,x_1,x_2):=\operatorname{exp}(a\pi^2t)\operatorname{sin}(\pi x_1)\operatorname{sin}(\pi x_2) \text{ for } a\in\mathbb{R}.
+\end{displaymath}
+
+Now we set
+
+\begin{eqnarray*}
+f(t,x_1,x_2)&:=&-\pi^4w_a(T,x_1,x_2),\\
+\hat{u}(t,x_1,x_2)&:=&\frac{a^2-5}{2+a}\pi^2w_a(t,x_1,x_2)+2\pi^2w_a(T,x_1,x_2),\\
+u_0(x_1,x_2)&:=&\frac{-1}{2+a}\pi^2w_a(0,x_1,x_2).
+\end{eqnarray*}
+
+If we set the regularization parameter $\alpha$ in the objective functional \eqref{objFun} as $\pi^{-4}$, we get the optimal solution $(\bar{q}, \bar{u})$, where
+%$(\bar{q}, \bar{u}, \bar{z})$, where
+
+\begin{eqnarray*}
+\bar{q}(t,x_1,x_2)&:=&-\pi^4\left(w_a(t,x_1,x_2)-w_a(T,x_1,x_2)\right),\\
+\bar{u}(t,x_1,x_2)&:=&\frac{-1}{2+a}\pi^2w_a(t,x_1,x_2).%,\\
+%\bar{z}(t,x_1,x_2)&:=&w_a(t,x_1,x_2)-w_a(T,x_1,x_2).
+\end{eqnarray*}
+
+
+\section{Numerical results}
+
 %\footnotesize
 \begin{tabular}{ll}
 \hline
