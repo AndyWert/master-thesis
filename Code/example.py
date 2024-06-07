@@ -530,8 +530,7 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, be
         DNN_eval = 0
         tr = 1
         while F_k_next <= F_k+eps_o:
-            if tr > k_tr:
-                assert False
+            assert tr <= k_tr
             startTraining = time.time()
             F_ML_k, DNN_eval, DNN_train_loss, val_iteration = constructDNN(T_k, V_DNN, minIn, maxIn)
             endTraining = time.time()
@@ -739,20 +738,15 @@ correlationCoeff = 0.9
 
 
 # optimized control functional using the AML EnOpt minimizer
-delta_init = 50
+delta_init = 10
 eps_o = 1e-7
-eps_i = 1e-12
+eps_i = 1e-9
 k_1_o = k_1
 k_1_i = k_1
 k_tr = 5
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), number of restarts, number of epochs, early stop, trainFrac, learning rate
-# V_DNN = [[100, 100, 40], torch.tanh, 50, 100, 100, 10, 1e-4]
-V_DNN = [[nb*(nt+1), 200, 200, 1], torch.tanh, 3, 1000, 15, 0.8, 1e-2]
-# V_DNN = [[25, 25], torch.tanh, 50, 2000, 100, 10, 1e-5]
-# V_DNN = [[200, 200, 200], torch.tanh, 50, 5000, 100, 10, 1e-5]
-# V_DNN = [[200, 200, 100, 50], torch.tanh, 50, 100, 100, 10, 1e-4]
-# V_DNN = [[25, 25], torch.tanh, 50, 100, 50, 5, 1e-4]
-addDNNStruct = [[nb*(nt+1), 25, 25, 1], [nb*(nt+1), 35, 35, 1], [nb*(nt+1), 50, 50, 1], [nb*(nt+1), 100, 100, 1], [nb*(nt+1), 350, 350, 1], [nb*(nt+1), 500, 500, 1]]
+V_DNN = [[nb*(nt+1), 200, 200, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
+addDNNStruct = [[nb*(nt+1), 35, 35, 1], [nb*(nt+1), 50, 50, 1], [nb*(nt+1), 100, 100, 1], [nb*(nt+1), 200, 200, 1], [nb*(nt+1), 350, 350, 1], [nb*(nt+1), 500, 500, 1], [nb*(nt+1), 1000, 1000, 1]]
 
 
 def evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_base):

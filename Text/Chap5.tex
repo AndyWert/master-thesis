@@ -1,10 +1,110 @@
 \chapter{Numerical experiments}
 
-In this chapter we are going to measure the performance of our algorithms by applying them to an example of the weak problem \eqref{weakProb}. For this purpose, the solution of this problem is derived first. Afterwards, we compare the analytical solution with the solution from the FOM-EnOpt and the AML-EnOpt algorithm. Additionally, we examine how the optimization algorithms behave if parameters such as the step size are changed or if other neural network training parameters are used.
+In this chapter we are going to measure the performance of our algorithms by applying them to an example of the weak problem \eqref{weakProb}. For this purpose, the solution of this problem is derived first. Afterwards, we compare the analytical solution with the solution from the FOM-EnOpt and the AML-EnOpt algorithm. Additionally, we examine how the optimization algorithms behave if parameters, such as the step size, are changed or if other neural network training parameters are used.
 
 \section{Example of an analytical problem}
 
-Here we consider the problem \eqref{weakProb} on $\Omega\times I=(0,1)^2\times(0,0.1)$ with homogeneous Dirichlet boundary conditions. The following example is originally described in \cite{doi:10.1137/070694016}.
+The problem \eqref{weakProb} is solved in \cite{doi:10.1137/070694016} with the adjoint state method \cite{Plessix2006ARO,Becker2007}. For this method, we use the Lagrangian $\mathcal{L}:Q\times X\times X \times V\to\mathbb{R}$ with
+
+\begin{equation}
+\label{lagrangian}
+\mathcal{L}(q,u,z,\tilde{z})=J(q,u)-(\partial_tu,z)_I-(\nabla u, \nabla z)_I+(f+q, z)_I + (u_0-u(0), \tilde{z})
+\end{equation}
+
+We want to find now a stationary point $\bar{q}$ of $j$ such that
+\begin{equation}
+\label{firstOrderOptimalityCondition}
+j'(\bar{q})(\delta_q)=0\quad\forall \delta_q\in Q.
+\end{equation}
+
+$j'(\bar{q})(\delta_q)$ is here the directional derivative, which is defined as
+
+\begin{displaymath}
+j'(\bar{q})(\delta_q)=\lim_{\tau\downarrow0}\frac{j(q+\tau\delta_q)-j(q)}{\tau}.
+\end{displaymath}
+If \eqref{firstOrderOptimalityCondition} holds, then $\bar{q}$ satisfies the first order optimality conditions of \eqref{redProb}. In this case, $\bar{q}$ is even optimal due to the linear-quadratic structure of the optimal control problem \cite{doi:10.1137/070694016}.
+
+If we choose $u$ now as $u(q)$, so that it satisfies the weak state equations \eqref{weakProb}, we get
+
+\begin{displaymath}
+j(q)=J(q, u(q))=\mathcal{L}(q,u(q),z,\tilde{z}),
+\end{displaymath}
+since all terms after `$J(q,u)$' in \eqref{lagrangian} are equal to zero.
+
+We get now the directional derivative of $j$ by taking the directional derivative of $\mathcal{L}$ with respect to $q$. Note beforehand that 
+\begin{eqnarray*}
+-(\partial_tu(q),\delta_z)_I-(\nabla u(q), \nabla \delta_z)_I+(f+q, \delta_z)_I&=&0\quad\forall q\in Q, \delta_z\in X,\\
+(u_0-u(q)(0), \delta_{\tilde{z}})&=&0\quad\forall q\in Q, \delta_{\tilde{z}}\in X.
+\end{eqnarray*}
+By using this, we get the derivative
+\begin{equation}
+\label{LagrangianDerivative}
+\begin{aligned}
+j'(q)(\delta_q)=&\mathcal{L}'(q,u(q),z,\tilde{z})(\delta_q)&\\
+=&\mathcal{L}'_q(q, u(q), z, \tilde{z})(\delta_q)+\mathcal{L}'_u(q,u(q),z,\tilde{z})(\delta_u).&
+\end{aligned}
+\end{equation}
+%where $\partial_q\mathcal{L}(q, u, z, \tilde{z})(\delta_q)$ is the directional partial derivative of the Lagrangian with respect to $q$ in the direction $\delta_q$.
+The first summand in the second line denotes the directional derivative of the Lagrangian with respect to $q$ in direction $\delta_q\in Q$. Analogously, the second summand denotes the directional derivative of the Lagrangian with respect to $u$ in direction $\delta_u\in X$. $\delta_u$ is here uniquely defined such that it satisfies
+\begin{equation*}
+\begin{aligned}
+	(\partial_t\delta_u,\phi)_I+(\nabla \delta_u,\nabla\phi)_I&=(\delta_q,\phi)_I&\forall\phi\in X,\\
+	\delta_u(0)&=0&\text{ in }\Omega.
+\end{aligned}
+\end{equation*}
+Then it holds, that for any $\tau\in\mathbb{R}$
+\begin{equation*}
+\begin{aligned}
+	(\partial_t(u(q)+\tau\delta_u),\phi)_I+(\nabla (u(q)+\tau\delta_u),\nabla\phi)_I&=(f+q+\tau\delta_q,\phi)_I&\forall\phi\in X,\\
+	(u(q)+\tau\delta_u)(0)&=u_0&\text{ in }\Omega.
+\end{aligned}
+\end{equation*}
+Since $u(q+\tau\delta_q)$ is uniquely defined to satisfy the equations above, it follows that $u(q+\tau\delta_q)=u(q)+\tau\delta_u$.
+
+Therefore we get for every functional $g$ which has a directional derivative in $\delta_u$-direction:
+\begin{eqnarray*}
+g'_q(u(q))(\delta_q)&=&\lim_{\tau\downarrow0}\frac{g(u(q+\tau\delta_q))-g(u(q))}{\tau}\\
+&=&\lim_{\tau\downarrow0}\frac{g(u(q)+\tau\delta_u)-g(u(q))}{\tau}\\
+&=&g'_u(u(q))(\delta_u).
+\end{eqnarray*}
+Because of this, we have the summand $\mathcal{L}'_u(q,u(q),z,\tilde{z})(\delta_u)$ in equation \eqref{LagrangianDerivative}.
+
+We calculate now $\mathcal{L}'_u(q,u,z,\tilde{z})(\delta_u)$. For this we compute $J'_u(q, u)(\delta_u)$ first:
+\begin{eqnarray*}
+J'_u(q, u)(\delta_u)&=&\lim_{\tau\downarrow0}\frac{1}{2\tau}\int_0^T\int_\Omega(u(t,x)+\tau\delta_u(t, x)-\hat{u}(t,x))^2-(u(t,x)-\hat{u}(t,x))^2\,\mathrm{d}x\,\mathrm{d}t\\
+&=&\lim_{\tau\downarrow0}\int_0^T\int_\Omega\delta_u(t, x)(u(t,x)-\hat{u}(t,x))\,\mathrm{d}x\,\mathrm{d}t+\frac{\tau}{2}\int_0^T\int_\Omega(\delta_u(t, x))^2\,\mathrm{d}x\,\mathrm{d}t\\
+&=&\int_0^T\int_\Omega\delta_u(t, x)(u(t,x)-\hat{u}(t,x))\,\mathrm{d}x\,\mathrm{d}t=(\delta_u,u-\hat{u})_I
+\end{eqnarray*}
+
+We get with similar calculations for the other summands in the Lagrangian:
+\begin{equation*}
+\mathcal{L}'_u(q,u,z,\tilde{z})(\delta_u)=(\delta_u,u-\hat{u})_I-(\partial_t\delta_u,z)_I-(\nabla\delta_u,\nabla z)_I-(\delta_u(0),\tilde{z}).
+\end{equation*}
+
+Since we can choose $z\in X$ and $\tilde{z}\in V$ freely, they are set such that $\mathcal{L}'_u(q,u,z,\tilde{z})(\delta_u)=0$. Integration by parts gives us
+\begin{eqnarray*}
+&\mathcal{L}'_u(q,u,z,\tilde{z})(\delta_u)&=0\\
+\iff&(\delta_u(T),z(T))-(\delta_u(0),z(0))-(\delta_u,\partial_tz)_I+(\nabla\delta_u,\nabla z)_I+(\delta_u(0),\tilde{z})&=(\delta_u,u-\hat{u})_I.
+\end{eqnarray*}
+This holds if we set $\tilde{z}=z(0)$ and z such that
+\begin{equation}
+\label{adjoinedStateEquation}
+\begin{aligned}
+	-(\phi,\partial_tz)_I+(\nabla \phi,\nabla z)_I&=(\phi, u-\hat{u})_I&\forall\phi\in X,\\
+	z(T)&=0&\text{ in }\Omega.
+\end{aligned}
+\end{equation}
+We call this the adjoined state equation.
+
+With $z(q)$ defined such as in \eqref{adjoinedStateEquation} and $\tilde{z}(q)=z(q)(0)$, it holds $\mathcal{L}'_u(q,u(q),z(q),\tilde{z}(q))(\delta_u)=0$ and therefore the expression in \eqref{LagrangianDerivative} is equal to
+\begin{eqnarray*}
+j'(q)(\delta_q)&=&\mathcal{L}'_q(q, u(q), z(q), \tilde{z}(q))(\delta_q)\\
+&=&(\alpha q,\delta_q)_I+(z(q),\delta_q)_I\\
+&=&(\alpha q+z(q),\delta_q).
+\end{eqnarray*}
+
+
+For the testing of our algorithms, we consider the problem \eqref{weakProb} on $\Omega\times I=(0,1)^2\times(0,0.1)$. The following example is originally described in \cite{doi:10.1137/070694016}.
 
 To define the functions in \eqref{weakProb}, we use the eigenfunction
 \begin{displaymath}
@@ -19,15 +119,42 @@ f(t,x_1,x_2)&:=&-\pi^4w_a(T,x_1,x_2),\\
 u_0(x_1,x_2)&:=&\frac{-1}{2+a}\pi^2w_a(0,x_1,x_2).
 \end{eqnarray*}
 
-If we set the regularization parameter $\alpha$ in the objective functional \eqref{objFun} as $\pi^{-4}$, we get the optimal solution $(\bar{q}, \bar{u})$, where
-%$(\bar{q}, \bar{u}, \bar{z})$, where
+If we set the regularization parameter $\alpha$ in the objective functional \eqref{objFun} as $\pi^{-4}$, we get the optimal solution $(\bar{q}, \bar{u}, \bar{z})$, where
 
 \begin{eqnarray*}
 \bar{q}(t,x_1,x_2)&:=&-\pi^4\left(w_a(t,x_1,x_2)-w_a(T,x_1,x_2)\right),\\
-\bar{u}(t,x_1,x_2)&:=&\frac{-1}{2+a}\pi^2w_a(t,x_1,x_2).%,\\
-%\bar{z}(t,x_1,x_2)&:=&w_a(t,x_1,x_2)-w_a(T,x_1,x_2).
+\bar{u}(t,x_1,x_2)&:=&\frac{-1}{2+a}\pi^2w_a(t,x_1,x_2),\\
+\bar{z}(t,x_1,x_2)&:=&w_a(t,x_1,x_2)-w_a(T,x_1,x_2).
 \end{eqnarray*}
 
+It holds that $\bar{q}\in Q, \bar{u}\in X, \bar{z}\in X$. We confirm now that $(\bar{q}, \bar{u}, \bar{z})$ is a minimizer by checking if $\bar{q}$ satisfies \eqref{firstOrderOptimalityCondition}, $\bar{u}$ \eqref{weakEq} and $\bar{z}$ \eqref{adjoinedStateEquation}.
+
+Beginning with $\bar{z}$, we have $\bar{z}(T, x_1, x_2)=0$ trivially for all $(x_1,x_2)\in\Omega$. Integration by parts gives for all $\phi\in X$
+\begin{displaymath}
+(\phi,\partial_tz)_I-(\nabla \phi,\nabla z)_I+(\phi, u-\hat{u})_I=(\phi,\partial_tz+\Delta z+u-\hat{u})_I.
+\end{displaymath}
+Now we compute
+\begin{eqnarray*}
+\partial_t\bar{z}(t,x_1,x_2)&=&\partial_tw_a(t,x_1,x_2)=a\pi^2w_a(t,x_1,x_2)\\
+\Delta \bar{z}(t,x_1,x_2)&=&2\pi^2(w_a(T,x_1,x_2)-w_a(t,x_1,x_2))\\
+\bar{u}(t,x_1,x_2)-\hat{u}(t,x_1,x_2)&=&\pi^2((2-a)w_a(t,x_1,x_2)-2w_a(T,x_1,x_2)).
+\end{eqnarray*}
+From $\partial_t\bar{z}(t,x_1,x_2)+\Delta \bar{z}(t,x_1,x_2)+\bar{u}(t,x_1,x_2)-\hat{u}(t,x_1,x_2)=0$ for all $(x_1,x_2)\in\Omega, t\in I$ follows that $\bar{z}$ satisfies the adjoined state equation \eqref{adjoinedStateEquation}.
+
+By doing the same for $\bar{u}$, we see that it meets the initial condition $\bar{u}(0,x_1,x_2)=u_0(x_1,x_2)$ for all $(x_1,x_2)\in\Omega$ of \eqref{weakEq}. Again, integration by parts gives us for all $\phi\in X$
+\begin{displaymath}
+(\partial_t\bar{u},\phi)_I+(\nabla \bar{u},\nabla\phi)_I-(f+\bar{q},\phi)_I=(\partial_t\bar{u}-\Delta\bar{u}-f-\bar{q},\phi)_I.
+\end{displaymath}
+It holds
+\begin{eqnarray*}
+\partial_t\bar{u}(t,x_1,x_2)&=&\frac{-a}{2+a}\pi^4w_a(t,x_1,x_2)\\
+\Delta \bar{u}(t,x_1,x_2)&=&\frac{2}{2+a}\pi^4w_a(t,x_1,x_2)\\
+\partial_t\bar{u}(t,x_1,x_2)-\Delta \bar{u}(t,x_1,x_2)&=&-\pi^4w_a(t,x_1,x_2)\\
+&=&f(t,x_1,x_2)+\bar{q}(t,x_1,x_2).
+\end{eqnarray*}
+Therefore $(\partial_t\bar{u}(t,x_1,x_2)-\Delta\bar{u}(t,x_1,x_2)-f(t,x_1,x_2)-\bar{q}(t,x_1,x_2)=0$ for all $(x_1,x_2)\in\Omega, t\in I$, so $\bar{u}$ fulfills the conditions in the weak state equation \eqref{weakEq}.
+
+With $\alpha=\pi^{-4}$ we get $\alpha\bar{q}(t,x_1,x_2)+\bar{z}(t,x_1,x_2)=0$ for all $(x_1,x_2)\in\Omega, t\in I$, which means that $\bar{q}$ satisfies the optimality condition \eqref{firstOrderOptimalityCondition}. Now we conclude that $(\bar{q}, \bar{u}, \bar{z})$ is the optimal solution.
 
 \section{Numerical results}
 
