@@ -1,4 +1,4 @@
-\chapter{ Ensemble‑based optimization algorithm}
+\chapter{\label{ChapterEnsembleBasedOptimizationAlgorithm}Ensemble‑based optimization algorithm}
 
 The adaptive ensemble-based algorithm (EnOpt) is usually used to maximize the net present value of oil recovery methods with respect to a control vector. Examples are presented in \cite{Keil2022-dj, OGUNTOLA2021109165, Zhang2023-sg}. In this chapter, we want to utilize the EnOpt algorithm to optimize the objective function $j$. Our implementation is similar to that in \cite{Keil2022-dj}.
 
@@ -155,8 +155,12 @@ The next algorithms use some functions from Python such as $\textproc{len}$ for 
 \State $\mathbf{C}^k_F \gets \mathbf{C}^k_F+(T^\mathrm{next}_k[m][0]-\mathbf{q}_k)\cdot(T^\mathrm{next}_k[m][1]-F_k)$
 \EndFor
 \State $\mathbf{C}^k_F \gets 1/(N-1)\cdot\mathbf{C}^k_F$
+\State $\mathbf{d}_k \gets \mathrm{np.}\Call{zeros}{N_\mathbf{q}}$
+\State $\mathbf{q}^\mathrm{next}_{k}, F^\mathrm{next}_k \gets \mathrm{np.}\Call{copy}{\mathbf{q}_k},F_k$
+\If{{\bfseries not }$\mathrm{np.}\Call{all}{\mathbf{C}^k_F==0}$}
 \State $\mathbf{d}_k \gets \mathbf{C}^k_F/\|\mathbf{C}^k_F\|_\infty$
 \State $\mathbf{q}^\mathrm{next}_{k}, F^\mathrm{next}_k \gets \Call{LineSearch}{\textproc{F},\mathbf{q}_k,F_k,\mathbf{d}_k,\beta_1,r,\varepsilon,\nu^*,\textproc{pr}}$
+\EndIf
 \State \Return $\mathbf{q}^\mathrm{next}_k,T^\mathrm{next}_k,\mathbf{C}^\mathrm{next}_k,F^\mathrm{next}_k$
 \EndFunction
 \end{algorithmic}
@@ -168,9 +172,9 @@ If $k$ is not zero, we get the updated covariance matrix by calling $\textproc{u
 
 This covariance matrix is now used to get a Gaussian distributed sample with $N$ elements around $\mathbf{q}_k$. The projected samples $\Call{pr}{\mathrm{sample}[j]}$ and their respective function values $\Call{F}{\protect\Call{pr}{\mathrm{sample}[j]}}$ for $j=0,\dotsc,N-1$ are stored in the list $T^\mathrm{next}_k$. The definition is here abbreviated as $[\Call{pr}{\mathrm{sample}[j]},\Call{F}{\protect\Call{pr}{\mathrm{sample}[j]}}]_{j=0}^{N-1}$. In the code, this is done with an iteration through a for-loop.
 
-After that, we set $\mathbf{C}^k_F$ like it is defined in \eqref{CqkF}, and we set $\mathbf{d}_k$ to $\mathbf{C}^k_F$ divided by its sup norm. Here, $\|\mathbf{C}^k_F\|_\infty$ is an abbreviation of $\mathrm{np.}\Call{max}{\mathrm{np.}\protect\Call{abs}{\mathbf{C}^k_F}}$.
+After that, we set $\mathbf{C}^k_F$ like it is defined in \eqref{CqkF}. Then we check if $\mathbf{C}^k_F$ is equal to the zero vector. That can happen if the functional F is constant on the sample set. In that case, we let the next iterate $\mathbf{q}^\mathrm{next}_k$ and the corresponding functional value $F_k$ unchanged.
 
-The next iterate $\mathbf{q}^\mathrm{next}_{k}$ and its function value $F^\mathrm{next}_k$ is now computed with the line search algorithm $\textproc{LineSearch}$, that is shown in algorithm \ref{LineSearchAlg}.
+Otherwise, we set $\mathbf{d}_k$ to $\mathbf{C}^k_F$ divided by its sup norm. Here, $\|\mathbf{C}^k_F\|_\infty$ is an abbreviation of $\mathrm{np.}\Call{max}{\mathrm{np.}\protect\Call{abs}{\mathbf{C}^k_F}}$. The next iterate $\mathbf{q}^\mathrm{next}_{k}$ and its functional value $F^\mathrm{next}_k$ is now computed with the line search algorithm $\textproc{LineSearch}$, that is shown in algorithm \ref{LineSearchAlg}.
 
 We return $\mathbf{q}^\mathrm{next}_k,T^\mathrm{next}_k,\mathbf{C}^\mathrm{next}_k$ and $F^\mathrm{next}_k$.
 

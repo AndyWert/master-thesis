@@ -82,7 +82,7 @@ From now on, the optimal control problem that we examine is:
 \section{Finite element discretization}
 In order to solve the optimization problem \eqref{redProb} numerically, the discretization of our model is now discussed. We begin with the presentation of the discretization in space with a n-D continuous Galerkin method. Then, we look at the discretization in time, which is done with a 1D continuous Galerkin method. From now on, we will also discuss some implementation details, so, in this chapter, how we handle the calculation of the objective function $j$. To solve the partial equations of \eqref{weakEq}, we use the Python package pyMOR.
 
-\subsection{Discretization in space}
+\subsection{\label{SubsectionDiscretizationInSpace}Discretization in space}
 The discretization in space is shown on a 2-dimensional rectangular space $\Omega\subset\mathbb{R}^2$ with linear finite elements. We assume to have a vertex set $\mathcal{V}=(x_1,\dotsc,x_N)\in(\mathbb{R}^2)^N$ with a convex hull that is equal  to $\bar{\Omega}$ and $x_i\neq x_j$ for all $i\neq j$ in $\{1,\dotsc,N\}$. Let $\hat{T}=\{(x,y)\in[0,1]^2\mid y \leq 1-x\}$ be the reference triangle. Then,
 \begin{displaymath}
 \theta_l(\xi)=x_{l_1} + D\theta_l \begin{pmatrix} \xi_1 \\ \xi_2 \end{pmatrix} \text{ with } D\theta_l = \begin{pmatrix} x_{l_2}-x_{l_1} & x_{l_3}-x_{l_1} \end{pmatrix}
@@ -96,7 +96,7 @@ In our implementation, we discretize a rectangular domain by specifying the numb
     \centering
     %\textbf{Your title}\par\medskip
     \includegraphics[height=8cm]{mesh.png} 
-    \caption{Example of a mesh with $2$ grid intervals in a square shaped domain.}
+    \caption{Example of a mesh with $2$ grid intervals in a square-shaped domain.}
 \end{figure}
 %\begin{center}
 %\includegraphics[height=8cm]{discretization.pdf} 
@@ -137,7 +137,7 @@ Then we have
 \end{displaymath}
 
 
-\subsection{Discretization in time}
+\subsection{\label{SubsectionDiscretizationInTime}Discretization in time}
 At first, we partition the time interval $\bar{I}=[0,T]$ as
 \begin{displaymath}
 \bar{I}=\{0\}\cup I_1\cup I_2\cup\dotsb\cup I_M
@@ -220,7 +220,7 @@ where $\hat{U}_m=\left(\hat{u}(t_m, x_i)\right)_{i=1,\dotsc,N}$ and $Q_m=\left(q
 
 \section{Optimization of the control variable}
 
-To optimize the control variable, we write every $q\in Q_d$, by using a fixed basis
+To optimize the control variable, we write every $q\in Q_d$, by using a fixed set of shape functions
 \begin{equation}
 \label{basisFuncionsList}
 \Phi=\{\phi_1,\dotsc,\phi_{N_b}\}
