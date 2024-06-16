@@ -17,9 +17,10 @@ We start at an initialization $\mathbf{q}_0$,  which is updated iteratively with
 where $k=0,1,2,\dotsc$ denotes the optimization iteration. $\beta_k$ with $\beta_k>0$ is computed by using a line search. Furthermore, $\mathbf{C}_{\mathbf{q}_k}^k$ denotes the user-defined covariance matrix of the control variables at the $k$-th iteration and $\mathbf{G}_k$ is the approximate gradient of $F$ with respect to the control variables.
 
 We define the initial covariance matrix $\mathbf{C}_{\mathbf{q}_0}^0$ so that the covariance between controls of different basis functions $\phi_i,\phi_j$ is zero and
-\begin{displaymath}
+\begin{equation}
+\label{defineInitialCovariance}
 \mathrm{Cov}(q_j^i,q_j^{i+h})=\sigma_j^2\rho^h\left(\frac{1}{1-\rho^2}\right),\text{ for all }h\in\{0,\dotsc,M-i\},
-\end{displaymath}
+\end{equation}
 where $\sigma_j^2>0$ is the variance for the basis function $\phi_j$ and $\rho\in(-1,1)$ the correlation coefficient.
 
 That means that for $\mathbf{C}_j:=\left(\mathrm{Cov}(q_j^i,q_j^{k})\right)_{i,k}$ with $j=1,\dotsc,N_b$, we set
@@ -96,11 +97,11 @@ The implementation in pseudo code is shown here:
 \begin{algorithmic}[1]
 \Function{EnOpt}{$\textproc{F},\mathbf{q}_0,N,\varepsilon,k^*,\beta_1,\beta_2,r,\nu^*,\sigma^2,\rho, N_t, N_b, \textproc{pr} \gets \mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}, \mathbf{C}_\mathrm{init}\gets\mathrm{None}$}
 \State $F^\mathrm{prev}_{k}\gets \Call{F}{\mathbf{q}_0}$
-\State $\mathbf{q}_k,T_k,\mathbf{C}_k,F_k\gets\Call{OptStep}{\textproc{F},\mathbf{q}_0,N,0,[\;],\mathbf{C}_\mathrm{init},F^\mathrm{prev}_{k},\beta_1,\beta_2,r,\varepsilon,\nu^*,\sigma^2,\rho, N_t, N_b, \textproc{pr}}$
+\State\label{EnOptAlgOptStepCall1} $\mathbf{q}_k,T_k,\mathbf{C}_k,F_k\gets\Call{OptStep}{\textproc{F},\mathbf{q}_0,N,0,[\;],\mathbf{C}_\mathrm{init},F^\mathrm{prev}_{k},\beta_1,\beta_2,r,\varepsilon,\nu^*,\sigma^2,\rho, N_t, N_b, \textproc{pr}}$
 \State $k\gets 1$
 \While{$F_{k}>F^\mathrm{prev}_k+\varepsilon$\text{ and }$k<k^*$}
 \State $F^\mathrm{prev}_k\gets F_k$
-\State $\mathbf{q}_{k},T_{k},\mathbf{C}_k,F_{k}\gets\Call{OptStep}{\textproc{F},\mathbf{q}_k,N,k,T_k,\mathbf{C}_k,F_k,\beta_1,\beta_2,r,\varepsilon,\nu^*,\sigma^2,\rho, N_t, N_b,\textproc{pr}}$
+\State\label{EnOptAlgOptStepCall2} $\mathbf{q}_{k},T_{k},\mathbf{C}_k,F_{k}\gets\Call{OptStep}{\textproc{F},\mathbf{q}_k,N,k,T_k,\mathbf{C}_k,F_k,\beta_1,\beta_2,r,\varepsilon,\nu^*,\sigma^2,\rho, N_t, N_b,\textproc{pr}}$
 \State $k\gets k+1$
 \EndWhile
 \State \Return $\mathbf{q}_k, k$

@@ -182,6 +182,8 @@ The neural network that is used for the surrogate functional consists of two hid
 
 Before the results are presented, we want to remember that the FOM-EnOpt and the Adaptive-ML-EnOpt procedures minimize the objective functional $j$ by maximizing the negative functional $-j$. The results that we show are converted back to the outputs that the objective functional $j$ would give, although the true values during these algorithms are negative. As an example, the graphs in figure \ref{FOMAMLEnOptFuncValComp} would be mirrored on the y-axis if they had shown the values during the respective procedure.
 
+For consistency, we will refer to $\mathbf{q}_k$ as the iterate at the beginning of the outer iteration $k$ and $\mathbf{q}^\mathrm{next}_k$ as the iterate at the end of the outer iteration $k$. This is based on the notation of the AML-EnOpt algorithm \ref{AML-EnOpt}. If we talk about the FOM-EnOpt algorithm, we refer to $\mathbf{q}_k$ as the iterate before the call of the optimization step procedure in line \ref{EnOptAlgOptStepCall1}, respectively line \ref{EnOptAlgOptStepCall2}, in the $k$-th outer iteration of the algorithm \ref{EnOptAlg} and thus we denote $\mathbf{q}^\mathrm{next}_k$ as the iterate after this call in iteration $k$.
+
 \begin{table}[h]
 %\footnotesize
 \caption{\label{FOMAMLEnOptParameters}Parameters used in the FOM-EnOpt and AML-EnOpt algorithms}
@@ -209,15 +211,20 @@ Adaptive-ML-EnOpt outer iteration $\varepsilon_o$ & $10^{-8}$\\
 \end{tabular}
 \end{table}
 
-Figure \ref{FOMAMLEnOptFuncValComp} shows the development of the FOM objective functional value $\Call{J}{\mathbf{q}_k}$ after each outer iteration during the FOM- and AML-EnOpt procedures, as well as the respective functional value $\Call{J$^k_\mathrm{ML}$}{\mathbf{q}_k}$ of the surrogate functional $\textproc{J$_\mathrm{ML}^k$}$ that is used in line \ref{innerIterationCallAlgo} of the AML-EnOpt algorithm \ref{AML-EnOpt} to compute the iterate $\mathbf{q}_k$. We want to emphasize here that we specifically mean the iterate $\mathbf{q}_k$ at the end of each outer iteration. So in plots of the AML-EnOpt algorithm, we reference the $\mathbf{q}_k$ that is set in line \ref{AMLSetqk}.
+Figure \ref{FOMAMLEnOptFuncValComp} shows the development of the FOM objective functional value $\Call{J}{\mathbf{q}^\mathrm{next}_k}$ after each outer iteration during the FOM- and AML-EnOpt procedures, as well as the respective functional value $\Call{J$^k_\mathrm{ML}$}{\mathbf{q}^\mathrm{next}_k}$ of the surrogate functional $\textproc{J$_\mathrm{ML}^k$}$ that is used in line \ref{innerIterationCallAlgo} of the AML-EnOpt algorithm \ref{AML-EnOpt} to compute the iterate $\mathbf{q}^\mathrm{next}_k$.% We want to emphasize here that we specifically mean the iterate $\mathbf{q}_k$ at the end of each outer iteration. So in plots of the AML-EnOpt algorithm, we reference the $\mathbf{q}_k$ that is set in line \ref{AMLSetqk}.
 
-We can see here that the functional values of the FOM-EnOpt and the Adaptive-ML-EnOpt algorithms converge towards a minimum. The output of the FOM-EnOpt algorithm gives an output whose objective functional value is approximately $4.22982802$ after $125$ iterations. The FOM objective functional value of the output from the AML-EnOpt procedure is approximately $4.22981359$ which is reached after only $25$ outer iterations. So the Adaptive-EnOpt algorithm gives here not only an output that has a smaller objective functional value, but also requires far fewer outer iterations than the FOM-EnOpt algorithm to terminate.
+We can see here that the functional values of the FOM-EnOpt and the Adaptive-ML-EnOpt algorithms converge towards a minimum. The output of the FOM-EnOpt algorithm gives an output whose objective functional value is approximately $4.22982802$ after $125$ iterations. The FOM objective functional value of the output from the AML-EnOpt procedure is approximately $4.22981359$ which is reached after only $25$ outer iterations. So the Adaptive-EnOpt algorithm gives here not only an output that has a smaller objective functional value, but also requires far fewer outer iterations than the FOM-EnOpt algorithm to terminate.\\
 
 To compare the functional values of the objective functional and the surrogate functionals of the Adaptive-ML-EnOpt procedure, we examine figure \ref{AMLEnOptFuncValComp}. The plot at the top shows the same graphs as in figure \ref{FOMAMLEnOptFuncValComp}, except that the objective functional values of the FOM-EnOpt algorithm are not included. The plot at the bottom shows only the last five outer iterations of the plot from above. We can see here that there is quite a big difference between the objective functional values and the surrogate functional values in the first outer iterations. The difference after the first iteration is approximately $0.02$. However, this difference gets smaller during the runtime of the procedure and is in the order of $10^{-7}$ for the last iterations.
 
-One reason for this phenomenon is the difference between the iterates $\mathbf{q}_k$ and $\mathbf{q}_{k-1}$ at different outer iterations. In the first iterations, we are relatively far away from an optimum and therefore the iterate changes by a lot. The surrogate functional is trained by a training and a validation set which are sampled around the last iterate $\mathbf{q}_{k-1}$, so  if the difference between $\mathbf{q}_k$ and $\mathbf{q}_{k-1}$ is large, the same tends to hold for the difference between $\mathbf{q}_k$ and the samples, so the surrogate functional is less precise at $\mathbf{q}_k$. As the algorithm progresses, the iterate converges towards an optimum and the differences between successive iterates are smaller, resulting in more accurate surrogate functional values.
+One reason for this phenomenon is the difference between $\mathbf{q}_k$ and $\mathbf{q}^\mathrm{next}_k$ at different outer iterations. In the first iterations, we are relatively far away from an optimum and therefore the iterates change considerably. The surrogate functional is trained by a training and a validation set which are sampled around the iterate $\mathbf{q}_k$, so  if the difference between $\mathbf{q}^\mathrm{next}_k$ and $\mathbf{q}_k$ is large, the same tends to hold for the difference between $\mathbf{q}^\mathrm{next}_k$ and the samples, so the surrogate functional is less precise at $\mathbf{q}^\mathrm{next}_k$. As the algorithm progresses, the iterate converges towards an optimum and the differences between successive iterates are smaller, resulting in more accurate surrogate functional values.
 
-This can be seen in figure \ref{L2Dist}. It should be noted here that the notation does not match the notation of the last paragraph. The $\mathbf{q}_k$ from the last paragraph is here denoted as $\mathbf{q}^\mathrm{next}_k$ and the $\mathbf{q}_{k-1}$ is labeled as $\mathbf{q}_k$.
+This can be seen in figure \ref{L2Dist}. In the first iteration, the step from $\mathbf{q}_k$ to $\mathbf{q}^\mathrm{next}_k$ is much larger than the step from $\mathbf{q}_k$ to $\tilde{\mathbf{q}}_k$. The same holds with regard to the difference between $\mathbf{q}_k$ and the samples in $T_k$. Therefore the DNN is inaccurate at $\mathbf{q}^\mathrm{next}_k$. If this were the FOM-EnOpt algorithm, then $\tilde{\mathbf{q}}_k$ would be the next iterate, so we can see here a reason why the AML-EnOpt algorithm requires far fewer iterations than the FOM-EnOpt procedure which is that the machine learning-based algorithm takes larger steps at the beginning.
+
+Although the step from $\mathbf{q}_k$ to $\mathbf{q}^\mathrm{next}_k$ is still larger than the step from $\mathbf{q}_k$ to $\tilde{\mathbf{q}}_k$ at the last iteration, the step sizes differ not by a lot compared to the first iteration. $\mathbf{q}^\mathrm{next}_k$ is even closer to $\mathbf{q}_k$ than all the samples are since the value of $\mathbf{q}^\mathrm{next}_k$ at the bottom plot in figure \ref{L2Dist} is smaller than the value of $T_k$ min which is the sample in $T_k$ with the minimum $L^2$-distance to $\mathbf{q}_k$.\\
+
+Figure \ref{FOMAMLEnOptSolutionComp} shows the solutions that we get from the FOM-EnOpt and the Adaptive-ML-EnOpt algorithms, as well as the analytical solution and the initialization of the iterates at the top. At the bottom, the difference between the FOM-EnOpt, respectively AML-EnOpt, solution and the analytical solution is depicted. The plot at the bottom shows us that the two solutions strategies yield similar results. 
+\eqref{crank_nicolson}
 
 \begin{figure}
 \centering
@@ -332,10 +339,20 @@ $\mathrm{AML-EnOpt}$ & $1$ & $$ & $$ \\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6
 %\textbf{Your title}\par\medskip
 \includegraphics{Plots/solutions.png}
 \includegraphics{Plots/solutionsDiffer.png}
-\caption{Comparison of the optimal solutions obtained from the FOM-EnOpt and the AML-EnOpt algorithms}
+\caption{\label{FOMAMLEnOptSolutionComp}Comparison of the optimal solutions obtained from the FOM-EnOpt and the AML-EnOpt algorithms}
 \end{figure}
 
-To investigate the effects of different neural network structures, we test now the AML-EnOpt algorithm with different quantities of neurons in the hidden layer. The number of hidden layers is fixed to two. The progression of the FOM objective functional values for different DNN structures is shown in Figure \ref{DNNStructComparison}. To distinguish the different results, the bottom plot shows the objective functional values of the last outer iterations. Since the procedure with $1000$ neurons in the hidden layer has here many more outer iterations than the rest, we do not show this plot to make the differences between the other results clearer. The number of outer iterations, as well as the minimum, maximum, and average training and validation losses are shown in the table \ref{DNNLossComparison}. The values in the table \ref{DNNStructFOMComparison}, multiplied with $10^{-5}$ and added to $4.2298$, are the FOM objective functional values that the outputs of the respective procedures yields.
+To investigate the effects of different neural network structures, we test now the AML-EnOpt algorithm with different quantities of neurons in the hidden layer. The number of hidden layers is fixed to two. The progression of the FOM objective functional values for different DNN structures is shown in Figure \ref{DNNStructComparison}. To distinguish the different results, the bottom plot shows the objective functional values of the last outer iterations. Since the procedure with $1000$ neurons in the hidden layer has here many more outer iterations than the rest, we do not show this plot to make the differences between the other results clearer. The number of outer iterations, as well as the minimum, maximum, and average training and validation losses are shown in table \ref{DNNLossComparison}. The values in the table \ref{DNNStructFOMComparison}, multiplied with $10^{-5}$ and added to $4.2298$, are the FOM objective functional values that the outputs of the respective procedures yields.\\
+
+The initial shape functional control variance $\sigma^2_1$ and the constant correlation factor $\rho$ have a strong effect on the runtime and output of the FOM-EnOpt and AML-EnOpt algorithms. If the variance is too large, the FOM-EnOpt procedure tends to give a worse optimal solution. If the variance is too small, this algorithm needs more optimization steps than necessary to terminate.
+
+We choose the correlation factor to be close to one so that we get a smoother output. However, if this value is too large, the result is similar to a large $\sigma^2_1$ which we want to avoid. For example, if we set $\rho=0.9$, we get from \eqref{defineInitialCovariance} that the variance of $q^i_1$ is approximately $5.3\cdot\sigma^2_1$ for $i=0,\dotsc,M$. If $\rho$ is equal to $0.99$, the variance is with a value of approximately $50.3\cdot\sigma^2_1$ almost ten times as high.
+
+A poor choice of these values may have even more serious consequences for the FOM-EnOpt algorithm. If we set the variance too small, the neural network-based surrogate functional is not approximating the FOM objective functional sufficiently well in a large enough area and the AML-EnOpt algorithm fails. However, we still want to set the variance so small that the surrogate is a good approximation of the objectcive functional in a small area around the iterate when we are close to the optimal solution.
+
+We conclude that $\sigma^2_1$ and $\rho$ should be chosen carefully and dependent on each other. Hence, it might require some testing to find values that suit the available optimization problem.\\
+
+Unlike the Adaptive-ML-EnOpt algorithm in \cite{Keil2022-dj}, we need to employ a trust region method. If we proceed without it, we get the results of figure \ref{noTRResults}. The method seems to work up to the eighth iteration, but the machine learning-based surrogate suggests in the ninth outer iteration that there is an optimum near a point that is far from the actual optimum. This point is shown in the bottom plot of figure \ref{noTRResults}. Some entries of the resulting control vector exceed even the value of $600$, although they should be below zero.
 
 \begin{figure}
 \centering
@@ -383,3 +400,11 @@ $(\cdot 10^{-5}+4.2298)$& $1.41$ & $1.35$ & $1.59$ & $1.35$ & $1.42$ & $1.61$ & 
 \hline
 \end{tabular}
 \end{table}
+
+\begin{figure}
+\centering
+%\textbf{Your title}\par\medskip
+\includegraphics{Plots/noTRIteration8.png}
+\includegraphics{Plots/noTRIteration9.png}
+\caption{\label{noTRResults}An example of iterates after the eighth and ninth outer iteration if the trust region method is not applied}
+\end{figure}
