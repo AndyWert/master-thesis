@@ -1,6 +1,6 @@
 \chapter{\label{ChapterAdaptiveMLEnOptAlgorithm}Adaptive‑ML‑EnOpt algorithm}
 
-In this chapter, we introduce the Adaptive-ML-EnOpt algorithm \cite{Keil2022-dj}, which is a modified version of the EnOpt algorithm. This algorithm is supposed to reduce the number of FOM evaluations by using a machine learning-based surrogate function, which improves the computation speed with respect to the EnOpt algorithm. Therefore, we introduce deep neural networks (DNNs) next. After that, the Adaptive-ML-EnOpt-algorithm is presented.
+In this chapter, we introduce the Adaptive-ML-EnOpt algorithm \cite{Keil2022-dj}, which is a modified version of the EnOpt algorithm. This algorithm is supposed to reduce the number of FOM evaluations by using a machine learning-based surrogate functional, which improves the computation speed with respect to the EnOpt algorithm. Therefore, we introduce deep neural networks (DNNs) next. After that, the Adaptive-ML-EnOpt-algorithm is presented.
 
 \section{\label{sectionDeepNeuralNetworks}Deep neural networks}
 
@@ -8,7 +8,7 @@ This description of deep neural networks is based on the definitions in \cite{Ke
 
 DNNs are used here to approximate a function $f:\mathbb{R}^{N_{\mathrm{in}}}\to\mathbb{R}^{N_{\mathrm{out}}}$ with $N_{\mathrm{in}},N_{\mathrm{out}}\in\mathbb{N}$. We call $L\in\mathbb{N}$ the number of layers and $N_{\mathrm{in}}=N_0,N_1,\dotsc,N_{L-1}, N_L=N_{\mathrm{out}}$ the number of neurons in each layer. We refer to the layers $1$ to $L-1$ as the hidden layers. $W_i\in\mathbb{R}^{N_i\times N_{i-1}}$ denotes the weights in layer $i\in\{1,\dotsc,L\}$ and $b_i\in\mathbb{R}^{N_i}$ the biases of the layer $i\in\{1,\dotsc,L\}$. These are composed as $\mathbf{W}=\left((W_1,b_1),\dotsc,(W_L,b_L)\right)$, which is a tuple of pairs of corresponding weights and biases.
 
-$\rho:\mathbb{R}\to\mathbb{R}$ is the so-called activation function. A popular example is the rectified linear unit funtion $\rho(x)=\operatorname{max}(x,0)$, however we will use the hyperbolic tangent funtion:
+$\rho:\mathbb{R}\to\mathbb{R}$ is the so-called activation function. A popular example is the rectified linear unit funtion $\rho(x)=\operatorname{max}(x,0)$, however we will use the hyperbolic tangent funtion
 \begin{displaymath}
 \rho(x)=\tanh(x)=\frac{\exp(2x)-1}{\exp(2x)+1}.
 \end{displaymath}
@@ -46,11 +46,11 @@ abort the training and use $\mathbf{W}^{(k^*)}$
 
 So we abort the training if the minimum loss is not decreasing over a prescribed number of consecutive epochs. Our reasoning behind this is that the loss on the validation set is not srictly decreasing and can even increase over some epochs, but that is fine for us as long as we can decrease the loss over time.
 
-We present now the construction of a neural network that approximates a function $f:\mathbb{R}^n\to\mathbb{R}$ with $n\in\mathbb{N}$. The training of one neural network is shown in algorithm \ref{trainDNN}. It takes the initialization of the neural network ($\mathrm{DNN}$), the inputs and outputs of the training set ($x_\mathrm{train}, y_\mathrm{train}$), the inputs and outputs of the validation set ($x_\mathrm{val}, y_\mathrm{val}$), the loss function ($\textproc{loss\_fn}$), the optimizer ($\mathrm{optimizer}$), the number of training epochs ($\mathrm{epochs}$) and the number ($\mathrm{earlyStop}$) that describes after how many iterations without improvement of the validation loss the training gets aborted.
+We present now the construction of a neural network that approximates a function $f:\mathbb{R}^n\to\mathbb{R}$ with $n\in\mathbb{N}$. The training of one neural network is shown in algorithm \ref{trainDNN}. It takes the initialization of the deep neural network ($\mathrm{DNN}$), the inputs and outputs of the training set ($x_\mathrm{train}, y_\mathrm{train}$), the inputs and outputs of the validation set ($x_\mathrm{val}, y_\mathrm{val}$), the loss function ($\textproc{loss\_fn}$), the optimizer ($\mathrm{optimizer}$), the number of training epochs ($\mathrm{epochs}$) and the number ($\mathrm{earlyStop}$) that describes after how many iterations without improvement of the validation loss the training gets aborted.
 
 In our algorithm, the loss function is chosen as the mean squared error loss and we use the L-BFGS optimizer with strong Wolfe line-search as our optimizer. The number of training epochs is only the maximum number of iterations since we apply early stopping to our training algorithm. Usually, the training terminates earlier because the loss over the validation set is not decreasing further.
 
-The function $\textproc{testDNN}$ in algorithm \ref{trainDNN} returns the loss of the function $\textproc{loss\_fn}$ between the output of the DNN with the current parameters and the output of the objective function over the validation set which are saved as $y_\mathrm{train}$. So if $\mathrm{loss\_fn}=\mathscr{L}$, we have $\mathrm{testDNN}(\mathrm{DNN}, x_\mathrm{val}, y_\mathrm{val}, \mathrm{loss\_fn}) = \mathscr{L}(\mathrm{DNN}, T_\mathrm{val})$ with
+The function $\textproc{testDNN}$ in algorithm \ref{trainDNN} returns the loss of the function $\textproc{loss\_fn}$ between the output of the DNN with the current parameters and the output of the objective function over the validation set which is denoted by $y_\mathrm{val}$. So if $\textproc{loss\_fn}=\mathscr{L}$, we have $\textproc{testDNN}(\textproc{DNN}, x_\mathrm{val}, y_\mathrm{val}, \textproc{loss\_fn}) = \mathscr{L}(\mathrm{DNN}, T_\mathrm{val})$ with
 \begin{displaymath}
 T_\mathrm{val}=\{((x_\mathrm{val})_1,(y_\mathrm{val})_1),\dotsc,((x_\mathrm{val})_{N_\mathrm{val}},(y_\mathrm{val})_{N_\mathrm{val}})\}.
 \end{displaymath}
@@ -121,7 +121,7 @@ be a sample set of size $N$ and
 \begin{align*}
 T_x&=\{x_1,\dotsc,x_N\},&T_y&=\{y_1,\dotsc,y_N\}
 \end{align*}
-the sets that contain the inputs/ output of that sample.
+the sets that contain the inputs and outputs of that sample.
 
 We define $x^\mathrm{low}, x^\mathrm{upp}\in\mathbb{R}^n$ and $y^\mathrm{low}, y^\mathrm{upp}\in\mathbb{R}$ as
 \begin{eqnarray}
@@ -219,7 +219,7 @@ Finally, $\textproc{F$_\mathrm{ML}$}$ is returned by $\textproc{constructDNN}$.
 \section{Modifying the EnOpt algorithm by using a neural network-based surrogate}
  For the next step, we use neural networks like in \cite{Keil2022-dj} to get an improved version of the EnOpt algorithm. Here, we want to replace calls of the FOM function by a surrogate that is a neural network. The surrogate is supposed to be a local approximation of the FOM function around the current iterate. Doing that globally with a sufficient precision would be computationally too expensive.
  
- Since the surrogate is only locally supposed to be a good approximation, we will introduce a trust region method. For that, we use an algorithm that projects inputs into the trust region.
+ Since the surrogate is supposed to be only locally a good approximation, we will introduce a trust region method. For that, we use an algorithm that projects inputs into the trust region.
  
  \begin{algorithm}[H]%\footnotesize
 \caption{\label{projectionAlg}Projection}
@@ -263,7 +263,7 @@ We describe now the Adaptive-ML-EnOpt algorithm. This algorithm takes a function
 \State $\mathrm{tr}\gets1$
 \While{\label{outerWhileAML}$F^\mathrm{next}_k\leq F_k+\varepsilon_o$}
 \State $\mathbf{assert}\text{ }\mathrm{tr}\leq k^*_\mathrm{TR}$
-\State\label{surrogateDefAML} $F_\mathrm{ML}^k\gets \Call{constructDNN}{T_k, V_\mathrm{DNN}, \mathrm{minIn}, \mathrm{maxIn}}$
+\State\label{surrogateDefAML} $\textproc{F$_\mathrm{ML}^k$}\gets \Call{constructDNN}{T_k, V_\mathrm{DNN}, \mathrm{minIn}, \mathrm{maxIn}}$
 \State $F^\mathrm{approx}_k\gets \Call{F$_\mathrm{ML}^k$}{\mathbf{q}_k}$
 \State $\mathrm{flag}_\mathrm{TR}\gets \mathrm{True}$
 \While{$\mathrm{flag}_\mathrm{TR}$}
@@ -298,13 +298,13 @@ We start the Adaptive-ML-EnOpt algorithm by initializing $N_\mathbf{q}$ as the l
 
 In the while loop, $x^\mathrm{low}$ from \eqref{minIn}, denoted as $\mathrm{minIn}$, and $x^\mathrm{upp}$ from \eqref{maxIn}, denoted as $\mathrm{maxIn}$, are computed first. This happens between line \ref{minMaxInAlg1} and line \ref{minMaxInAlg2}. $\mathbf{d}_k$ is the absolute value of the difference between our current iterate $\mathbf{q}_k$ and the $\mathbf{q}_k$ that resulted from the FOM optimization step in line \ref{FOMOptStepAML1}. This is $\mathrm{np.}\Call{abs}{\mathbf{q}_k-\tilde{\mathbf{q}}_k}$ in the code and abbreviated as $|\mathbf{q}_k-\tilde{\mathbf{q}}_k|$ in line \ref{d_kDefAML}.
 
-Now we want to compute the next iterate. We know from line \ref{F_k_tilde_check} that is is possible to increase the FOM function value of the current iterate by at least $\varepsilon_o$, for example by setting it to $\tilde{\mathbf{q}}_k$. Instead of using the $\tilde{\mathbf{q}}_k$ that we got from evaluations of the full order model $\textproc{F}$, the neural network-based surrogate function $F_\mathrm{ML}^k$ is introduced by calling $\textproc{constructDNN}$ in line \ref{surrogateDefAML}. Notice here that the sample $T_k$, that was obtained from the FOM optimization step in line \ref{FOMOptStepAML1} (and for the next outer iterations from line \ref{FOMOptStepAML2}), is used for the training and testing of this DNN. This means that only samples around $\mathbf{q}_k$ are used for the training. Therefore we expect that the error between the FOM function $\textproc{F}$ and its surrogate $F_\mathrm{ML}^k$ is only sufficiently small for points that are close to $\mathbf{q}_k$. To take this into account, we use a trust region method like in ....
+Now we want to compute the next iterate. We know from line \ref{F_k_tilde_check} that it is possible to increase the FOM function value of the current iterate by at least $\varepsilon_o$, for example by setting it to $\tilde{\mathbf{q}}_k$. Instead of using the $\tilde{\mathbf{q}}_k$ that we got from evaluations of the full order model $\textproc{F}$, the neural network-based surrogate function $\textproc{F$_\mathrm{ML}^k$}$ is introduced by calling $\textproc{constructDNN}$ in line \ref{surrogateDefAML}. Notice here that the sample $T_k$, that was obtained from the FOM optimization step in line \ref{FOMOptStepAML1} (and for the next outer iterations from line \ref{FOMOptStepAML2}), is used for the training and testing of this DNN. This means that only samples around $\mathbf{q}_k$ are used for the training. Therefore we expect that the error between the FOM function $\textproc{F}$ and its surrogate $F_\mathrm{ML}^k$ is only sufficiently small for points that are close to $\mathbf{q}_k$. To take this into account, we use a trust region method like in ....
 
-Here we repeat a while-loop until a certain condition is met. We allow this while-loop to only repeat $k^*_\mathrm{TR}$ times. If this number is exceeded, we stop the algorithm and use other parameters.
+Here we repeat a while-loop until a certain condition is met. We allow this while-loop to only repeat $k^*_\mathrm{TR}$ times. If this number is exceeded, we stop the algorithm. This can happen if the parameters are chosen inappropriately for this problem. In that case we might want to run this algorithm with other parameters again.
 
 The trust region is characterized by $\mathbf{q}_k$, $\mathbf{d}_k$ and $\delta>0$, which is initialized in line \ref{deltaInitAML}. It is defined by the algorithm \ref{projectionAlg}, $\textproc{TR-Projection}$. Our trust region is the area between $\mathbf{q}_k-\delta\cdot\mathbf{d}_k$ and $\mathbf{q}_k+\delta\cdot\mathbf{d}_k$. $\textproc{TR-Projection}$ projects a point $x$ into the trust region by checking for each element $x[i]$ individually if it lies below $\mathbf{q}_k-\delta\cdot\mathbf{d}_k$ or above $\mathbf{q}_k+\delta\cdot\mathbf{d}_k$. If the former applies, $x[i]$ is set to $\mathbf{q}_k-\delta\cdot\mathbf{d}_k$. If the latter is true, $x[i]$ is set to $\mathbf{q}_k+\delta\cdot\mathbf{d}_k$. Otherwise, $x[i]$ is not changed.
 
-The next iterate $\mathbf{q}^\mathrm{next}_k$ is now computed by calling the EnOpt algorithm on the surrogate function $\textproc{F$_\mathrm{ML}^k$}$. We also set the projection $\textproc{pr}$ to $\Call{TR-Projection}{\mathrm{mu}, \mathbf{q}_k, \delta\cdot\mathbf{d}_k}$, so that the operations are inside the trust region, and the initial covariance matrix $\mathbf{C}_\mathrm{init}$ to $\mathbf{C}_k$, so that the samples for the first iteration are distributed like the sample set that was used for the training of the surrogate.
+The next iterate $\mathbf{q}^\mathrm{next}_k$ is now computed by calling the EnOpt algorithm on the surrogate function $\textproc{F$_\mathrm{ML}^k$}$. We also set the projection $\textproc{pr}$ to $\Call{TR-Projection}{\mathrm{mu}, \mathbf{q}_k, \delta\cdot\mathbf{d}_k}$, so that the operations are inside the trust region, and the initial covariance matrix $\mathbf{C}_\mathrm{init}$ to $\mathbf{C}_k$, so that the samples for the first iteration are distributed like the sample set that was used for the training of the surrogate functional.
 
 To examine the quality of the iterate $\mathbf{q}^\mathrm{next}_k$ and the surrogate $\textproc{F$_\mathrm{ML}^k$}$, $\rho_k$ is defined in line \ref{rhoKDef}. If $\rho_k<0.25$, the surrogate is not sufficiently accurate for us and we decrease the trust region by multiplying $\delta$ with $0.25$. If the condition in line \ref{goodTRCond} is true, the surrogate is a sufficiently good approximation of $F$ and from $\mathrm{np.}\Call{any}{\mathrm{np.}\protect\Call{abs}{\mathbf{q}_k-\mathbf{q}^\mathrm{next}_k}-\mathbf{d}^\mathrm{iter}_k = 0}$ follows that $\mathbf{q}^\mathrm{next}_k$ is at the border of the trust region. In this case the trust region is extended by multiplying $\delta$ with $2$. If $\rho_k$ is greater than zero, we leave the inner while-loop since $F^\mathrm{next}_k$ is greater than $F_k$. The denominator in line \ref{rhoKDef}, $\Call{F$_\mathrm{ML}^k$}{\mathbf{q}^\mathrm{next}_k}-\Call{F$_\mathrm{ML}^k$}{\mathbf{q}_k}$, should be positive because $\mathbf{q}^\mathrm{next}_k$ results from the EnOpt algorithm on $\textproc{F$_\mathrm{ML}^k$}$ with the initialization $\mathbf{q}_k$.
 

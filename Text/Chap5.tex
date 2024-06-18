@@ -31,7 +31,7 @@ j(q)=J(q, u(q))=\mathcal{L}(q,u(q),z,\tilde{z}),
 \end{displaymath}
 since all terms after `$J(q,u)$' in \eqref{lagrangian} are equal to zero.
 
-We get now the directional derivative of $j$ by taking the directional derivative of $\mathcal{L}$ with respect to $q$. Note beforehand that 
+We get now the directional derivative of $j$ by taking the directional derivative of $\mathcal{L}$ with respect to $q$. We note beforehand that 
 \begin{eqnarray*}
 -(\partial_tu(q),\delta_z)_I-(\nabla u(q), \nabla \delta_z)_I+(f+q, \delta_z)_I&=&0\quad\forall q\in Q, \delta_z\in X,\\
 (u_0-u(q)(0), \delta_{\tilde{z}})&=&0\quad\forall q\in Q, \delta_{\tilde{z}}\in X.
@@ -86,7 +86,7 @@ Since we can choose $z\in X$ and $\tilde{z}\in V$ freely, they are set such that
 &\mathcal{L}'_u(q,u,z,\tilde{z})(\delta_u)&=0\\
 \iff&(\delta_u(T),z(T))-(\delta_u(0),z(0))-(\delta_u,\partial_tz)_I+(\nabla\delta_u,\nabla z)_I+(\delta_u(0),\tilde{z})&=(\delta_u,u-\hat{u})_I.
 \end{eqnarray*}
-This holds if we set $\tilde{z}=z(0)$ and z such that
+This holds if we set $\tilde{z}=z(0)$ and $z$ such that
 \begin{equation}
 \label{adjoinedStateEquation}
 \begin{aligned}
@@ -165,7 +165,7 @@ Since the solutions $q\in Q_d$ of our algorithms have the form that is described
 \begin{displaymath}
 \bar{q}(t,x_1,x_2)=-\pi^4(\exp(a\pi^2t)-\exp(a\pi^2T))\sin(\pi x_1)\sin(\pi x_2).
 \end{displaymath}
-Therefore we define the shape functional as the projection of $\sin(\pi x_1)\sin(\pi x_2)$ into $V_h$ as it is described in subsection \ref{SubsectionDiscretizationInSpace}. Additional shape functionals for the control functional are not used so that we can compare the output of our optimization algorithms with the analytical solution $\bar{q}$. We expect that the elements $q^i_1$ of the control vectors $\mathbf{q}$ that we get as outputs are close to
+Now we have $\bar{q}$ as a product of the term $-\pi^4(\exp(a\pi^2t)-\exp(a\pi^2T))$, that is only dependent on $t$, and the shape functional $\sin(\pi x_1)\sin(\pi x_2)$, which depends only on $x$ and is an element of $H$. Additional shape functionals for the control functional are not used so that we can compare the output of our optimization algorithms with the analytical solution $\bar{q}$. We expect that the elements $q^i_1$ of the control vectors $\mathbf{q}$ that we get as outputs are close to
 \begin{equation}
 \label{controlVectorElements}
 \bar{q}^i_1=-\pi^4(\exp(a\pi^2t_i)-\exp(a\pi^2T))\text{ for }i=0,\dotsc,M.
@@ -174,11 +174,11 @@ For our tests, we choose $a$ to be $-\sqrt{5}$, so that $f$ and $\hat{u}$ do not
 
 \section{Numerical results}
 
-Now we test the FOM- and AML-EnOpt algorithms on the example from the last section. We discretize the space $\Omega=(0,1)^2$ as described in subsection \ref{SubsectionDiscretizationInSpace} with $50$ grid intervals. The time interval $I=(0,T)$ with $T=0.1$ that we observe is divided into $10$ smaller intervals which are all of the same size. This is described in subsection \ref{SubsectionDiscretizationInTime} with $M=10$. Since we have only one shape function, the control vectors $\mathbf{q}$ that we search for have $N_\mathbf{q}=11$ elements.
+Now we test the FOM- and AML-EnOpt algorithms on the example from the last section. We discretize the space $\Omega=(0,1)^2$ as described in subsection \ref{SubsectionDiscretizationInSpace} with $50$ grid intervals. The time interval $I=(0,T)$ with $T=0.1$ that we observe is divided into $10$ smaller intervals which are all of the same size. This is described in subsection \ref{SubsectionDiscretizationInTime} with $M=10$. Since we have only one shape functional, the control vectors $\mathbf{q}$ that we search for have $N_\mathbf{q}=11$ elements.
 
 The initial control vector $\mathbf{q}_0$ is a vector with constant entries of the value $-40$. This value lies approximately between the minimum element in \eqref{controlVectorElements} which is $\bar{q}^0_1\approx-87$ and the maximum $\bar{q}^M_1=0$. The values of the constant initial control vector, along with other parameters for the algorithms that are presented in the chapters \ref{ChapterEnsembleBasedOptimizationAlgorithm} and \ref{ChapterAdaptiveMLEnOptAlgorithm}, are specified in the table \ref{FOMAMLEnOptParameters}. The notation in the table corresponds to the notation in these algorithms.
 
-The neural network that is used for the surrogate functional consists of two hidden layers where each hidden layer has $100$ neurons. Our activation function is the $\tanh$ function as mentioned in section \ref{sectionDeepNeuralNetworks}. Early stopping is applied for the training of the DNN with a maximum of $1000$ training epochs. The variable $\mathrm{earlyStop}$ in algorithm \ref{trainDNN} is set to $20$. We use the L-BFGS optimizer with strong Wolfe line-search for the minimization of the MSE loss on the validation set. The validation set consists of $20\%$ of the sample set, so the other $80\%$ of the sample set are used for the training set. The number of training restarts is very small because a higher number would extend the training time of the DNN by so much that it makes the algorthm terminate slower. We restart the training two times, so we train three DNNs in total to construct the surrogate functional.
+The neural network that is used for the surrogate functional consists of two hidden layers where each hidden layer has $25$ neurons. Our activation function is the $\tanh$ function as mentioned in section \ref{sectionDeepNeuralNetworks}. Early stopping is applied for the training of the DNN with a maximum of $1000$ training epochs. The variable $\mathrm{earlyStop}$ in algorithm \ref{trainDNN} is set to $20$. We use the L-BFGS optimizer with strong Wolfe line-search for the minimization of the MSE loss on the validation set. The validation set consists of $20\%$ of the sample set, so the other $80\%$ of the sample set are used for the training set. The number of training restarts is very small because a higher number would extend the training time of the DNN by so much that it makes the algorthm terminate slower. We restart the training two times, so we train three DNNs in total to construct the surrogate functional.
 
 Before the results are presented, we want to remember that the FOM-EnOpt and the Adaptive-ML-EnOpt procedures minimize the objective functional $j$ by maximizing the negative functional $-j$. The results that we show are converted back to the outputs that the objective functional $j$ would give, although the true values during these algorithms are negative. As an example, the graphs in figure \ref{FOMAMLEnOptFuncValComp} would be mirrored on the y-axis if they had shown the values during the respective procedure.
 
@@ -211,7 +211,7 @@ Adaptive-ML-EnOpt outer iteration $\varepsilon_o$ & $10^{-8}$\\
 \end{tabular}
 \end{table}
 
-Figure \ref{FOMAMLEnOptFuncValComp} shows the development of the FOM objective functional value $\Call{J}{\mathbf{q}^\mathrm{next}_k}$ after each outer iteration during the FOM- and AML-EnOpt procedures, as well as the respective functional value $\Call{J$^k_\mathrm{ML}$}{\mathbf{q}^\mathrm{next}_k}$ of the surrogate functional $\textproc{J$_\mathrm{ML}^k$}$ that is used in line \ref{innerIterationCallAlgo} of the AML-EnOpt algorithm \ref{AML-EnOpt} to compute the iterate $\mathbf{q}^\mathrm{next}_k$.% We want to emphasize here that we specifically mean the iterate $\mathbf{q}_k$ at the end of each outer iteration. So in plots of the AML-EnOpt algorithm, we reference the $\mathbf{q}_k$ that is set in line \ref{AMLSetqk}.
+Figure \ref{FOMAMLEnOptFuncValComp} shows the development of the FOM objective functional value $\Call{j}{\mathbf{q}^\mathrm{next}_k}$ after each outer iteration during the FOM- and AML-EnOpt procedures, as well as the respective functional value $\Call{j$^k_\mathrm{ML}$}{\mathbf{q}^\mathrm{next}_k}$ of the surrogate functional $\textproc{j$_\mathrm{ML}^k$}$ that is used in line \ref{innerIterationCallAlgo} of the AML-EnOpt algorithm \ref{AML-EnOpt} to compute the iterate $\mathbf{q}^\mathrm{next}_k$.% We want to emphasize here that we specifically mean the iterate $\mathbf{q}_k$ at the end of each outer iteration. So in plots of the AML-EnOpt algorithm, we reference the $\mathbf{q}_k$ that is set in line \ref{AMLSetqk}.
 
 We can see here that the functional values of the FOM-EnOpt and the Adaptive-ML-EnOpt algorithms converge towards a minimum. The output of the FOM-EnOpt algorithm gives an output whose objective functional value is approximately $4.22982802$ after $125$ iterations. The FOM objective functional value of the output from the AML-EnOpt procedure is approximately $4.22981359$ which is reached after only $25$ outer iterations. So the Adaptive-EnOpt algorithm gives here not only an output that has a smaller objective functional value, but also requires far fewer outer iterations than the FOM-EnOpt algorithm to terminate.\\
 
@@ -223,8 +223,26 @@ This can be seen in figure \ref{L2Dist}. In the first iteration, the step from $
 
 Although the step from $\mathbf{q}_k$ to $\mathbf{q}^\mathrm{next}_k$ is still larger than the step from $\mathbf{q}_k$ to $\tilde{\mathbf{q}}_k$ at the last iteration, the step sizes differ not by a lot compared to the first iteration. $\mathbf{q}^\mathrm{next}_k$ is even closer to $\mathbf{q}_k$ than all the samples are since the value of $\mathbf{q}^\mathrm{next}_k$ at the bottom plot in figure \ref{L2Dist} is smaller than the value of $T_k$ min which is the sample in $T_k$ with the minimum $L^2$-distance to $\mathbf{q}_k$.\\
 
-Figure \ref{FOMAMLEnOptSolutionComp} shows the solutions that we get from the FOM-EnOpt and the Adaptive-ML-EnOpt algorithms, as well as the analytical solution and the initialization of the iterates at the top. At the bottom, the difference between the FOM-EnOpt, respectively AML-EnOpt, solution and the analytical solution is depicted. The plot at the bottom shows us that the two solutions strategies yield similar results. 
-\eqref{crank_nicolson}
+Figure \ref{FOMAMLEnOptSolutionComp} shows the solutions that we get from the FOM-EnOpt and the Adaptive-ML-EnOpt algorithms, as well as the analytical solution and the initialization of the iterates at the top. At the bottom, the difference between the FOM-EnOpt, respectively AML-EnOpt, solution and the analytical solution is depicted. The plot at the bottom shows us that the two solutions strategies yield similar results. At most points, the solutions of both algorithms are relatively close to the analytical solution. However, the control values for the second, last and especially first time step are far from the analytically optimal values.
+
+A reason for this might be inaccuracies of the state variable discretizations. The objective functional is calculated according to subsection \ref{subsectionCalculationOfTheObjectiveFunctionValue} as
+
+\begin{equation}
+\label{discretizedObjectiveFunctionalRep}
+\begin{aligned}
+\frac{T}{6M}\sum_{m=1}^M&\left(U_{m-1}-\hat{U}_{m-1}\right)M_n\left(U_{m-1}-\hat{U}_{m-1}\right)\\
+&+ \left(U_{m-1}-\hat{U}_{m-1}\right)M_n\left(U_{m}-\hat{U}_{m}\right)\\
+&+ \left(U_{m}-\hat{U}_{m}\right)M_n\left(U_{m}-\hat{U}_{m}\right)\\
++ \frac{\alpha T}{6M}\sum_{m=1}^M&Q_{m-1}M_nQ_{m-1} + Q_{m-1}M_nQ_{m} + Q_{m}M_nQ_{m},
+\end{aligned}
+\end{equation}
+where the notation corresponds to the notation of subsection \ref{subsectionCalculationOfTheObjectiveFunctionValue}.
+
+We compute the state variables $U_m$ with the Crank-Nicolson scheme \eqref{crank_nicolson}:
+\begin{equation*}
+\left(\tilde{M}_n^T + \frac{T}{2M} \tilde{L}_n^T\right) U_m = \tilde{M}_n^TU_{m-1} - \frac{T}{2M} \tilde{L}_n^T U_{m-1} + \frac{T}{2M} F_{m-1} + \frac{T}{2M} F_m,
+\end{equation*}
+for $m=1,\dotsc,M$. The control $q^m_1$ influences only the vector $F_m$ directly for $m=0,\dotsc,M$. Hence, for $m=1,\dotsc,M-1$, each control $q^m_1$ is used for the definitions of the states $U_m$ and $U_{m+1}$. Only $q^0_1$ and $q^M_1$ set just one state which is $U_1$, respectively $U_M$, while they are still weighted with the same value of $\frac{T}{2M}$ as every other control. Therefore changes of $q^0_1$ and $q^M_1$ tend to effect the first part of \eqref{discretizedObjectiveFunctionalRep} less than the other control variables. Hence, the control variables may reduce the regularization term in \eqref{discretizedObjectiveFunctionalRep} instead by going closer to zero. This can be seen for $q^0_1$. The first control of the analytical solution is approximately $\bar{q}^0_1\approx-87$ which is far from zero. Therefore, with the discretization, it might be beneficial to reduce the regularization term by increasing $q^0_1$. Since the difference $q^0_1$ and $\bar{q}^0_1$ is so large, it is not surprising that $q^1_1$ is also not a good approximation of $\bar{q}^1_1$. In contrast to $q^0_1$, $q^M_1$ is further away from zero than its respective control of the analytical solution. However, due to the quadratic nature of the regularization term, this has not such a strong effect on the objective functional. To reduce these inaccuracies, we could increase the number of time steps. This is examined further below.\\
 
 \begin{figure}
 \centering
@@ -255,71 +273,71 @@ Figure \ref{FOMAMLEnOptSolutionComp} shows the solutions that we get from the FO
 \centering
 \begin{tabular}{|l|l|l|l|}
 \hline
-Method & Iteration & FOM value  & Surrogate value \\%& FOM eval. & Surrogate eval. & Training time (min) & $T_\mathrm{total}$ (min) & Speedup\\
+Method & Iteration & FOM objective function value  & Surrogate function value \\%& FOM eval. & Surrogate eval. & Training time (min) & $T_\mathrm{total}$ (min) & Speedup\\
 \hline
 \hline
-$\mathrm{FOM-EnOpt}$ & $1$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+$\mathrm{FOM-EnOpt}$ & $1$ & $4.229826194856661$ & - \\%& $2839$ & - & - & $54.86$ & - \\
 \cline{2-4}
- & $2$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+ & $2$ & $4.229829269880319$ & - \\%& $2839$ & - & - & $54.86$ & - \\
 \cline{2-4}
- & $3$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+ & $3$ & $4.2298361817288885$ & - \\%& $2839$ & - & - & $54.86$ & - \\
  \hline
-$\mathrm{AML-EnOpt}$ & $1$ & $$ & $$ \\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
+$\mathrm{AML-EnOpt}$ & $1$ & $4.229813297937858$ & $4.229813485631982$ \\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
 \cline{2-4}
- & $2$ & $$ & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+ & $2$ & $4.229813596812994$ & $4.229813708587202$ \\%& $2839$ & - & - & $54.86$ & - \\
 \cline{2-4}
- & $3$ & $$ & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+ & $3$ & $4.229813126525124$ & $4.22981328826163$ \\%& $2839$ & - & - & $54.86$ & - \\
 \hline
 \multicolumn{4}{l}{}\\
 \hline
 Method & Iteration & Outer iterations  & Inner iterations \\%& FOM eval. & Surrogate eval. & Training time (min) & $T_\mathrm{total}$ (min) & Speedup\\
 \hline
 \hline
-$\mathrm{FOM-EnOpt}$ & $1$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+$\mathrm{FOM-EnOpt}$ & $1$ & $119$ & - \\%& $2839$ & - & - & $54.86$ & - \\
 \cline{2-4}
- & $2$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+ & $2$ & $114$ & - \\%& $2839$ & - & - & $54.86$ & - \\
 \cline{2-4}
- & $3$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+ & $3$ & $124$ & - \\%& $2839$ & - & - & $54.86$ & - \\
  \hline
-$\mathrm{AML-EnOpt}$ & $1$ & $$ & $$ \\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
+$\mathrm{AML-EnOpt}$ & $1$ & $27$ & $924$ \\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
 \cline{2-4}
- & $2$ & $$ & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+ & $2$ & $27$ & $877$ \\%& $2839$ & - & - & $54.86$ & - \\
 \cline{2-4}
- & $3$ & $$ & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+ & $3$ & $24$ & $895$ \\%& $2839$ & - & - & $54.86$ & - \\
 \hline
 \multicolumn{4}{l}{}\\
 \hline
 Method & Iteration & FOM evaluations  & Surrogate evaluations \\%& FOM eval. & Surrogate eval. & Training time (min) & $T_\mathrm{total}$ (min) & Speedup\\
 \hline
 \hline
-$\mathrm{FOM-EnOpt}$ & $1$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+$\mathrm{FOM-EnOpt}$ & $1$ & $12107$ & - \\%& $2839$ & - & - & $54.86$ & - \\
 \cline{2-4}
- & $2$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+ & $2$ & $11629$ & - \\%& $2839$ & - & - & $54.86$ & - \\
 \cline{2-4}
- & $3$ & $$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+ & $3$ & $12643$ & - \\%& $2839$ & - & - & $54.86$ & - \\
  \hline
-$\mathrm{AML-EnOpt}$ & $1$ & $$ & $$ \\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
+$\mathrm{AML-EnOpt}$ & $1$ & $2912$ & $95047$ \\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
 \cline{2-4}
- & $2$ & $$ & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+ & $2$ & $2905$ & $90241$ \\%& $2839$ & - & - & $54.86$ & - \\
 \cline{2-4}
- & $3$ & $$ & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+ & $3$ & $2589$ & $91967$ \\%& $2839$ & - & - & $54.86$ & - \\
 \hline
 \multicolumn{4}{l}{}\\
 \hline
-Method & Iteration &Training time (min)  & Total run time (min) \\%& FOM eval. & Surrogate eval. & Training time (min) & $T_\mathrm{total}$ (min) & Speedup\\
+Method & Iteration & Total run time (min) & Training time (min)\\%& FOM eval. & Surrogate eval. & Training time (min) & $T_\mathrm{total}$ (min) & Speedup\\
 \hline
 \hline
-$\mathrm{FOM-EnOpt}$ & $1$ & - & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+$\mathrm{FOM-EnOpt}$ & $1$ & $37.67$ & -  \\%& $2839$ & - & - & $54.86$ & - \\
 \cline{2-4}
- & $2$ & - & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+ & $2$ & $36.07$ & - \\%& $2839$ & - & - & $54.86$ & - \\
 \cline{2-4}
- & $3$ & - & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+ & $3$ & $39.22$ & - \\%& $2839$ & - & - & $54.86$ & - \\
  \hline
-$\mathrm{AML-EnOpt}$ & $1$ & $$ & $$ \\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
+$\mathrm{AML-EnOpt}$ & $1$ & $24.05$ & $14.24$ \\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
 \cline{2-4}
- & $2$ & $$ & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+ & $2$ & $23.87$ & $14.17$ \\%& $2839$ & - & - & $54.86$ & - \\
 \cline{2-4}
- & $3$ & $$ & $$ \\%& $2839$ & - & - & $54.86$ & - \\
+ & $3$ & $22.14$ & $13.39$ \\%& $2839$ & - & - & $54.86$ & - \\
 \hline
 \end{tabular}
 \end{table}
@@ -348,9 +366,9 @@ The initial shape functional control variance $\sigma^2_1$ and the constant corr
 
 We choose the correlation factor to be close to one so that we get a smoother output. However, if this value is too large, the result is similar to a large $\sigma^2_1$ which we want to avoid. For example, if we set $\rho=0.9$, we get from \eqref{defineInitialCovariance} that the variance of $q^i_1$ is approximately $5.3\cdot\sigma^2_1$ for $i=0,\dotsc,M$. If $\rho$ is equal to $0.99$, the variance is with a value of approximately $50.3\cdot\sigma^2_1$ almost ten times as high.
 
-A poor choice of these values may have even more serious consequences for the FOM-EnOpt algorithm. If we set the variance too small, the neural network-based surrogate functional is not approximating the FOM objective functional sufficiently well in a large enough area and the AML-EnOpt algorithm fails. However, we still want to set the variance so small that the surrogate is a good approximation of the objectcive functional in a small area around the iterate when we are close to the optimal solution.
+A poor choice of these values may have even more serious consequences for the FOM-EnOpt algorithm. If we set the variance too small, the neural network-based surrogate functional is not approximating the FOM objective functional sufficiently well in a large enough area and the AML-EnOpt algorithm fails. However, we still want to set the variance so small that the surrogate is a good approximation of the objective functional in a small area around the iterate when we are close to the optimal solution.
 
-We conclude that $\sigma^2_1$ and $\rho$ should be chosen carefully and dependent on each other. Hence, it might require some testing to find values that suit the available optimization problem.\\
+We conclude that $\sigma^2_1$ and $\rho$ should be chosen carefully and dependent on each other. If we increase $\rho$ to get smoother iterates, we might have to decrease $\sigma^2_1$ so that the area which contains our samples is not too large. Hence, it might require some testing to find values that suit the available optimization problem.\\
 
 Unlike the Adaptive-ML-EnOpt algorithm in \cite{Keil2022-dj}, we need to employ a trust region method. If we proceed without it, we get the results of figure \ref{noTRResults}. The method seems to work up to the eighth iteration, but the machine learning-based surrogate suggests in the ninth outer iteration that there is an optimum near a point that is far from the actual optimum. This point is shown in the bottom plot of figure \ref{noTRResults}. Some entries of the resulting control vector exceed even the value of $600$, although they should be below zero.
 

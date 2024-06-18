@@ -47,7 +47,7 @@ With the weak state equations \eqref{weakEq}, we define the weak formulation of 
 \text{Minimize }J(q,u):=\frac{1}{2}\|u-\hat{u}\|_I^2+\frac{\alpha}{2}\|q\|_I^2\text{ subject to \eqref{weakEq} and }(q,u)\in Q\times X.
 \end{equation}
 
-Now, we cite two results of the problems \eqref{weakEq} and \eqref{weakProb}.
+Now we cite two results of the problems \eqref{weakEq} and \eqref{weakProb}.
 
 \begin{prop}[\cite{doi:10.1137/070694016}]
 \label{uniqueU}
@@ -127,7 +127,7 @@ u=\sum_{i=1}^NU_i\phi_i
 \end{displaymath}
 with $U_i=u(x_i)$.\\
 
-Now, we want to calculate $\int_\Omega u \cdot v \,\mathrm{d}x$ and $\int_\Omega \nabla u \cdot \nabla v \,\mathrm{d}x$ for all $u,v\in  V_h$. In order to do that, we set the mass matrix $M_n = \left(\int_\Omega \phi_i \cdot \phi_j \,\mathrm{d}x\right)_{i,j=1,\dotsc,N}$ and the stiffness matrix $L_n = \left(\int_\Omega \nabla\phi_i \cdot \nabla\phi_j \,\mathrm{d}x\right)_{i,j=1,\dotsc,N}$. Let%We calculate these integrals by taking the sum of the integrals over all triangles $T_l\in\mathcal{T}$ where $\phi_i$ and $\phi_j$ are not zero, so all triangles $T_l$ with $x_i,x_j\in T_l$
+Now we want to calculate $\int_\Omega u \cdot v \,\mathrm{d}x$ and $\int_\Omega \nabla u \cdot \nabla v \,\mathrm{d}x$ for all $u,v\in  V_h$. In order to do that, we set the mass matrix $M_n = \left(\int_\Omega \phi_i \cdot \phi_j \,\mathrm{d}x\right)_{i,j=1,\dotsc,N}$ and the stiffness matrix $L_n = \left(\int_\Omega \nabla\phi_i \cdot \nabla\phi_j \,\mathrm{d}x\right)_{i,j=1,\dotsc,N}$. Let%We calculate these integrals by taking the sum of the integrals over all triangles $T_l\in\mathcal{T}$ where $\phi_i$ and $\phi_j$ are not zero, so all triangles $T_l$ with $x_i,x_j\in T_l$
 \begin{displaymath}
 U=\begin{pmatrix} U_1 \\ \vdots \\ U_n \end{pmatrix}\text{ and }V=\begin{pmatrix} V_1 \\ \vdots \\ V_n \end{pmatrix}.
 \end{displaymath}
@@ -198,7 +198,7 @@ In the pyMOR implementation, vectors $F_m$ for $m=0,\dotsc,M$ are defined such t
 \end{equation}
 which is solved after $U_m$ with functions from the Python package SciPy.
 
-\subsection{Calculation of the objective function value}
+\subsection{\label{subsectionCalculationOfTheObjectiveFunctionValue}Calculation of the objective function value}
 For fixed $\hat{u},f\in Q$, we define $u=u(q)$ for all $q\in Q_d$, so that it satisfies \eqref{crank_nicolson}. We calculate $j(q)$ now in the following way:
 \begin{eqnarray*}
 j(q) \approx& \frac{1}{2}\sum_{m=1}^M\int_{t_{m-1}}^{t_m}&\bigg(\left(m-t\frac{M}{T}\right) \left(u_{m-1}-\hat{u}_{m-1}\right)+\left(t\frac{M}{T}-m+1\right) \left(u_{m}-\hat{u}_{m}\right),\\

@@ -1,6 +1,6 @@
 \chapter{\label{ChapterEnsembleBasedOptimizationAlgorithm}Ensemble‑based optimization algorithm}
 
-The adaptive ensemble-based algorithm (EnOpt) is usually used to maximize the net present value of oil recovery methods with respect to a control vector. Examples are presented in \cite{Keil2022-dj, OGUNTOLA2021109165, Zhang2023-sg}. In this chapter, we want to utilize the EnOpt algorithm to optimize the objective function $j$. Our implementation is similar to that in \cite{Keil2022-dj}.
+The adaptive ensemble-based optimization (EnOpt) algorithm is usually used to maximize the net present value of oil recovery methods with respect to a control vector. Examples are presented in \cite{Keil2022-dj, OGUNTOLA2021109165, Zhang2023-sg}. In this chapter, we want to utilize the EnOpt algorithm to optimize the objective function $j$. Our implementation is similar to that in \cite{Keil2022-dj}.
 
 We begin by describing this algorithm for a general function $F:\mathbb{R}^{N_\mathbf{q}}\to \mathbb{R}$ to iteratively solve the optimization problem
 \begin{displaymath}
@@ -35,12 +35,12 @@ That means that for $\mathbf{C}_j:=\left(\mathrm{Cov}(q_j^i,q_j^{k})\right)_{i,k
  \end{pmatrix}.
 \end{equation}
 
-To compute the step direction $\mathbf{d}_k$ at iteration step $k$, we sample $\mathbf{q}_{k,m}\in\mathcal{D}$ for $m=1,\dotsc,N$, with $N\in\mathbb{N}$, from a multivariate Gaussian distribution with mean $\mathbf{q}_k$ and covariance $\mathbf{C}_{\mathbf{q}_k}^k$, and then we define
+To compute the step direction $\mathbf{d}_k$ at iteration step $k$, we sample $\mathbf{q}_{k,m}\in\mathcal{D}$ for $m=1,\dotsc,N$, with $N\in\mathbb{N}$, from a multivariate Gaussian distribution with the mean $\mathbf{q}_k$ and the covariance $\mathbf{C}_{\mathbf{q}_k}^k$. Then we define
 \begin{equation}
 \label{CqkF}
 \mathbf{C}_{\mathbf{q}_k,F}^k:=\frac{1}{N-1}\sum_{m=1}^N(\mathbf{q}_{k,m}-\mathbf{q}_k)(F(\mathbf{q}_{k,m})-F(\mathbf{q}_k)).
 \end{equation}
-Now, we set $\mathbf{d}_k=\frac{\mathbf{C}_{\mathbf{q}_k,F}^k}{\|\mathbf{C}_{\mathbf{q}_k,F}^k\|_\infty}$. This is valid since $\mathbf{C}_{\mathbf{q}_k,F}^k$ is an estimation of $\mathbf{C}_{\mathbf{q}_k}^k\mathbf{G}_k$, which can by shown like in \cite{OGUNTOLA2021109165}. Here, we begin with the Taylor expansion around $\mathbf{q}_k$ and get
+Now we set $\mathbf{d}_k=\frac{\mathbf{C}_{\mathbf{q}_k,F}^k}{\|\mathbf{C}_{\mathbf{q}_k,F}^k\|_\infty}$. This is valid since $\mathbf{C}_{\mathbf{q}_k,F}^k$ is an estimation of $\mathbf{C}_{\mathbf{q}_k}^k\mathbf{G}_k$, which can by shown like in \cite{OGUNTOLA2021109165}. Here, we begin with the Taylor expansion around $\mathbf{q}_k$ and get
 \begin{eqnarray*}
 &&F(\mathbf{q})=F(\mathbf{q}_k)+(\mathbf{q}-\mathbf{q}_k)^T\nabla F(\mathbf{q}_k)+O(\|\mathbf{q}-\mathbf{q}_k\|^2)\\
 &\implies&F(\mathbf{q})-F(\mathbf{q}_k)=(\mathbf{q}-\mathbf{q}_k)^T\mathbf{G}_k+O(\|\mathbf{q}-\mathbf{q}_k\|^2).
@@ -69,13 +69,13 @@ By using the samples $\{\mathbf{q}_{k-1,m}\}_{m=1}^N$ and the covariance matrix 
 \end{equation}
 where $\tilde{\beta}_k$ is a step size that is chosen so that no entries of the diagonal of $\mathbf{C}_{\mathbf{q}_{k}}^{k}$ are negative. How we set $\tilde{\beta}_k$ is shown below at the implementation of the entire EnOpt algorithm.
 
-Now that we have described the optimization steps of this algorithm, we iterate until $F(\mathbf{q}_k)\leq F(\mathbf{q}_{k-1})+\varepsilon$, where $\varepsilon>0$.
+Now that we have described the optimization steps of this algorithm, we iterate until $F(\mathbf{q}_k)\leq F(\mathbf{q}_{k-1})+\varepsilon$, where $\varepsilon>0$.\\
 
 In our implementation, the EnOpt algorithm takes the objective function $\textproc{F}:\mathbb{R}^{N_\mathbf{q}}\to\mathbb{R}$, our initial iterate $\mathbf{q}_0\in\mathbb{R}^{N_\mathbf{q}}$, the sample size $N\in\mathbb{N}$, the tolerance $\varepsilon>0$, the maximum number of iterations $k^*\in\mathbb{N}$, the initial step size $\beta_1>0$ for the computation of the next iterate, the initial step size $\beta_2>0$ for the iteration of the covariance matrix, the step size contraction $r\in(0,1)$, the maximum number of step size trials $\nu^*\in\mathbb{N}$, the variance $\sigma^2\in\mathbb{R}^{N_b}$ with positive elements, the correlation coefficient $\rho\in(-1,1)$, the number of time steps $N_t\in\mathbb{N}$, the number of basis functions $N_b\in\mathbb{N}$, a projection $\textproc{pr}$ and an initial covariance $\mathbf{C}_\mathrm{init}\in\mathbb{R}^{N_\mathbf{q}}$. $\textproc{pr}$ is set to the identity function $\mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}$ and $\mathbf{C}_\mathrm{init}$ is set to $\mathrm{None}$ by default.
 
-$\textproc{pr}$ is used to project the inputs onto a given set and $\mathbf{C}_\mathrm{init}$ is an alternative definition for the initialization of the covariance. In this chapter we do not need to specify these inputs, however $\textproc{pr}$ could be used if we had an optimization problem where the iterates were restricted to a certain spatial domain, which is not the case.
+$\textproc{pr}$ is used to project the inputs onto a given set and $\mathbf{C}_\mathrm{init}$ is an alternative definition for the initialization of the covariance. In this chapter we do not need to specify these inputs, however $\textproc{pr}$ could be used if we had an optimization problem where the iterates were restricted to a certain spatial domain, which is here not the case.
 
-The implementation in pseudo code is shown here:
+The implementation in pseudo code is shown below:
 
 %\begin{algorithm}[H]%\footnotesize
 %\caption{EnOpt algorithm}
@@ -283,7 +283,7 @@ At the start of the line search algorithm, we initialize the step size $\beta^\m
 
 After the termination of the while-loop, $\mathbf{q}^\mathrm{next}_k$ and $F^\mathrm{next}_k$ are returned. The reason for stopping the while loop also shows when $\mathbf{q}^\mathrm{next}_k$ is the last iteration of the EnOpt algorithm, as the EnOpt algorithm stops when the function value of the next iteration is not greater than the function value of the last iteration plus $\varepsilon$, i.e. when $F^\mathrm{next}_k>F_k+\varepsilon$.
 
-Now we use this algorithm to optimize our objective function $j$. Since this is a maximization procedure and $j$ should be minimized, we apply $-j$ to the EnOpt algorithm, which gives us:
+Now we use this algorithm to optimize our objective function $j$. Since this is a maximization procedure and $j$ should be minimized, we apply $-j$, denoted by $-\textproc{j}$, to the EnOpt algorithm, which gives us:
 
 %\begin{algorithm}[H]%\footnotesize
 %\caption{FOM-EnOpt algorithm}
