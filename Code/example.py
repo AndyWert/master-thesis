@@ -205,7 +205,7 @@ def J(param, q_shape, a, T, grid_intervals=50, nt=10):
 
 def L_BFGS_B_minimizer(init, a, T, grid_intervals, nt, q_shape):
     from scipy.optimize import minimize
-    return minimize(lambda mu: J(mu, q_shape, a, T, grid_intervals, nt)[0], init, method='L-BFGS-B').x
+    return minimize(lambda mu: J(mu, q_shape, a, T, grid_intervals, nt)[0], init, method='L-BFGS-B')
 
 
 def lineSearch(F, q_k, F_k, d_k, beta, r, eps, nu_1, proj):
@@ -717,7 +717,7 @@ def ROM_EnOpt(q_0, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_
 # q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])+sin(2*pi*x[0])*sin(2*pi*x[1])', dim_domain=2), ExpressionFunction('(1-(2*x[0]-1)**2)*(1-(2*x[1]-1)**2)', dim_domain=2)]
 q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
 T = 0.1
-nt = 10
+nt = 50
 nb = len(q_shape)
 grid_intervals = 50
 a = -np.sqrt(5)
@@ -729,21 +729,21 @@ showInnerIterationPlots = False
 showPlots = True
 inspectDNNStructures = False
 N = 100
-eps = 1e-8
+eps = 1e-15
 k_1 = 1000
 beta_1 = 1
-beta_2 = 0.1
+beta_2 = 0.005
 r = 0.5
 nu_1 = 10
-var = [0.1]
+var = [0.01]
 assert len(var) == len(q_shape)
-correlationCoeff = 0.9
+correlationCoeff = 0.99
 
 
 # optimized control functional using the AML EnOpt minimizer
 delta_init = 100
-eps_o = 1e-8
-eps_i = 1e-12
+eps_o = 1e-15
+eps_i = 1e-15
 k_1_o = k_1
 k_1_i = k_1
 k_tr = 5
@@ -826,6 +826,18 @@ def evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, 
     print('Training time (minutes): {}\n'.format(trainingTimeTotal))
     print('Total run time (minutes): {}\n'.format(runTimeTotal))
     return q, method, FOMValues, surrogateValues, outerIterationsTotal, innerIterationsTotal, FOMEvaluationsTotal, surrogateEvaluationsTotal, surrogateEval, surrogateTrain, trainingTimeTotal, runTimeTotal
+
+
+def evalROMFOM_EnOpt(init, N, eps, eps_o, eps_i, k_1, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape):
+    out1 = evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
+    out2 = evalROM_EnOpt(out1[0], N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
+    # out3 = evalFOM_EnOpt(out2[0], N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
+    return out1, out2
+
+
+def return_L_BFGS_B_minimizer(init, a, T, grid_intervals, nt, q_shape):
+    opt = L_BFGS_B_minimizer(init, a, T, grid_intervals, nt, q_shape)
+    return opt.x, opt.fun
 
 
 def compareEnOpt(init, N, eps, eps_o, eps_i, k_1, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape, analytical=True):
