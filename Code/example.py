@@ -729,10 +729,10 @@ showInnerIterationPlots = False
 showPlots = True
 inspectDNNStructures = False
 N = 100
-eps = 1e-15
+eps = 1e-14
 k_1 = 1000
 beta_1 = 1
-beta_2 = 0.005
+beta_2 = 0.001
 r = 0.5
 nu_1 = 10
 var = [0.01]
@@ -742,8 +742,8 @@ correlationCoeff = 0.99
 
 # optimized control functional using the AML EnOpt minimizer
 delta_init = 100
-eps_o = 1e-15
-eps_i = 1e-15
+eps_o = 1e-14
+eps_i = 1e-14
 k_1_o = k_1
 k_1_i = k_1
 k_tr = 5
