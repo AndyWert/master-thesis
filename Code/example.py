@@ -166,7 +166,7 @@ def parabolic_equation(q, T, grid_intervals=50, nt=10):
     return fom, data
 
 
-# objective function
+# objective functional
 def J(param, q_shape, a, T, grid_intervals=50, nt=10):
     global FOMEvaluations
     FOMEvaluations += 1
@@ -205,7 +205,11 @@ def J(param, q_shape, a, T, grid_intervals=50, nt=10):
 
 def L_BFGS_B_minimizer(init, a, T, grid_intervals, nt, q_shape):
     from scipy.optimize import minimize
-    return minimize(lambda mu: J(mu, q_shape, a, T, grid_intervals, nt)[0], init, method='L-BFGS-B')
+    startLBFGSB = time.time()
+    opt = minimize(lambda mu: J(mu, q_shape, a, T, grid_intervals, nt)[0], init, method='L-BFGS-B')
+    endLBFGSB = time.time()
+    LBFGSBTime = endLBFGSB-startLBFGSB
+    return opt.x, opt.fun, LBFGSBTime
 
 
 def lineSearch(F, q_k, F_k, d_k, beta, r, eps, nu_1, proj):
@@ -726,7 +730,7 @@ init = np.zeros(nb*(nt+1))-40
 
 showOuterIterationPlots = True
 showInnerIterationPlots = False
-showPlots = True
+showPlots = False
 inspectDNNStructures = False
 N = 100
 eps = 1e-14
@@ -742,13 +746,14 @@ correlationCoeff = 0.99
 
 # optimized control functional using the AML EnOpt minimizer
 delta_init = 100
-eps_o = 1e-14
+eps_o = 1e-8
 eps_i = 1e-14
 k_1_o = k_1
 k_1_i = k_1
 k_tr = 5
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), number of restarts, number of epochs, early stop, trainFrac, learning rate
-V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
+# V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
+V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 5, 1000, 15, 0.8, 1e-2]
 addDNNStruct = [[nb*(nt+1), 20, 20, 1], [nb*(nt+1), 25, 25, 1], [nb*(nt+1), 30, 30, 1], [nb*(nt+1), 35, 35, 1], [nb*(nt+1), 50, 50, 1], [nb*(nt+1), 100, 100, 1], [nb*(nt+1), 250, 250, 1], [nb*(nt+1), 500, 500, 1], [nb*(nt+1), 1000, 1000, 1]]
 
 
@@ -828,23 +833,12 @@ def evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, 
     return q, method, FOMValues, surrogateValues, outerIterationsTotal, innerIterationsTotal, FOMEvaluationsTotal, surrogateEvaluationsTotal, surrogateEval, surrogateTrain, trainingTimeTotal, runTimeTotal
 
 
-def evalROMFOM_EnOpt(init, N, eps, eps_o, eps_i, k_1, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape):
-    out1 = evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
-    out2 = evalROM_EnOpt(out1[0], N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
-    # out3 = evalFOM_EnOpt(out2[0], N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
-    return out1, out2
-
-
-def return_L_BFGS_B_minimizer(init, a, T, grid_intervals, nt, q_shape):
-    opt = L_BFGS_B_minimizer(init, a, T, grid_intervals, nt, q_shape)
-    return opt.x, opt.fun
-
-
 def compareEnOpt(init, N, eps, eps_o, eps_i, k_1, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape, analytical=True):
     nb = len(q_shape)
     t = np.linspace(0, T, nt+1)
     q, method, FOMValues, outerIterationsTotal, FOMEvaluationsTotal, runTimeTotal = evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
     qAML, methodAML, FOMValuesAML, surrogateValuesAML, outerIterationsTotalAML, innerIterationsTotalAML, FOMEvaluationsTotalAML, surrogateEvaluationsTotalAML, surrogateEvalAML, surrogateTrainAML, trainingTimeTotalAML, runTimeTotalAML = evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
+    qLBFGSB, FOMValueLBFGSB, runTimeTotalLBFGSB = L_BFGS_B_minimizer(init, a, T, grid_intervals, nt, q_shape)
     print('FOM-EnOpt output: {}\n'.format(q))
     print('FOM-EnOpt FOM objective functional values: {}\n'.format(FOMValues))
     print('FOM-EnOpt FOM objective functional output value: {}\n'.format(FOMValues[-1]))
@@ -865,6 +859,10 @@ def compareEnOpt(init, N, eps, eps_o, eps_i, k_1, k_1_o, k_1_i, V_DNN, delta_ini
     print('AML-EnOpt MSE training loss :{}\n'.format(surrogateTrainAML))
     print('AML-EnOpt training time (minutes): {}\n'.format(trainingTimeTotalAML))
     print('AML-EnOpt total run time (minutes): {}\n'.format(runTimeTotalAML))
+    print('\n')
+    print('L-BFGS-B output: {}\n'.format(qLBFGSB))
+    print('L-BFGS-B FOM objective functional values: {}\n'.format(FOMValueLBFGSB))
+    print('L-BFGS-B total run time (minutes): {}\n'.format(runTimeTotalLBFGSB))
     print('\n')
     qAnalytical = np.zeros((nb*(nt+1)))
     out, fom, data, u = J(q, q_shape, a, T, grid_intervals, nt)
@@ -917,6 +915,7 @@ def compareEnOpt(init, N, eps, eps_o, eps_i, k_1, k_1_o, k_1_i, V_DNN, delta_ini
     for i in range(nb):
         plt.plot(t, q[i*(nt+1):(i+1)*(nt+1)], label='FOM-EnOpt')
         plt.plot(t, qAML[i*(nt+1):(i+1)*(nt+1)], label='AML-EnOpt')
+        plt.plot(t, qLBFGSB[i*(nt+1):(i+1)*(nt+1)], label='L-BFGS-B')
         if analytical:
             plt.plot(t, qAnalytical, label='Analytical')
         plt.plot(t, init[i*(nt+1):(i+1)*(nt+1)], label='Initialization')
@@ -925,17 +924,40 @@ def compareEnOpt(init, N, eps, eps_o, eps_i, k_1, k_1_o, k_1_i, V_DNN, delta_ini
         plt.ylabel('Control variable')
         plt.legend()
         plt.show()
+    if analytical:
+        plt.plot(t, q-qAnalytical, label='FOM-EnOpt')
+        plt.plot(t, qAML-qAnalytical, label='AML-EnOpt')
+        plt.title('Difference between the optimal and analytical solutions')
+        plt.xlabel('Time')
+        plt.ylabel('Control variable diff.')
+        plt.legend()
+        plt.show()
+        print('FOM-EnOpt error: {}'.format(q-qAnalytical))
+        print('AML-EnOpt error: {}'.format(qAML-qAnalytical))
+    FOM_LBFGSB_diff = q-qLBFGSB
+    RON_LBFGSB_diff = qAML-qLBFGSB
+    for i in range(nb):
+        plt.plot(t, FOM_LBFGSB_diff[i*(nt+1):(i+1)*(nt+1)], label='FOM-EnOpt')
+        plt.plot(t, RON_LBFGSB_diff[i*(nt+1):(i+1)*(nt+1)], label='AML-EnOpt')
+        plt.title('Difference between the EnOpt and L-BFGS-B solutions')
+        plt.xlabel('Time')
+        plt.ylabel('Control variable diff.')
+        plt.legend()
+        plt.show()
+        print('FOM-EnOpt error, shape functional {}: {}'.format(i, q-qLBFGSB))
+        print('AML-EnOpt error, shape functional {}: {}'.format(i, qAML-qLBFGSB))
+        
+        plt.plot(t, q[i*(nt+1):(i+1)*(nt+1)], label='FOM-EnOpt')
+        plt.plot(t, qAML[i*(nt+1):(i+1)*(nt+1)], label='AML-EnOpt')
         if analytical:
-            plt.plot(t, q-qAnalytical, label='FOM-EnOpt')
-            plt.plot(t, qAML-qAnalytical, label='AML-EnOpt')
-            plt.title('Difference between the optimal and analytical solutions')
-            plt.xlabel('Time')
-            plt.ylabel('Control variable diff.')
-            plt.legend()
-            plt.show()
-            print('FOM-EnOpt error: {}'.format(q-qAnalytical))
-            print('AML-EnOpt error: {}'.format(qAML-qAnalytical))
-    return q, method, FOMValues, outerIterationsTotal, FOMEvaluationsTotal, runTimeTotal, qAML, methodAML, FOMValuesAML, surrogateValuesAML, outerIterationsTotalAML, innerIterationsTotalAML, FOMEvaluationsTotalAML, surrogateEvaluationsTotalAML, surrogateEvalAML, surrogateTrainAML, trainingTimeTotalAML, runTimeTotalAML
+            plt.plot(t, qAnalytical, label='Analytical')
+        plt.plot(t, init[i*(nt+1):(i+1)*(nt+1)], label='Initialization')
+        plt.title('Optimal solutions: shape functional {}'.format(i+1))
+        plt.xlabel('Time')
+        plt.ylabel('Control variable')
+        plt.legend()
+        plt.show()
+    return q, method, FOMValues, outerIterationsTotal, FOMEvaluationsTotal, runTimeTotal, qAML, methodAML, FOMValuesAML, surrogateValuesAML, outerIterationsTotalAML, innerIterationsTotalAML, FOMEvaluationsTotalAML, surrogateEvaluationsTotalAML, surrogateEvalAML, surrogateTrainAML, trainingTimeTotalAML, runTimeTotalAML, qLBFGSB, FOMValueLBFGSB, runTimeTotalLBFGSB
 
 
 def compare_AML_EnOpt_DNN(addDNNStruct, init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape):

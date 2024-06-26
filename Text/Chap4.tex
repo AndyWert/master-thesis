@@ -1,12 +1,12 @@
 \chapter{\label{ChapterAdaptiveMLEnOptAlgorithm}Adaptive‑ML‑EnOpt algorithm}
 
-In this chapter, we introduce the Adaptive-ML-EnOpt algorithm \cite{Keil2022-dj}, which is a modified version of the EnOpt algorithm. This algorithm is supposed to reduce the number of FOM evaluations by using a machine learning-based surrogate functional, which improves the computation speed with respect to the EnOpt algorithm. Therefore, we introduce deep neural networks (DNNs) next. After that, the Adaptive-ML-EnOpt-algorithm is presented.
+In this chapter, we describe the Adaptive-ML-EnOpt algorithm \cite{Keil2022-dj}, which is a modified version of the EnOpt algorithm. This algorithm is supposed to reduce the number of FOM evaluations by using a machine learning-based surrogate functional, which improves the computation speed with respect to the EnOpt algorithm. Therefore, we introduce deep neural networks (DNNs) next. After that, the Adaptive-ML-EnOpt-algorithm is presented.
 
 \section{\label{sectionDeepNeuralNetworks}Deep neural networks}
 
 This description of deep neural networks is based on the definitions in \cite{Keil2022-dj}.
 
-DNNs are used here to approximate a function $f:\mathbb{R}^{N_{\mathrm{in}}}\to\mathbb{R}^{N_{\mathrm{out}}}$ with $N_{\mathrm{in}},N_{\mathrm{out}}\in\mathbb{N}$. We call $L\in\mathbb{N}$ the number of layers and $N_{\mathrm{in}}=N_0,N_1,\dotsc,N_{L-1}, N_L=N_{\mathrm{out}}$ the number of neurons in each layer. We refer to the layers $1$ to $L-1$ as the hidden layers. $W_i\in\mathbb{R}^{N_i\times N_{i-1}}$ denotes the weights in layer $i\in\{1,\dotsc,L\}$ and $b_i\in\mathbb{R}^{N_i}$ the biases of the layer $i\in\{1,\dotsc,L\}$. These are composed as $\mathbf{W}=\left((W_1,b_1),\dotsc,(W_L,b_L)\right)$, which is a tuple of pairs of corresponding weights and biases.
+DNNs are used here to approximate a function $f:\mathbb{R}^{N_{\mathrm{in}}}\to\mathbb{R}^{N_{\mathrm{out}}}$ with $N_{\mathrm{in}},N_{\mathrm{out}}\in\mathbb{N}$. We call $L\in\mathbb{N}$ the number of layers and $N_{\mathrm{in}}=N_0,N_1,\dotsc,N_{L-1}, N_L=N_{\mathrm{out}}$ the numbers of neurons in each layer. We refer to the layers $1$ to $L-1$ as the hidden layers. $W_i\in\mathbb{R}^{N_i\times N_{i-1}}$ denotes the weights in layer $i\in\{1,\dotsc,L\}$ and $b_i\in\mathbb{R}^{N_i}$ the biases of the layer $i\in\{1,\dotsc,L\}$. These are composed as $\mathbf{W}=\left((W_1,b_1),\dotsc,(W_L,b_L)\right)$, which is a tuple of pairs of corresponding weights and biases.
 
 $\rho:\mathbb{R}\to\mathbb{R}$ is the so-called activation function. A popular example is the rectified linear unit funtion $\rho(x)=\operatorname{max}(x,0)$, however we will use the hyperbolic tangent funtion
 \begin{displaymath}
@@ -14,7 +14,7 @@ $\rho:\mathbb{R}\to\mathbb{R}$ is the so-called activation function. A popular e
 \end{displaymath}
 $\rho_n^*:\mathbb{R}^n\to\mathbb{R}^n$ is now defined as the component-wise application of $\rho$ onto a vector of dimension $n$, so $\rho_n^*(x)=\left[\rho(x_1),\dotsc,\rho(x_n)\right]^T$ for $x\in\mathbb{R}^n$.
 
-To calculate the output $\Phi_\mathbf{W}(x)\in\mathbb{R}^{N_{\mathrm{out}}}$ of a DNN for an input $x\in\mathbb{R}^{N_{\mathrm{in}}}$, we apply the weights, biases, and activation function multiple times onto the input. It is calculated iteratively as shown here:
+To calculate the output $\Phi_\mathbf{W}(x)\in\mathbb{R}^{N_{\mathrm{out}}}$ of a DNN for an input $x\in\mathbb{R}^{N_{\mathrm{in}}}$, we apply the weights, biases, and activation function multiple times onto the input. It is computed iteratively with the functions $r_0:\mathbb{R}^{N_0}\to\mathbb{R}^{N_0}$ and $r_i:\mathbb{R}^{N_{i-1}}\to\mathbb{R}^{N_i}$ for $i=1,\dotsc,L$ by
 \begin{eqnarray*}
 r_0(x)&:=&x,\\
 r_i(x)&:=&\rho_{N_i}^*(W_ir_{i-1}(x)+b_i)\text{ for }i=1,\dotsc,L-1,\\
@@ -22,7 +22,7 @@ r_L(x)&:=&W_Lr_{L-1}(x)+b_L,\\
 \Phi_\mathbf{W}(x)&:=&r_L(x).
 \end{eqnarray*}
 
-Now we try to optimize the parameters in $\mathbf{W}$ such that $\Phi_\mathbf{W}\approx f$. To achieve this, we sample a set that consists of inputs $x_i\in X\subset\mathbb{R}^{N_{\mathrm{in}}}$ and corresponding outputs $f(x_i)\in\mathbb{R}^{N_{\mathrm{out}}}$ and assemble them in the training set
+Now we try to optimize the parameters in $\mathbf{W}$ such that $\Phi_\mathbf{W}\approx f$. To achieve this, we sample a set that consists of inputs $x_i\in X\subset\mathbb{R}^{N_{\mathrm{in}}}$ and corresponding outputs $f(x_i)\in\mathbb{R}^{N_{\mathrm{out}}}$ and assemble them in the so-called training set
 \begin{equation}
 T_\mathrm{train}=\{(x_1,f(x_1)),\dotsc,(x_{N_\mathrm{train}},f(x_{N_\mathrm{train}}))\}\subset X\times\mathbb{R}^{N_\mathrm{out}}.
 \end{equation}
@@ -30,25 +30,28 @@ To evaluate the performance of our chosen $\mathbf{W}$, we use the mean squared 
 \begin{displaymath}
 \mathscr{L}(\Phi_\mathbf{W},T_\mathrm{train}):=\frac{1}{|T_\mathrm{train}|}\sum_{(x,y)\in T_\mathrm{train}}\| \Phi_\mathbf{W}(x)-y\|_2^2.
 \end{displaymath}
-Since we want $\Phi_\mathbf{W}$ to be close to $f$, we minimize the loss function with respect to $\mathbf{W}$. For that, we use some gradient-based optimization method. By the structure of the DNN, we can use the chain rule multiple times to divide the gradient of $\mathscr{L}$ into much simpler gradient computations.\\
+Since we want $\Phi_\mathbf{W}$ to be close to $f$, we minimize the loss function with respect to $\mathbf{W}$. For that, we use some gradient-based optimization method. By the structure of the neural network, we can use the chain rule multiple times to divide the gradient of $\mathscr{L}$ into much simpler gradient computations.\\
 
-We want that $\Phi_\mathbf{W}$ is close to $f$ on $X$ but we train it only on a sample set of $X$, so we achieve that $\Phi_\mathbf{W}$ is only on $T_\mathrm{train}$ close to $f$. While we train, the mean squared error loss will eventually get better and better on the training set, but at some point the error on different samples will get worse \cite{Prechelt2012}. This is called 'overfitting'.
+We want that $\Phi_\mathbf{W}$ is close to $f$ on $X$ but we train it only on a sample set of $X$, so we achieve that $\Phi_\mathbf{W}$ is only on $T_\mathrm{train}$ close to $f$. During the training, the loss function will eventually decrease on the training set, but at some point the loss on different samples, that are not in the training set, will get worse \cite{Prechelt2012}. This is called 'overfitting'.
 
-To prevent overfitting, we use early stopping. For early stopping, we evaluate the loss function on a validation set $T_\mathrm{val}\subset X\times\mathbb{R}^{N_\mathrm{out}}$, where usually $T_\mathrm{val}\cap T_\mathrm{train}=\emptyset$. Our algorithm for early stopping looks like this:
+To prevent overfitting, we use early stopping. For early stopping, we evaluate the loss function on a validation set $T_\mathrm{val}\subset X\times\mathbb{R}^{N_\mathrm{out}}$, where usually $T_\mathrm{val}\cap T_\mathrm{train}=\emptyset$. Our algorithm for early stopping is described in the following.\\
 
-\begin{itemize}
-\item let $\mathbf{W}^{(k)}$ be the weights in epoch $k$%evtl klarer machen, dass \mathbf{W}_k nicht W_k ist
-\item compute $\mathscr{L}(\Phi_{\mathbf{W}^{(k)}},T_\mathrm{val})$ in each epoch
-\item save $\mathbf{W}^{(k^*)}$ at iteration $k^*$ if it is the minimizer over all previous weights
-\item if $\mathscr{L}(\Phi_{\mathbf{W}^{(k^*+i)}},T_\mathrm{val})\geq\mathscr{L}(\Phi_{\mathbf{W}^{(k^*)}},T_\mathrm{val})$ for all $i$ from $0$ to a prescribed number:\\
-abort the training and use $\mathbf{W}^{(k^*)}$
-\end{itemize}
+For that, let $\mathbf{W}^{(k)}$ be the weights in epoch $k$. To evaluate the quality of the neural network that results from $\mathbf{W}^{(k)}$, the MSE loss on the validation set $\mathscr{L}(\Phi_{\mathbf{W}^{(k)}},T_\mathrm{val})$ is computed at the end of each training epoch. Now let $k_0$ be the iteration where $\mathbf{W}^{(k_0)}$ is smaller than the losses in all previous iterations. If that is the case, we save $\mathbf{W}^{(k_0)}$ and its corresponding loss $\mathscr{L}(\Phi_{\mathbf{W}^{(k_0)}},T_\mathrm{val})$. In the next $k^*$ iterations, where $k^*$ is a prescribed number, we check if $\mathscr{L}(\Phi_{\mathbf{W}^{(k_0+i)}},T_\mathrm{val})<\mathscr{L}(\Phi_{\mathbf{W}^{(k_0)}},T_\mathrm{val})$ for $i=1,\dotsc,k^*$. If that is the case for some $i$, we update $\mathbf{W}^{(k_0)}$ and $\mathscr{L}(\Phi_{\mathbf{W}^{(k_0)}},T_\mathrm{val})$ by setting them to $\mathbf{W}^{(k_0+i)}$ and $\mathscr{L}(\Phi_{\mathbf{W}^{(k_0+i)}},T_\mathrm{val})$. Then the last step is repeated. If there is no such $i$ between $1$ and $k^*$, the training is aborted and the last saved weights returned.
 
 So we abort the training if the minimum loss is not decreasing over a prescribed number of consecutive epochs. Our reasoning behind this is that the loss on the validation set is not srictly decreasing and can even increase over some epochs, but that is fine for us as long as we can decrease the loss over time.
 
-We present now the construction of a neural network that approximates a function $f:\mathbb{R}^n\to\mathbb{R}$ with $n\in\mathbb{N}$. The training of one neural network is shown in algorithm \ref{trainDNN}. It takes the initialization of the deep neural network ($\mathrm{DNN}$), the inputs and outputs of the training set ($x_\mathrm{train}, y_\mathrm{train}$), the inputs and outputs of the validation set ($x_\mathrm{val}, y_\mathrm{val}$), the loss function ($\textproc{loss\_fn}$), the optimizer ($\mathrm{optimizer}$), the number of training epochs ($\mathrm{epochs}$) and the number ($\mathrm{earlyStop}$) that describes after how many iterations without improvement of the validation loss the training gets aborted.
+Figure \ref{earlyStoppingPlot} shows an example where we used early stopping with $k^*=15$. Here, the validation loss of the last training epochs is presented. We see that a minimum is reached after $44$ iterations. Since the next $15$ training epochs yield no decrease of the MSE loss, the training is aborted after iteration $59$.\\
 
-In our algorithm, the loss function is chosen as the mean squared error loss and we use the L-BFGS optimizer with strong Wolfe line-search as our optimizer. The number of training epochs is only the maximum number of iterations since we apply early stopping to our training algorithm. Usually, the training terminates earlier because the loss over the validation set is not decreasing further.
+\begin{figure}
+\centering
+%\textbf{Your title}\par\medskip
+\includegraphics{Plots/earlyStopping.png}
+\caption{\label{earlyStoppingPlot}Validation loss during the last iterations of a neural network training procedure where early stopping was applied}
+\end{figure}
+
+We present now the construction of a DNN that approximates a function $f:\mathbb{R}^n\to\mathbb{R}$ with $n\in\mathbb{N}$. The training of one neural network is shown in algorithm \ref{trainDNN}. It takes the initialization of the deep neural network ($\mathrm{DNN}$), the inputs and outputs of the training set ($x_\mathrm{train}, y_\mathrm{train}$), the inputs and outputs of the validation set ($x_\mathrm{val}, y_\mathrm{val}$), the loss function ($\textproc{loss\_fn}$), the optimizer ($\mathrm{optimizer}$), the number of training epochs ($\mathrm{epochs}$) and the number ($\mathrm{earlyStop}$) that describes after how many iterations without improvement of the validation loss the training gets aborted, so that is the $k^*$ from above.
+
+In our algorithm, the loss function is chosen as the mean squared error loss and we use the L-BFGS algorithm \cite{Liu1989-ua}, which is a limited memory quasi-Newton method that uses approximations of the objective functions Hessian matrix, with strong Wolfe line-search \cite{doi:10.1137/1011036, doi:10.1137/1013035} as our optimizer. The number of training epochs is only the maximum number of iterations since we apply early stopping to our training algorithm. Usually, the training terminates earlier because the loss over the validation set is not decreasing further.
 
 The function $\textproc{testDNN}$ in algorithm \ref{trainDNN} returns the loss of the function $\textproc{loss\_fn}$ between the output of the DNN with the current parameters and the output of the objective function over the validation set which is denoted by $y_\mathrm{val}$. So if $\textproc{loss\_fn}=\mathscr{L}$, we have $\textproc{testDNN}(\textproc{DNN}, x_\mathrm{val}, y_\mathrm{val}, \textproc{loss\_fn}) = \mathscr{L}(\mathrm{DNN}, T_\mathrm{val})$ with
 \begin{displaymath}
@@ -95,19 +98,28 @@ In addition, some funtions are imported from the Python package PyTorch. These f
 \end{algorithmic}
 \end{algorithm}
 
-We start the algorithm $\textproc{trainDNN}$ by initializing the variable $\mathrm{wait}$, which indicates the number of training epochs without a decrease of the loss on the evaluation set, as zero and the variable $\mathrm{minimalValidationLoss}$, which shows the loss that was achieved '$\mathrm{wait}$' epochs ago, as the loss on the validation set for the DNN before the training begins. Then the weights and biases of the DNN are saved in the file `$\mathrm{checkpoint.pth}$'.
+We start the algorithm $\textproc{trainDNN}$ by initializing the variable $\mathrm{wait}$, which indicates the number of training epochs without a decrease of the loss on the evaluation set, as zero and the variable $\mathrm{minimalValidationLoss}$, which shows the loss that was achieved '$\mathrm{wait}$' epochs ago, as the loss on the validation set for the DNN before the training begins. Then the weights and biases of the DNN are saved in the file `$\mathrm{checkpoint.pth}$'. After that, the following operations are executed in every training epoch.
 
-After that, the following operations are executed in every training epoch. The procedures that are performed between line \ref{startTrainStep} and line \ref{endTrainStep} can be described as doing one optimization step with the $\mathrm{optimizer}$ to decrease the loss on the training set by adjusting the weights and biases of the DNN. Then we check if the loss on the evaluation set is currently smaller than the minimal validation loss over all previous epochs.
+The procedures that are performed between line \ref{startTrainStep} and line \ref{endTrainStep} can be described as doing one optimization step with the $\mathrm{optimizer}$ to decrease the loss on the training set by adjusting the weights and biases of the DNN. Then we check if the loss on the evaluation set is currently smaller than the minimal validation loss over all previous epochs.
 
-If that is the case, the variable $\mathrm{wait}$ is set to zero, indicating that the current parameters of the DNN have the best performance over the validation set, and the variable $\mathrm{minimalValidationLoss}$ is updated to the current validation loss. Since the parameters of the DNN will be changed in the next epochs, the current weights and biases are saved again in the file `$\mathrm{checkpoint.pth}$'.
-
-If the validation loss is not less than the minimal validation loss, the variable wait is increased by one.
+If that is the case, the variable $\mathrm{wait}$ is set to zero, indicating that the current parameters of the DNN have the best performance over the validation set, and the variable $\mathrm{minimalValidationLoss}$ is updated to the current validation loss. Since the parameters of the DNN will be changed in the next epochs, the current weights and biases are saved again in the file `$\mathrm{checkpoint.pth}$'. If the validation loss is not less than the minimal validation loss, the variable $\mathrm{wait}$ is increased by one.
 
 To implement early stopping as described above, we check at the end of each training epoch whether the minimum loss has not decreased over so many consecutive epochs that we terminate the algorithm prematurely. If $\mathrm{wait} \geq \mathrm{earlyStop}$, the current parameters of the neural network are overwritten with the parameters that were saved when the minimum loss was reached and the algorithm is aborted.\\
 
-Since we search for local minima of the loss function, the initial value $\mathbf{W}^{(0)}$ of our iteration effects the local optimum that we get and therefore the performance. We use Kaiming initialization \cite{7410480} to set our initial value $\mathbf{W}^{(0)}$. With Kaiming initialization, the starting values are initialized randomly since the elements of the weights $W_i$ are sampled from a zero-mean Gaussian distribution whose standard deviation is $\sqrt{2/N_{i-1}}$ for $i\in\{1,\dotsc,L\}$. The biases $b_i$ are set to zero for $i\in\{1,\dotsc,L\}$. The idea behind the random sampling is that the specified standard deviation prevents the exponential increase/ reduction of the input as shown in \cite{7410480}.
+Since we search for local minima of the loss function, the initial value $\mathbf{W}^{(0)}$ of our iteration effects the local optimum that we get and therefore the performance. We use Kaiming initialization \cite{7410480} to set our initial value $\mathbf{W}^{(0)}$. With Kaiming initialization, the starting values are initialized randomly since the elements of the weights $W_i$ are sampled from a zero-mean Gaussian distribution whose standard deviation is $\sqrt{2/N_{i-1}}$ for $i\in\{1,\dotsc,L\}$.
+%The biases $b_i$ are set to zero for $i\in\{1,\dotsc,L\}$. 
+The idea behind this type of random sampling is that the specified standard deviation prevents the exponential increase/ reduction of the input as shown in \cite{7410480}.
 
 For the training of the DNN, we perform multiple restarts of the training algorithm with different initializations of $\mathbf{W}^{(0)}$ which minimizes the dependence of our neural network from the initial values. After we have trained enough DNNs, we select the neural network $\Phi_{\mathbf{W}^*}$ that has the smallest evaluation loss $\mathscr{L}(\Phi_{\mathbf{W}^*},T_\mathrm{val})$ over all restarts.
+
+Figure \ref{DNNRestartsPlot} shows that training multiple neural networks can help to reduce the validation loss. If we did not restart the training, our DNN would have a validation loss of slightly above $3\cdot10^{-6}$. After two restarts, we obtain a neural network with a validation loss that is less than half of the DNN with no restarts. Of course, there are iterations where repeating the training does not lead to a reduction of the validation loss, but in general, the more neural networks we train, the lower the resulting loss tends to be. However, training more DNNs also increases the runtime.\\
+
+\begin{figure}
+\centering
+%\textbf{Your title}\par\medskip
+\includegraphics{Plots/DNNRestarts.png}
+\caption{\label{DNNRestartsPlot}Example of the different validation losses resulting from the training of three neural networks}
+\end{figure}
 
 Before the whole algorithm for the construction of the DNN is presented, we look at the data that we use for the training. If we sample the inputs in a small area, it is likely that the corresponding outputs are also close to each other. Since we convert the values for the training of the neural network from 64-bit floating point numbers to 32-bit floating point numbers, it can even happen that the converted inputs or outputs are constant. In that case, the digits of these values that differ from each other get cut off at the conversion.
 
@@ -147,7 +159,7 @@ After we have trained the neural network, the DNN outputs need to be rescaled so
 %\tilde{y}&=\frac{y-y^\mathrm{low}}{y^\mathrm{upp}-y^\mathrm{low}},&
 %\end{eqnarray*}
 
-To summarize this, we present now the construction of a DNN as pseudo code in algorithm \ref{DNNConstruction}. Training parameters like the neural network structure ``$\mathrm{DNNStructure}$'', the activation function ``$\textproc{activFunc}$'', the number of restarts of different DNN initializations ``$\mathrm{restarts}$'', the number of training epochs ``$\mathrm{epochs}$'', the number of epochs without decrease of the evaluation loss after which early stopping is applied ``$\mathrm{earlyStop}$'', the fraction of the sample that is used for training ``$\mathrm{trainFrac}$'' and the learning rate ``$\mathrm{learning\_rate}$'' are stored in $V_\mathrm{DNN}$. We denote $x^\mathrm{low}$ as $\mathrm{minIn}$, $x^\mathrm{upp}$ as $\mathrm{maxIn}$, $y^\mathrm{low}$ as $\mathrm{minOut}$ and $y^\mathrm{upp}$ as $\mathrm{maxOut}$. $\mathrm{minIn}$ and $\mathrm{maxIn}$ are calculated before the construction of the DNN and are taken as an input. The function $\textproc{FullyConnectedNN}$ is imported from $\mathrm{pymor.models.neural\_network}$ which is included in the Python package pyMor. It builds a neural network with Kaiming initialization where the number of neurons in each layer gets specified by the first and the activation function of the neural network by the second argument.
+To summarize this, we present now the construction of a DNN as pseudo code in algorithm \ref{DNNConstruction}. Training parameters like the neural network structure ($\mathrm{DNNStructure}$), the activation function ($\textproc{activFunc}$), the number of restarts of different DNN initializations ($\mathrm{restarts}$), the number of training epochs ($\mathrm{epochs}$), the number of epochs without decrease of the evaluation loss after which early stopping is applied ($\mathrm{earlyStop}$), the fraction of the sample that is used for training ($\mathrm{trainFrac}$) and the learning rate ($\mathrm{learning\_rate}$) are stored in $V_\mathrm{DNN}$. We denote $x^\mathrm{low}$ as $\mathrm{minIn}$, $x^\mathrm{upp}$ as $\mathrm{maxIn}$, $y^\mathrm{low}$ as $\mathrm{minOut}$ and $y^\mathrm{upp}$ as $\mathrm{maxOut}$. $\mathrm{minIn}$ and $\mathrm{maxIn}$ are calculated before the construction of the DNN and are taken as an input. The function $\textproc{FullyConnectedNN}$ is imported from $\mathrm{pymor.models.neural\_network}$ which is included in the Python package pyMOR. It builds a neural network with Kaiming initialization where the number of neurons in each layer gets specified by the first and the activation function of the neural network by the second argument.
 
 \begin{algorithm}[H]%\footnotesize
 \caption{\label{DNNConstruction}DNN construction}
@@ -202,17 +214,17 @@ To summarize this, we present now the construction of a DNN as pseudo code in al
 \end{algorithmic}
 \end{algorithm}
 
-The algorithm $\textproc{constructDNN}$ begins by setting the scaled samples for training and testing. For that, $\mathrm{normSample}$ is defined as a matrix where each row $i$ is equal to the input sample $\mathrm{sample}[i][0]$ and $\mathrm{normVal}$ is a vector where each element $i$ is set to the output sample $\mathrm{sample}[i][1]$. Then we define them like in \eqref{scalingToZeroOne}.
+The algorithm $\textproc{constructDNN}$ begins by setting the scaled samples for training and testing. For that, $\mathrm{normSample}$ is defined as a matrix where each row $i$ is equal to the input sample $\mathrm{sample}[i][0]$ and $\mathrm{normVal}$ is a vector where each element $i$ is set to the output sample $\mathrm{sample}[i][1]$. Then we scale and translate them in line \ref{inputScaling} and \ref{outputScaling} as it is shown in \eqref{scalingToZeroOne}.
 
-After $\mathrm{normSample}$ and $\mathrm{normVal}$ are converted to a 32-bit floating point data type tensor from the torch package in lines \ref{tensorConversion1} and \ref{tensorConversion2}, the training samples $x_\mathrm{train}$ and $y_\mathrm{train}$ are set to a fraction of size $\mathrm{trainFrac}$ from the scaled and converted sample. The rest is used for the evaluation samples $x_\mathrm{val}$ and $y_\mathrm{val}$.
+After $\mathrm{normSample}$ and $\mathrm{normVal}$ are converted to a 32-bit floating point data type tensor from the torch package in lines \ref{tensorConversion1} and \ref{tensorConversion2}, the training samples $x_\mathrm{train}$ and $y_\mathrm{train}$ are set to a fraction of size $\mathrm{trainFrac}$ from the scaled and converted samples $x$ and $y$. The remaining elements of $x$ and $y$ are used for the evaluation samples $x_\mathrm{val}$ and $y_\mathrm{val}$.
 
 Next, the neural network $\mathrm{DNN}$ with the structure $\mathrm{DNNStructure}$ and the activation function $\textproc{activFunc}$ is initialized with Kaiming initialization. As an example, if $\mathrm{DNNStructure}$ would be equal to $[N_0, N_1, \dotsc, N_L]$, we would get a DNN with $L$ layers and $N_i$ neurons in layer $i=0, 1, \dotsc, L$.
 
-After the loss function is set to the MSE loss and the optimizer is set to the L-BFGS optimizer, we train the neural network $\mathrm{DNN}$ by calling $\textproc{trainDNN}$ from the algorithm \ref{trainDNN}. $\mathrm{evalDNN}$ in line \ref{defEvalDNN} is the loss of $\mathrm{DNN}$ on the scaled and converted evaluation set.
+After the loss function is set to the MSE loss and the optimizer is set to the L-BFGS optimizer, we train the neural network $\mathrm{DNN}$ by calling $\textproc{trainDNN}$ from the algorithm \ref{trainDNN}. $\mathrm{evalDNN}$ in line \ref{defEvalDNN} is the loss of $\mathrm{DNN}$ on the scaled and converted validation set.
 
 In the for-loop, multiple neural networks $\textproc{DNN}_i$ are trained. If there is a neural network with a loss that is less than $\mathrm{evalDNN}$, we overwrite $\textproc{DNN}$ with the neural network $\textproc{DNN}_i$ that has the smalles loss on the evaluation set.
 
-After the for-loop, the function $\textproc{F$_\mathrm{ML}$}$ is defined. It takes an input $x_\mathrm{inp}$ and scales it like in line \ref{inputScaling} while also converting it to a 32-bit float tensor like in line \ref{tensorConversion1}. Then the function calls $\textproc{DNN}$ on the scaled and converted input, converts the DNN output back to a non-tensor float and rescales it in an inverted way compared to line \ref{outputScaling}.
+After the for-loop, the function $\textproc{F$_\mathrm{ML}$}$ is defined. It takes an input $x_\mathrm{inp}$ and scales it like in line \ref{inputScaling} while also converting it to a 32-bit float tensor like in line \ref{tensorConversion1}. Then the function calls $\textproc{DNN}$ on the scaled and converted input, converts the neural network output back to a non-tensor float and rescales it in an inverted way compared to line \ref{outputScaling}. This value is then the output of $\textproc{F$_\mathrm{ML}$}$.
 
 Finally, $\textproc{F$_\mathrm{ML}$}$ is returned by $\textproc{constructDNN}$.
 

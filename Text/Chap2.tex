@@ -154,9 +154,10 @@ Q_d:=\{v\in C(\bar{I},H)\mid v |_{I_m}\in\mathcal{P}_1(I_m,H),m=1,2,\dotsc,N_t\}
 \end{displaymath}
 
 By using the Lagrange basis of $\mathcal{P}_1(I_m,\mathbb{R})$, we can write every function $v \in Q_d$ as
-\begin{displaymath}
+\begin{equation}
+\label{discretizeVariableInTime}
 v(t,x)=\left(m-t\frac{N_t}{T}\right) v_{m-1}(x)+\left(t\frac{N_t}{T}-m+1\right) v_m(x)\text{ for }t\in I_m,
-\end{displaymath}
+\end{equation}
 where $v_m(x)=v(t_m,x)$.
 
 
@@ -222,34 +223,41 @@ where $\hat{\mathbf{U}}_m=\left(\hat{u}(t_m, x_i)\right)_{i=1,\dotsc,N_\mathcal{
 
 \section{Optimization of the control variable}
 
-To optimize the control variable, we write every $q\in Q_d$, by using a fixed set of shape functions
+To optimize the control variable, we write every $q\in Q_d$, by using a fixed set of $N_b\in\mathbb{N}$ shape functionals
 \begin{equation}
 \label{basisFuncionsList}
 \Phi=\{\phi_1,\dotsc,\phi_{N_b}\}
 \end{equation}
- with $\phi_1,\dotsc,\phi_{N_b}\in H$ and scalars $q_1^0,q_1^1,\dotsc,q_1^{N_t},\dotsc,q_{N_b}^0,q_{N_b}^1\dotsc,q_{N_b}^{N_t}\in\mathbb{R}$, as
+ with $\phi_1,\dotsc,\phi_{N_b}\in H$ and scalars $q_1^0,q_1^1,\dotsc,q_1^{N_t},\dotsc,q_{N_b}^0,q_{N_b}^1\dotsc,q_{N_b}^{N_t}\in\mathbb{R}$, as a linear combination of the shape functionals in $\Phi$ with time-dependent factors. That is
 \begin{equation}
 \label{discrContrVar}
-q(t,x) = \sum_{i=1}^{N_b}\alpha_i(t)\phi_i(x)
+q(t,x) = \sum_{i=1}^{N_b}\alpha_i(t)\phi_i(x),
 \end{equation} 
-with
+where the factors $\alpha_i(t)$ are for $t\in I_m$ a weighted sum between $q^{m-1}_i$ and $q^m_i$ with $m=1,\dotsc,N_t$ as in \eqref{discretizeVariableInTime}:
 \begin{displaymath}
 \alpha_i(t)=\begin{cases}
 q_i^{m-1}\left(m-t\frac{N_t}{T}\right) + q_i^m\left(t\frac{N_t}{T}-m+1\right) & \text{ if $t\in I_m$ with $m=1,\dotsc,N_t$}\\
 q_i^0 & \text{ if $t=0$.}
 \end{cases}
 \end{displaymath}
-Each control variable that is written in this form can be represented as a vector
+Each control variable that is written in this form can be represented by a vector
 \begin{displaymath}
-\mathbf{q}=\left[q_1^0,q_1^1,\dotsc,q_1^{N_t},\dotsc,q_{N_b}^0,q_{N_b}^1\dotsc,q_{N_b}^{N_t}\right]^T\in\mathcal{D}:=\mathbb{R}^{N_\mathbf{q}},
+\mathbf{q}=\left[q_1^0,q_1^1,\dotsc,q_1^{N_t},\dotsc,q_{N_b}^0,q_{N_b}^1\dotsc,q_{N_b}^{N_t}\right]^T\in\mathcal{D},
 \end{displaymath} 
-with $N_\mathbf{q} = (N_t+1)\cdot N_b$. Therefore, we write
-\begin{displaymath}
+where $\mathcal{D}:=\mathbb{R}^{N_\mathbf{q}}$ is the domain of the control vector with $N_\mathbf{q} = (N_t+1)\cdot N_b$. Hence, we write
+\begin{equation}
+\label{FOMFunctionalEvaluationDef}
 j(\mathbf{q}):=j(q)
-\end{displaymath}
-for each $q$ that is defined like in \eqref{discrContrVar}.
+\end{equation}
+for each $q$ that is defined like in \eqref{discrContrVar}. In the remaining chapters, we want to find a $\mathbf{q}\in\mathcal{D}$ that minimizes this functional. That is
+\begin{equation}
+\label{FOMOptimizationProblemDef}
+\operatorname*{minimize}_{\mathbf{q}\in\mathcal{D}}j(\mathbf{q}).
+\end{equation}
 
-In the next chapters, we present algorithms that minimize $j(\mathbf{q})$ with respect to its control vector $\mathbf{q}$.
+In this thesis, we refer to evaluations of the functional $j$ in \eqref{FOMFunctionalEvaluationDef} as full order model (FOM) functional evaluations. The optimization problem in \eqref{FOMOptimizationProblemDef} is called the FOM optimization problem.
+
+In the next chapters, we present algorithms that solve the FOM optimization problem. Thus, the FOM functional is also the objective functional.
 
 
 
