@@ -208,7 +208,7 @@ def L_BFGS_B_minimizer(init, a, T, grid_intervals, nt, q_shape):
     startLBFGSB = time.time()
     opt = minimize(lambda mu: J(mu, q_shape, a, T, grid_intervals, nt)[0], init, method='L-BFGS-B')
     endLBFGSB = time.time()
-    LBFGSBTime = endLBFGSB-startLBFGSB
+    LBFGSBTime = (endLBFGSB-startLBFGSB)/60
     return opt.x, opt.fun, LBFGSBTime
 
 
@@ -946,17 +946,6 @@ def compareEnOpt(init, N, eps, eps_o, eps_i, k_1, k_1_o, k_1_i, V_DNN, delta_ini
         plt.show()
         print('FOM-EnOpt error, shape functional {}: {}'.format(i, q-qLBFGSB))
         print('AML-EnOpt error, shape functional {}: {}'.format(i, qAML-qLBFGSB))
-        
-        plt.plot(t, q[i*(nt+1):(i+1)*(nt+1)], label='FOM-EnOpt')
-        plt.plot(t, qAML[i*(nt+1):(i+1)*(nt+1)], label='AML-EnOpt')
-        if analytical:
-            plt.plot(t, qAnalytical, label='Analytical')
-        plt.plot(t, init[i*(nt+1):(i+1)*(nt+1)], label='Initialization')
-        plt.title('Optimal solutions: shape functional {}'.format(i+1))
-        plt.xlabel('Time')
-        plt.ylabel('Control variable')
-        plt.legend()
-        plt.show()
     return q, method, FOMValues, outerIterationsTotal, FOMEvaluationsTotal, runTimeTotal, qAML, methodAML, FOMValuesAML, surrogateValuesAML, outerIterationsTotalAML, innerIterationsTotalAML, FOMEvaluationsTotalAML, surrogateEvaluationsTotalAML, surrogateEvalAML, surrogateTrainAML, trainingTimeTotalAML, runTimeTotalAML, qLBFGSB, FOMValueLBFGSB, runTimeTotalLBFGSB
 
 
