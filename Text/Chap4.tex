@@ -296,7 +296,7 @@ We describe now the Adaptive-ML-EnOpt algorithm with pseudo code. This algorithm
 \State $F_k \gets F^\mathrm{next}_k$
 \State\label{AMLSetqk} $\mathbf{q}_k \gets \mathbf{q}^\mathrm{next}_k\Call{.copy}{\:}$
 \State $k\gets k+1$
-\EndWhile
+\EndWhile\label{AMLEnOptWhileEnd}
 \State \Return $\mathbf{q}^*\gets\mathbf{q}_k$
 \EndFunction
 \end{algorithmic}
@@ -347,6 +347,6 @@ Like in the $\textproc{FOM-EnOpt}$ algorithm \ref{FOM-EnOpt}, there are some mor
 
 We introduced this algorithm to speed up the FOM-EnOpt algorithm by decreasing the number of FOM evaluation. Like in the FOM-EnOpt procedure, we begin the algorithm with a FOM optimization step in line \ref{FOMOptStepAML1} and call one at the end of each outer iteration in line \ref{FOMOptStepAML2}. Single FOM functional evaluations are performed in line \ref{AMLFOMEval1} for the initialization of $F_k$ and in line \ref{AMLFOMEval2} to update $F^\mathrm{next}_k$.
 
-We have mentioned at the end of chapter \ref{ChapterEnsembleBasedOptimizationAlgorithm} that calls of the FOM optimization step procedure are the most expensive computations in the FOM-EnOpt algorithm. With the Adaptive-ML-EnOpt procedure, we replaced most FOM optimization step calls by surrogate functional calls. Calculations of surrogate functional values are much cheaper to compute since they require only a single forward pass through a neural network.
+We have mentioned at the end of chapter \ref{ChapterEnsembleBasedOptimizationAlgorithm} that calls of the FOM optimization step procedure are the most expensive computations in the FOM-EnOpt algorithm. In the Adaptive-ML-EnOpt procedure, we replaced most FOM optimization step calls by surrogate functional calls. Calculations of surrogate functional values are much cheaper to compute since they require only a single forward pass through a neural network.
 
-Since most optimization steps are done with surrogate functionals, we expect that the number of FOM evaluations is smaller than in the FOM-EnOpt algorithm. However, now the FOM evaluations are not the only costly computations. We have to keep in mind that the training of the neural network that is needed for the surrogate might also require some time. In our experiments in chapter \ref{chapterNumericalExperiments}, we examine the number of FOM evaluations and computation times of these two algorithms, among other things.
+Since most optimization steps are done with surrogate functionals, we expect that the number of FOM evaluations is smaller than in the FOM-EnOpt algorithm. However, now the FOM evaluations are not the only costly computations. We should note that the training of the neural network required for the surrogate can also take some time. In our experiments in chapter \ref{chapterNumericalExperiments}, we examine the number of FOM evaluations and computation times of these two algorithms, among other things.

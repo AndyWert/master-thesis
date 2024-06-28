@@ -1,6 +1,6 @@
 \chapter{\label{chapterNumericalExperiments}Numerical experiments}
 
-In this chapter we are going to measure the performance of our algorithms by applying them to an example of the weak problem \eqref{weakProb}. For this purpose, the solution of this problem is derived first. Afterwards, we compare the analytical solution with the solution from the FOM-EnOpt and the AML-EnOpt algorithm. Additionally, we examine how the optimization algorithms behave if parameters, such as the step size, are changed or if other neural network training parameters are used.
+In this chapter we are going to measure the performance of our algorithms by applying them to an example of the weak problem \eqref{weakProb}. For this purpose, the solution of this problem is derived first. Afterwards, we compare the analytical solution with the solution from the FOM-EnOpt and the Adaptive-ML-EnOpt (AML-EnOpt) algorithm. Additionally, we examine how the optimization algorithms behave if parameters, such as the number of time steps, are changed or if other neural network structures are used.
 
 \section{Example of an analytical problem}
 
@@ -24,7 +24,7 @@ j'(\bar{q})(\delta_q)=\lim_{\tau\downarrow0}\frac{j(q+\tau\delta_q)-j(q)}{\tau}.
 \end{displaymath}
 If \eqref{firstOrderOptimalityCondition} holds, then $\bar{q}$ satisfies the first order optimality conditions of \eqref{redProb}. In this case, $\bar{q}$ is even optimal due to the linear-quadratic structure of the optimal control problem \cite{doi:10.1137/070694016}.
 
-If we choose $u$ now as $u(q)$, so that it satisfies the weak state equations \eqref{weakProb}, we get
+If we choose $u$ now as $u(q)$, so that it satisfies the weak state equations \eqref{weakEq}, we get
 
 \begin{displaymath}
 j(q)=J(q, u(q))=\mathcal{L}(q,u(q),z,\tilde{z}),
@@ -33,10 +33,10 @@ since all terms after `$J(q,u)$' in \eqref{lagrangian} are equal to zero.
 
 We get now the directional derivative of $j$ by taking the directional derivative of $\mathcal{L}$ with respect to $q$. We note beforehand that 
 \begin{eqnarray*}
--(\partial_tu(q),\delta_z)_I-(\nabla u(q), \nabla \delta_z)_I+(f+q, \delta_z)_I&=&0\quad\forall q\in Q, \delta_z\in X,\\
-(u_0-u(q)(0), \delta_{\tilde{z}})&=&0\quad\forall q\in Q, \delta_{\tilde{z}}\in X.
+-(\partial_tu(q),z)_I-(\nabla u(q), \nabla z)_I+(f+q, z)_I&=&0\quad\forall q\in Q, z\in X,\\
+(u_0-u(q)(0), \tilde{z})&=&0\quad\forall q\in Q, \tilde{z}\in X.
 \end{eqnarray*}
-By using this, we get the derivative
+This means that for all $q\in Q$ and $z,\tilde{z}\in X$ an alteration of $q$ does not change the function value of $\mathcal{L}(q,u(q),z,\tilde{z})$. Thus, we get the directional derivative
 \begin{equation}
 \label{LagrangianDerivative}
 \begin{aligned}
@@ -45,21 +45,29 @@ j'(q)(\delta_q)=&\mathcal{L}'(q,u(q),z,\tilde{z})(\delta_q)&\\
 \end{aligned}
 \end{equation}
 %where $\partial_q\mathcal{L}(q, u, z, \tilde{z})(\delta_q)$ is the directional partial derivative of the Lagrangian with respect to $q$ in the direction $\delta_q$.
-The first summand in the second line denotes the directional derivative of the Lagrangian with respect to $q$ in direction $\delta_q\in Q$. Analogously, the second summand denotes the directional derivative of the Lagrangian with respect to $u$ in direction $\delta_u\in X$. $\delta_u$ is here uniquely defined such that it satisfies
-\begin{equation*}
+The first summand in the second line denotes the directional derivative of the Lagrangian with respect to $q$ in direction $\delta_q\in Q$. Analogously, the second summand denotes the directional derivative of the Lagrangian with respect to $u$ in direction $\delta_u\in X$. $\delta_u$ is here uniquely defined so that it satisfies
+\begin{equation}
+\label{deltaUEquations}
 \begin{aligned}
 	(\partial_t\delta_u,\phi)_I+(\nabla \delta_u,\nabla\phi)_I&=(\delta_q,\phi)_I&\forall\phi\in X,\\
 	\delta_u(0)&=0&\text{ in }\Omega.
 \end{aligned}
-\end{equation*}
-Then it holds, that for any $\tau\in\mathbb{R}$
+\end{equation}
+Such a unique solution exists by Proposition \ref{uniqueU}. Now it holds, that for any $\tau\in\mathbb{R}$,
 \begin{equation*}
 \begin{aligned}
 	(\partial_t(u(q)+\tau\delta_u),\phi)_I+(\nabla (u(q)+\tau\delta_u),\nabla\phi)_I&=(f+q+\tau\delta_q,\phi)_I&\forall\phi\in X,\\
-	(u(q)+\tau\delta_u)(0)&=u_0&\text{ in }\Omega.
+	(u(q)+\tau\delta_u)(0)&=u_0&\text{ in }\Omega
 \end{aligned}
 \end{equation*}
-Since $u(q+\tau\delta_q)$ is uniquely defined to satisfy the equations above, it follows that $u(q+\tau\delta_q)=u(q)+\tau\delta_u$.
+by multplication of the equations in \eqref{deltaUEquations} with $\tau$ and addition of the product to the weak state equations \eqref{weakEq}. Since $u(q+\tau\delta_q)$ is uniquely defined to satisfy the equations
+\begin{equation*}
+\begin{aligned}
+	(\partial_tu(q+\tau\delta_q),\phi)_I+(\nabla u(q+\tau\delta_q),\nabla\phi)_I&=(f+q+\tau\delta_q,\phi)_I&\forall\phi\in X,\\
+	u(q+\tau\delta_q)(0)&=u_0&\text{ in }\Omega,
+\end{aligned}
+\end{equation*}
+it follows that $u(q+\tau\delta_q)=u(q)+\tau\delta_u$.
 
 Therefore we get for every functional $g$ which has a directional derivative in $\delta_u$-direction:
 \begin{eqnarray*}
@@ -105,9 +113,7 @@ j'(q)(\delta_q)&=&\mathcal{L}'_q(q, u(q), z(q), \tilde{z}(q))(\delta_q)\\
 \end{eqnarray*}
 
 
-For the testing of our algorithms, we consider the problem \eqref{weakProb} on $\Omega\times I=(0,1)^2\times(0,0.1)$. The following example is originally described in \cite{doi:10.1137/070694016}.
-
-To define the functions in \eqref{weakProb}, we use the eigenfunction
+For the testing of our algorithms, we consider the problem \eqref{weakProb} on $\Omega\times I=(0,1)^2\times(0,T)$ with $T=0.1$. The following example is originally described in \cite{doi:10.1137/070694016}. To define the functions in \eqref{weakProb}, we use the eigenfunction
 \begin{displaymath}
 w_a(t,x_1,x_2):=\exp(a\pi^2t)\sin(\pi x_1)\sin(\pi x_2) \text{ for } a\in\mathbb{R}.
 \end{displaymath}
@@ -135,7 +141,11 @@ If we set the regularization parameter $\alpha$ in the objective functional \eqr
 
 It holds that $\bar{q}\in Q, \bar{u}\in X, \bar{z}\in X$. We confirm now that $(\bar{q}, \bar{u}, \bar{z})$ is a minimizer by checking if $\bar{q}$ satisfies \eqref{firstOrderOptimalityCondition}, $\bar{u}$ \eqref{weakEq} and $\bar{z}$ \eqref{adjoinedStateEquation}.
 
-Beginning with $\bar{z}$, we have $\bar{z}(T, x_1, x_2)=0$ trivially for all $(x_1,x_2)\in\Omega$. Integration by parts gives for all $\phi\in X$
+Beginning with $\bar{z}$, we have $\bar{z}(T, x_1, x_2)=0$ trivially for all $(x_1,x_2)\in\Omega$ and therefore the second equation in \eqref{adjoinedStateEquation} is satisfied. To check the first equation in \eqref{adjoinedStateEquation}, we write it as
+\begin{displaymath}
+(\phi,\partial_tz)_I-(\nabla \phi,\nabla z)_I+(\phi, u-\hat{u})_I=0\quad\forall\phi\in X.
+\end{displaymath}
+Integration by parts gives for all $\phi\in X$
 \begin{displaymath}
 (\phi,\partial_tz)_I-(\nabla \phi,\nabla z)_I+(\phi, u-\hat{u})_I=(\phi,\partial_tz+\Delta z+u-\hat{u})_I.
 \end{displaymath}
@@ -145,9 +155,13 @@ Now we compute
 \Delta \bar{z}(t,x_1,x_2)&=&2\pi^2(w_a(T,x_1,x_2)-w_a(t,x_1,x_2))\\
 \bar{u}(t,x_1,x_2)-\hat{u}(t,x_1,x_2)&=&\pi^2((2-a)w_a(t,x_1,x_2)-2w_a(T,x_1,x_2)).
 \end{eqnarray*}
-From $\partial_t\bar{z}(t,x_1,x_2)+\Delta \bar{z}(t,x_1,x_2)+\bar{u}(t,x_1,x_2)-\hat{u}(t,x_1,x_2)=0$ for all $(x_1,x_2)\in\Omega, t\in I$ follows that $\bar{z}$ satisfies the adjoined state equation \eqref{adjoinedStateEquation}.
+From $\partial_t\bar{z}(t,x_1,x_2)+\Delta \bar{z}(t,x_1,x_2)+\bar{u}(t,x_1,x_2)-\hat{u}(t,x_1,x_2)=0$ for all $(x_1,x_2)\in\Omega, t\in I$ follows now that $\bar{z}$ satisfies the adjoined state equation \eqref{adjoinedStateEquation}.
 
-By doing the same for $\bar{u}$, we see that it meets the initial condition $\bar{u}(0,x_1,x_2)=u_0(x_1,x_2)$ for all $(x_1,x_2)\in\Omega$ of \eqref{weakEq}. Again, integration by parts gives us for all $\phi\in X$
+By doing the same for $\bar{u}$, we see that it meets the initial condition $\bar{u}(0,x_1,x_2)=u_0(x_1,x_2)$ for all $(x_1,x_2)\in\Omega$ of \eqref{weakEq}. Again, we write the first equation in \eqref{weakEq} as
+\begin{displaymath}
+(\partial_tu,\phi)_I+(\nabla u,\nabla\phi)_I-(f+q,\phi)_I=0\quad\forall\phi\in X,
+\end{displaymath}
+and integration by parts gives us for all $\phi\in X$
 \begin{displaymath}
 (\partial_t\bar{u},\phi)_I+(\nabla \bar{u},\nabla\phi)_I-(f+\bar{q},\phi)_I=(\partial_t\bar{u}-\Delta\bar{u}-f-\bar{q},\phi)_I.
 \end{displaymath}
@@ -158,7 +172,7 @@ It holds
 \partial_t\bar{u}(t,x_1,x_2)-\Delta \bar{u}(t,x_1,x_2)&=&-\pi^4w_a(t,x_1,x_2)\\
 &=&f(t,x_1,x_2)+\bar{q}(t,x_1,x_2).
 \end{eqnarray*}
-Therefore $\partial_t\bar{u}(t,x_1,x_2)-\Delta\bar{u}(t,x_1,x_2)-f(t,x_1,x_2)-\bar{q}(t,x_1,x_2)=0$ for all $(x_1,x_2)\in\Omega, t\in I$, so $\bar{u}$ fulfills the conditions in the weak state equation \eqref{weakEq}.
+Therefore $\partial_t\bar{u}(t,x_1,x_2)-\Delta\bar{u}(t,x_1,x_2)-f(t,x_1,x_2)-\bar{q}(t,x_1,x_2)=0$ for all $(x_1,x_2)\in\Omega, t\in I$, so $\bar{u}$ fulfills the conditions of the weak state equation \eqref{weakEq}.
 
 With $\alpha=\pi^{-4}$ we get $\alpha\bar{q}(t,x_1,x_2)+\bar{z}(t,x_1,x_2)=0$ for all $(x_1,x_2)\in\Omega, t\in I$, which means that $\bar{q}$ satisfies the optimality condition \eqref{firstOrderOptimalityCondition}. Now we conclude that $(\bar{q}, \bar{u}, \bar{z})$ is the optimal solution.\\
 
@@ -166,12 +180,12 @@ Since the solutions $q\in Q_d$ of our algorithms have the form that is described
 \begin{displaymath}
 \bar{q}(t,x_1,x_2)=-\pi^4(\exp(a\pi^2t)-\exp(a\pi^2T))\sin(\pi x_1)\sin(\pi x_2).
 \end{displaymath}
-Now we have $\bar{q}$ as a product of the term $-\pi^4(\exp(a\pi^2t)-\exp(a\pi^2T))$, that is only dependent on $t$, and the shape functional $\sin(\pi x_1)\sin(\pi x_2)$, which depends only on $x$ and is an element of $H$. Additional shape functionals for the control functional are not used so that we can compare the output of our optimization algorithms with the analytical solution $\bar{q}$. We expect that the elements $q^i_1$ of the control vectors $\mathbf{q}$ that we get as outputs are close to
+Now we have $\bar{q}$ as a product of the term $-\pi^4(\exp(a\pi^2t)-\exp(a\pi^2T))$, that is only dependent on $t$, and the shape functional $\sin(\pi x_1)\sin(\pi x_2)$, which depends only on $x$ and is an element of $H$. Additional shape functionals for the control functional are not used so that we can compare the outputs of our optimization algorithms with the analytical solution $\bar{q}$. We expect that the elements $q^i_1$ of the control vectors $\mathbf{q}$ that we get as outputs are close to
 \begin{equation}
 \label{controlVectorElements}
 \bar{q}^i_1=-\pi^4(\exp(a\pi^2t_i)-\exp(a\pi^2T))\text{ for }i=0,\dotsc,N_t.
 \end{equation}
-For our tests, we choose $a$ to be $-\sqrt{5}$, so that $f$ and $\hat{u}$ do not depend on time.
+For our tests, we choose $a$ to be $-\sqrt{5}$ which has the consequence that $f$ and $\hat{u}$ do not depend on time.
 
 \section{Numerical results}
 
@@ -179,9 +193,11 @@ Now we test the FOM- and AML-EnOpt algorithms on the example from the last secti
 
 The initial control vector $\mathbf{q}_0$ is a vector with constant entries of the value $-40$. This value lies approximately between the minimum element in \eqref{controlVectorElements} which is $\bar{q}^0_1\approx-87$ and the maximum $\bar{q}^{N_t}_1=0$. The values of the constant initial control vector, along with other parameters for the algorithms that are presented in the chapters \ref{ChapterEnsembleBasedOptimizationAlgorithm} and \ref{ChapterAdaptiveMLEnOptAlgorithm}, are specified in the table \ref{FOMAMLEnOptParameters}. The notation in the table corresponds to the notation in these algorithms.
 
-The neural network that is used for the surrogate functional consists of two hidden layers where each hidden layer has $25$ neurons. Our activation function is the $\tanh$ function as mentioned in section \ref{sectionDeepNeuralNetworks}. Early stopping is applied for the training of the DNN with a maximum of $1000$ training epochs. The variable $\mathrm{earlyStop}$ in algorithm \ref{trainDNN} is set to $20$. We use the L-BFGS optimizer with strong Wolfe line-search for the minimization of the MSE loss on the validation set. The validation set consists of $20\%$ of the sample set, so the other $80\%$ of the sample set are used for the training set. The number of training restarts is very small because a higher number would extend the training time of the DNN by so much that it makes the algorthm terminate slower. We restart the training two times, so we train three DNNs in total to construct the surrogate functional.
+The neural network that is used for the surrogate functional consists of two hidden layers where each hidden layer has $25$ neurons. Our activation function is the $\tanh$ function as mentioned in section \ref{sectionDeepNeuralNetworks}. Early stopping is applied for the training of the DNN with a maximum of $1000$ training epochs. The variable $\mathrm{earlyStop}$ in algorithm \ref{trainDNN} is set to $20$. We use the L-BFGS optimizer with strong Wolfe line-search for the minimization of the MSE loss on the validation set. The validation set consists of $20\%$ of the sample set, so the other $80\%$ of the sample set are used for the training set. Therefore, $\mathrm{trainFrac}$ in algorithm \ref{DNNConstruction} is set to $0.8$. The number of training restarts is very small because a higher number would extend the training time of the DNN by so much that it makes the algorthm terminate slower. We restart the training two times, so we train three DNNs in total to construct the surrogate functional.\\
 
-Before the results are presented, we want to remember that the FOM-EnOpt and the Adaptive-ML-EnOpt procedures minimize the objective functional $j$ by maximizing the negative functional $-j$. The results that we show are converted back to the outputs that the objective functional $j$ would give, although the true values during these algorithms are negative. As an example, the graphs in figure \ref{FOMAMLEnOptFuncValComp} would be mirrored on the y-axis if they had shown the values during the respective procedure.
+Before the results are presented, we want to note that the FOM-EnOpt and the Adaptive-ML-EnOpt procedures minimize the objective functional $j$ by maximizing the negative functional $-j$. The results that we show are converted back to the outputs that the objective functional $j$ would give, although the true values during these algorithms are negative. As an example, the graphs in figure \ref{FOMAMLEnOptFuncValComp} would be mirrored on the $x$-axis if they had shown the values during the respective procedure.
+
+Also, we want to clarify what we consider an outer and inner iteration. If we talk about the FOM-EnOpt algorithm, outer iterations involve computations of FOM optimization steps. Outer iterations in the FOM-EnOpt algorithm \ref{EnOptAlg} are the first OptStep call in line \ref{EnOptAlgOptStepCall1} and passes of the while-loop from line \ref{EnOptAlgBeginWhile} to \ref{EnOptAlgEndWhile}. The first optimization step in line \ref{EnOptAlgOptStepCall1} is also considered an outer iteration because it has almost the same computational complexity as the calculations in the while-loop. Also, it changes the iterate. Inner iterations do not exist in this algorithm. In the AML-EnOpt algorithm, outer iterations include not only FOM optimization steps, but also the construction of a surrogate functional. In the Adaptive-ML-EnOpt algorithm \ref{AML-EnOpt}, the computations from line \ref{F_k_tilde_check} to line \ref{AMLEnOptWhileEnd} are summed up as one outer iteration. The call of the FOM optimization step in line \ref{FOMOptStepAML1} is not considered an outer iteration loop because it is not as expensive as the computations in the outer iteration loop and also does not change the iterate during its call. Inner iterations are calls of the EnOpt algorithm on the neural network-based surrogate functional which occurs in line \ref{innerIterationCallAlgo} of the AML-EnOpt algorithm.
 
 For consistency, we will refer to $\mathbf{q}_k$ as the iterate at the beginning of the outer iteration $k$ and $\mathbf{q}^\mathrm{next}_k$ as the iterate at the end of the outer iteration $k$. This is based on the notation of the AML-EnOpt algorithm \ref{AML-EnOpt}. If we talk about the FOM-EnOpt algorithm, we refer to $\mathbf{q}_k$ as the iterate before the call of the optimization step procedure in line \ref{EnOptAlgOptStepCall1}, respectively line \ref{EnOptAlgOptStepCall2}, in the $k$-th outer iteration of the algorithm \ref{EnOptAlg} and thus we denote $\mathbf{q}^\mathrm{next}_k$ as the iterate after this call in iteration $k$.
 
@@ -216,11 +232,11 @@ Figure \ref{FOMAMLEnOptFuncValComp} shows the development of the FOM objective f
 
 We can see here that the functional values of the FOM-EnOpt and the Adaptive-ML-EnOpt algorithms converge towards a minimum. The output of the FOM-EnOpt algorithm gives an output whose objective functional value is approximately $4.22982802$ after $125$ iterations. The FOM objective functional value of the output from the AML-EnOpt procedure is approximately $4.22981359$ which is reached after only $25$ outer iterations. So the Adaptive-EnOpt algorithm gives here not only an output that has a smaller objective functional value, but also requires far fewer outer iterations than the FOM-EnOpt algorithm to terminate.\\
 
-To compare the functional values of the objective functional and the surrogate functionals of the Adaptive-ML-EnOpt procedure, we examine figure \ref{AMLEnOptFuncValComp}. The plot at the top shows the same graphs as in figure \ref{FOMAMLEnOptFuncValComp}, except that the objective functional values of the FOM-EnOpt algorithm are not included. The plot at the bottom shows only the last five outer iterations of the plot from above. We can see here that there is quite a big difference between the objective functional values and the surrogate functional values in the first outer iterations. The difference after the first iteration is approximately $0.02$. However, this difference gets smaller during the runtime of the procedure and is in the order of $10^{-7}$ for the last iterations.
+To compare the functional values of the objective functional and the surrogate functionals of the Adaptive-ML-EnOpt procedure, we examine figure \ref{AMLEnOptFuncValComp}. The plot at the top shows the same graphs as in figure \ref{FOMAMLEnOptFuncValComp}, except that the objective functional values of the FOM-EnOpt algorithm are not included. The plot at the bottom shows only the last five outer iterations of the plot from above. We can see here that there is quite a big difference between the objective functional values and the surrogate functional values in the first outer iterations. The difference after the first iteration is approximately $0.02$. However, this difference gets smaller during the runtime of the procedure and is in the order of $10^{-7}$ during the last iterations.
 
-One reason for this phenomenon is the difference between $\mathbf{q}_k$ and $\mathbf{q}^\mathrm{next}_k$ at different outer iterations. In the first iterations, we are relatively far away from an optimum and therefore the iterates change considerably. The surrogate functional is trained by a training and a validation set which are sampled around the iterate $\mathbf{q}_k$, so  if the difference between $\mathbf{q}^\mathrm{next}_k$ and $\mathbf{q}_k$ is large, the same tends to hold for the difference between $\mathbf{q}^\mathrm{next}_k$ and the samples, so the surrogate functional is less precise at $\mathbf{q}^\mathrm{next}_k$. As the algorithm progresses, the iterate converges towards an optimum and the differences between successive iterates are smaller, resulting in more accurate surrogate functional values.
+One reason for this phenomenon is the difference between $\mathbf{q}_k$ and $\mathbf{q}^\mathrm{next}_k$ at different outer iterations. In the first iterations, we are relatively far away from an optimum and therefore the iterates change considerably. The surrogate functional is trained by a training and a validation set which are sampled around the iterate $\mathbf{q}_k$, so  if the difference between $\mathbf{q}^\mathrm{next}_k$ and $\mathbf{q}_k$ is large, the same tends to hold for the difference between $\mathbf{q}^\mathrm{next}_k$ and the samples, so the surrogate functional is less precise at $\mathbf{q}^\mathrm{next}_k$. As the algorithm progresses, the iterates converge towards an optimum and the differences between successive iterates are smaller, resulting in more accurate surrogate functional values.
 
-This can be seen in figure \ref{L2Dist}. In the first iteration, the step from $\mathbf{q}_k$ to $\mathbf{q}^\mathrm{next}_k$ is much larger than the step from $\mathbf{q}_k$ to $\tilde{\mathbf{q}}_k$. The same holds with regard to the difference between $\mathbf{q}_k$ and the samples in $T_k$. Therefore the DNN is inaccurate at $\mathbf{q}^\mathrm{next}_k$. If this were the FOM-EnOpt algorithm, then $\tilde{\mathbf{q}}_k$ would be the next iterate, so we can see here a reason why the AML-EnOpt algorithm requires far fewer iterations than the FOM-EnOpt procedure which is that the machine learning-based algorithm takes larger steps at the beginning.
+This can be seen in figure \ref{L2Dist}. In the first iteration, the step from $\mathbf{q}_k$ to $\mathbf{q}^\mathrm{next}_k$ is much larger than the step from $\mathbf{q}_k$ to $\tilde{\mathbf{q}}_k$ with respect to the $L^2$-norm. The same holds with regard to the difference between $\mathbf{q}_k$ and the samples in $T_k$. Therefore the DNN is inaccurate at $\mathbf{q}^\mathrm{next}_k$. If this were the FOM-EnOpt algorithm, then $\tilde{\mathbf{q}}_k$ would be the next iterate, so we can see here a reason why the AML-EnOpt algorithm requires far fewer iterations than the FOM-EnOpt procedure which is that the machine learning-based algorithm takes larger steps at the beginning.
 
 Although the step from $\mathbf{q}_k$ to $\mathbf{q}^\mathrm{next}_k$ is still larger than the step from $\mathbf{q}_k$ to $\tilde{\mathbf{q}}_k$ at the last iteration, the step sizes differ not by a lot compared to the first iteration. $\mathbf{q}^\mathrm{next}_k$ is even closer to $\mathbf{q}_k$ than all the samples are since the value of $\mathbf{q}^\mathrm{next}_k$ at the bottom plot in figure \ref{L2Dist} is smaller than the value of $T_k$ min which is the sample in $T_k$ with the minimum $L^2$-distance to $\mathbf{q}_k$.\\
 
@@ -277,17 +293,17 @@ for $m=1,\dotsc,N_t$. The control $q^m_1$ influences only the vector $\mathbf{F}
 Method & Iteration & FOM objective function value  & Surrogate function value \\%& FOM eval. & Surrogate eval. & Training time (min) & $T_\mathrm{total}$ (min) & Speedup\\
 \hline
 \hline
-$\mathrm{FOM-EnOpt}$ & $1$ & $4.229826194856661$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+$\mathrm{FOM-EnOpt}$ & $1$ & $4.22982619$ & - \\%& $2839$ & - & - & $54.86$ & - \\
 \cline{2-4}
- & $2$ & $4.229829269880319$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+ & $2$ & $4.22982927$ & - \\%& $2839$ & - & - & $54.86$ & - \\
 \cline{2-4}
- & $3$ & $4.2298361817288885$ & - \\%& $2839$ & - & - & $54.86$ & - \\
+ & $3$ & $4.22983618$ & - \\%& $2839$ & - & - & $54.86$ & - \\
  \hline
-$\mathrm{AML-EnOpt}$ & $1$ & $4.229813297937858$ & $4.229813485631982$ \\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
+$\mathrm{AML-EnOpt}$ & $1$ & $4.2298133$ & $4.22981349$ \\%& $407$ & $12315$ & $2.03$ & $8.87$ & $6.18$ \\
 \cline{2-4}
- & $2$ & $4.229813596812994$ & $4.229813708587202$ \\%& $2839$ & - & - & $54.86$ & - \\
+ & $2$ & $4.2298136$ & $4.22981371$ \\%& $2839$ & - & - & $54.86$ & - \\
 \cline{2-4}
- & $3$ & $4.229813126525124$ & $4.22981328826163$ \\%& $2839$ & - & - & $54.86$ & - \\
+ & $3$ & $4.22981313$ & $4.22981329$ \\%& $2839$ & - & - & $54.86$ & - \\
 \hline
 \multicolumn{4}{l}{}\\
 \hline
@@ -361,19 +377,23 @@ $\mathrm{AML-EnOpt}$ & $1$ & $24.05$ & $14.24$ \\%& $407$ & $12315$ & $2.03$ & $
 \caption{\label{FOMAMLEnOptSolutionComp}Comparison of the optimal solutions obtained from the FOM-EnOpt and the AML-EnOpt algorithms}
 \end{figure}
 
-To investigate the effects of different neural network structures, we test now the AML-EnOpt algorithm with different quantities of neurons in the hidden layer. The number of hidden layers is fixed to two. The progression of the FOM objective functional values for different DNN structures is shown in Figure \ref{DNNStructComparison}. To distinguish the different results, the bottom plot shows the objective functional values of the last outer iterations. Since the procedure with $1000$ neurons in the hidden layer has here many more outer iterations than the rest, we do not show this plot to make the differences between the other results clearer. The number of outer iterations, as well as the minimum, maximum, and average training and validation losses are shown in table \ref{DNNLossComparison}. The values in the table \ref{DNNStructFOMComparison}, multiplied with $10^{-5}$ and added to $4.2298$, are the FOM objective functional values that the outputs of the respective procedures yields.\\
+To investigate the effects of different neural network structures, we test now the AML-EnOpt algorithm with different quantities of neurons in the hidden layer. The number of hidden layers is fixed to two. The progression of the FOM objective functional values for different DNN structures is shown in Figure \ref{DNNStructComparison}. To distinguish the different results, the bottom plot shows the objective functional values of the last outer iterations. Since the procedure with $1000$ neurons in the hidden layer has here many more outer iterations than the rest, we do not show this plot to make the differences between the other results clearer. The number of outer iterations, as well as the minimum, maximum, and average training and validation losses are shown in table \ref{DNNLossComparison}. The values in the table \ref{DNNStructFOMComparison}, multiplied with $10^{-5}$ and added to $4.2298$, are the FOM objective functional values that the outputs of the respective procedures yield.\\
 
 The initial shape functional control variance $\sigma^2_1$ and the constant correlation factor $\rho$ have a strong effect on the runtime and output of the FOM-EnOpt and AML-EnOpt algorithms. If the variance is too large, the FOM-EnOpt procedure tends to give a worse optimal solution. If the variance is too small, this algorithm needs more optimization steps than necessary to terminate.
 
 We choose the correlation factor to be close to one so that we get a smoother output. However, if this value is too large, the result is similar to a large $\sigma^2_1$ which we want to avoid. For example, if we set $\rho=0.9$, we get from \eqref{defineInitialCovariance} that the variance of $q^i_1$ is approximately $5.3\cdot\sigma^2_1$ for $i=0,\dotsc,N_t$. If $\rho$ is equal to $0.99$, the variance is with a value of approximately $50.3\cdot\sigma^2_1$ almost ten times as high.
 
-A poor choice of these values may have even more serious consequences for the FOM-EnOpt algorithm. If we set the variance too small, the neural network-based surrogate functional is not approximating the FOM objective functional sufficiently well in a large enough area and the AML-EnOpt algorithm fails. However, we still want to set the variance so small that the surrogate is a good approximation of the objective functional in a small area around the iterate when we are close to the optimal solution.
+A poor choice of these values may have even more serious consequences for the FOM-EnOpt algorithm. If we set the variance too small, the neural network-based surrogate functional is not approximating the FOM objective functional sufficiently well in a large enough area and the AML-EnOpt algorithm fails. However, we still want to set the variance so small that the surrogate is a good approximation of the objective functional in a small area around the current iterate when we are close to the optimal solution.
 
 We conclude that $\sigma^2_1$ and $\rho$ should be chosen carefully and dependent on each other. If we increase $\rho$ to get smoother iterates, we might have to decrease $\sigma^2_1$ so that the area which contains our samples is not too large. Also, the covariance matrix adaption step size $\beta_2$ should be large enough that the samples deviate not too much when the iterates get close to the optimum but not too large since that might result in variances close to zero when the iterate is not close to the optimum. Hence, it might require some testing to find values that suit the available optimization problem.\\
 
 Unlike the Adaptive-ML-EnOpt algorithm in \cite{Keil2022-dj}, we need to employ a trust-region method. If we proceed without it, we get the results of figure \ref{noTRResults}. The method seems to work up to the eighth iteration, but the machine learning-based surrogate suggests in the ninth outer iteration that there is an optimum near a point that is far from the actual optimum. This point is shown in the bottom plot of figure \ref{noTRResults}. Some entries of the resulting control vector exceed even the value of $600$, although they should be below zero.\\
 
-Before we increase the number of time steps, we compare how both algorithms get to their respective solution. During the FOM-EnOpt procedure, the iterates form a curve with a smooth shape early on. Going on, this curve changes only slightly after each iteration, mainly due to vertical stretching. With the Adaptive-ML-EnOpt method, the iterates are relatively close to the optimal point after a few iterations. Therefore, most iterations change the values of the iterates only slightly. To demonstrate this, the plots of the iterates after the fifth outer iteration are shown in figure \ref{FOMROMEnIptIter5}. We see here that the curve of the FOM-EnOpt procedure has a much smoother shape than that of the Adaptive-ML-EnOpt method. However, the values of the FOM method iterate lie in a range between approximately $-39$ and $-35$ and are far away from the optimum while their counterparts take a minimum below $-70$ and a maximum of around $0$.
+Now we compare how both algorithms get to their respective solution. During the FOM-EnOpt procedure, the iterates form a curve with a smooth shape early on. Going on, this curve changes only slightly after each iteration, mainly due to vertical stretching. With the Adaptive-ML-EnOpt method, the iterates are relatively close to the optimal point after a few iterations. Therefore, most iterations change the values of the iterates only slightly. To demonstrate this, the plots of the iterates after the fifth outer iteration are shown in figure \ref{FOMROMEnIptIter5}. We see here that the curve of the FOM-EnOpt procedure has a much smoother shape than that of the Adaptive-ML-EnOpt method. However, the values of the FOM method iterate lie in a range between approximately $-39$ and $-35$ and are far away from the optimum while their counterparts take a minimum below $-70$ and a maximum of around $0$.
+
+Before we increase the number of time steps, we try out other initializations. Let $\mathbf{q}^1_0$ be the zero vector and $\mathbf{q}^2_0$ a vector where every element has the value $-90$. The solutions that we get from the FOM and the machine learning-based algorithm when we initialize the first iterate as $\mathbf{q}^1_0$ is depicted in figure \ref{solutionsInit0}. The solution with the initialization $\mathbf{q}^2_0$ is shown in figure \ref{solutionsInit-90}. With an initialization of $\mathbf{q}^1_0$ we get similar results for both initializations. The FOM-EnOpt procedure returns an objective functional value of approximately $4.22982378$ after $146$ outer iterations. The AML-EnOpt algorithms solution has an objective functional value of about $4.2298234$ which is reached after $24$ outer iterations. These results are similar to the outcomes of the original initialization. The biggest difference is the number of outer iterations of the FOM-EnOpt procedure. The original initialization needed only $125$. The AML-EnOpt procedure with the initialization $\mathbf{q}^1_0$ terminated even one outer iteration earlier than the first initialization, but has a larger objective functional value.
+
+When we initialize these algorithms with $\mathbf{q}^2_0$, we get different results. The AML-EnOpt procedure still yields a similar outcome. It returns an objective functional value of approximately $4.22981306$ after $32$ outer iterations, so a few more than with the other initializations. The FOM-EnOpt algorithm however, returns a solution that is far off the optimal solution. This iterate is returned after $1000$ iterations with an objective functional value of about $4.24305956$, so the stopping criterion fulfilled in line \ref{FOMStoppingCriterionAlg} of algorithm \ref{EnOptAlg} was $k<k^*$ instead of $F_{k}>F^\mathrm{prev}_k+\varepsilon$. We conclude from this that the quality of the AML-EnOpt output is less dependent on the initialization than that of the FOM-EnOpt algorithm.
 
 \begin{figure}
 \centering
@@ -436,4 +456,35 @@ $(\cdot 10^{-5}+4.2298)$& $1.41$ & $1.35$ & $1.59$ & $1.35$ & $1.42$ & $1.61$ & 
 \includegraphics{Plots/noTRIteration8.png}
 \includegraphics{Plots/noTRIteration9.png}
 \caption{\label{noTRResults}An example of iterates after the eighth and ninth outer iteration if the trust-region method is not applied}
+\end{figure}
+
+\begin{figure}
+\centering
+%\textbf{Your title}\par\medskip
+\includegraphics{Plots/FOMInit0.png}
+\includegraphics{Plots/ROMInit0.png}
+\caption{\label{solutionsInit0}Solutions of the FOM-EnOpt (top) and AML-EnOpt (bottom) algorithms with an initialization of $\mathbf{q}^1_0$}
+\end{figure}
+
+\begin{figure}
+\centering
+%\textbf{Your title}\par\medskip
+\includegraphics{Plots/FOMInit-90.png}
+\includegraphics{Plots/ROMInit-90.png}
+\caption{\label{solutionsInit-90}Solutions of the FOM-EnOpt (top) and AML-EnOpt (bottom) algorithms with an initialization of $\mathbf{q}^2_0$}
+\end{figure}
+
+\begin{figure}
+\centering
+%\textbf{Your title}\par\medskip
+\includegraphics{Plots/solutionsNT50.png}
+\caption{\label{solutionsNT50Plot}Comparison of the optimal solutions obtained from the FOM-EnOpt and the AML-EnOpt algorithms for $50$ time steps}
+\end{figure}
+
+\begin{figure}
+\centering
+%\textbf{Your title}\par\medskip
+\includegraphics{Plots/solutionsDifferNT50.png}
+\includegraphics{Plots/solutionsDifferLBFGSBNT50.png}
+\caption{\label{solutionsDifferNT50}Difference between the optimal and analytical solutions at the top and the difference between the optimal and L-BFGS-B solutions at the bottom for $50$ time steps}
 \end{figure}

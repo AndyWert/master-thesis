@@ -719,9 +719,11 @@ def ROM_EnOpt(q_0, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_
 
 
 # q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])+sin(2*pi*x[0])*sin(2*pi*x[1])', dim_domain=2), ExpressionFunction('(1-(2*x[0]-1)**2)*(1-(2*x[1]-1)**2)', dim_domain=2)]
-q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
+q_shape = [ExpressionFunction('x[0]', dim_domain=2), ExpressionFunction('x[0]**2', dim_domain=2), ExpressionFunction('x[0]**3', dim_domain=2), ExpressionFunction('x[0]**4', dim_domain=2), ExpressionFunction('x[0]**5', dim_domain=2), ExpressionFunction('x[0]**6', dim_domain=2), ExpressionFunction('x[0]**7', dim_domain=2), ExpressionFunction('x[0]**8', dim_domain=2), ExpressionFunction('x[0]**9', dim_domain=2), ExpressionFunction('x[0]**10', dim_domain=2),
+           ExpressionFunction('x[1]', dim_domain=2), ExpressionFunction('x[1]**2', dim_domain=2), ExpressionFunction('x[1]**3', dim_domain=2), ExpressionFunction('x[1]**4', dim_domain=2), ExpressionFunction('x[1]**5', dim_domain=2), ExpressionFunction('x[1]**6', dim_domain=2), ExpressionFunction('x[1]**7', dim_domain=2), ExpressionFunction('x[1]**8', dim_domain=2), ExpressionFunction('x[1]**9', dim_domain=2), ExpressionFunction('x[1]**10', dim_domain=2)]
+# q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
 T = 0.1
-nt = 50
+nt = 10
 nb = len(q_shape)
 grid_intervals = 50
 a = -np.sqrt(5)
@@ -733,27 +735,27 @@ showInnerIterationPlots = False
 showPlots = False
 inspectDNNStructures = False
 N = 100
-eps = 1e-14
+eps = 1e-8
 k_1 = 1000
 beta_1 = 1
-beta_2 = 0.001
+beta_2 = 0.1
 r = 0.5
 nu_1 = 10
-var = [0.01]
+# var = [0.1]
+var = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
 assert len(var) == len(q_shape)
-correlationCoeff = 0.99
+correlationCoeff = 0.9
 
 
 # optimized control functional using the AML EnOpt minimizer
 delta_init = 100
 eps_o = 1e-8
-eps_i = 1e-14
+eps_i = 1e-12
 k_1_o = k_1
 k_1_i = k_1
 k_tr = 5
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), number of restarts, number of epochs, early stop, trainFrac, learning rate
-# V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
-V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 5, 1000, 15, 0.8, 1e-2]
+V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
 addDNNStruct = [[nb*(nt+1), 20, 20, 1], [nb*(nt+1), 25, 25, 1], [nb*(nt+1), 30, 30, 1], [nb*(nt+1), 35, 35, 1], [nb*(nt+1), 50, 50, 1], [nb*(nt+1), 100, 100, 1], [nb*(nt+1), 250, 250, 1], [nb*(nt+1), 500, 500, 1], [nb*(nt+1), 1000, 1000, 1]]
 
 

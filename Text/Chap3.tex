@@ -108,11 +108,11 @@ The implementation in pseudo code is shown below:
 \State \label{EnOptAlgFOMCall}$F^\mathrm{prev}_{k}\gets \Call{F}{\mathbf{q}_0}$
 \State\label{EnOptAlgOptStepCall1} $\mathbf{q}_k,T_k,\mathbf{C}_k,F_k\gets\Call{OptStep}{\textproc{F},\mathbf{q}_0,N,0,[\;],\mathbf{C}_\mathrm{init},F^\mathrm{prev}_{k},\beta_1,\beta_2,r,\varepsilon,\nu^*,\sigma^2,\rho, N_t, N_b, \textproc{pr}}$
 \State $k\gets 1$
-\While{$F_{k}>F^\mathrm{prev}_k+\varepsilon$\text{ and }$k<k^*$}
+\While{\label{FOMStoppingCriterionAlg}$F_{k}>F^\mathrm{prev}_k+\varepsilon$\text{ and }$k<k^*$}\label{EnOptAlgBeginWhile}
 \State $F^\mathrm{prev}_k\gets F_k$
 \State\label{EnOptAlgOptStepCall2} $\mathbf{q}_{k},T_{k},\mathbf{C}_k,F_{k}\gets\Call{OptStep}{\textproc{F},\mathbf{q}_k,N,k,T_k,\mathbf{C}_k,F_k,\beta_1,\beta_2,r,\varepsilon,\nu^*,\sigma^2,\rho, N_t, N_b,\textproc{pr}}$
 \State $k\gets k+1$
-\EndWhile
+\EndWhile\label{EnOptAlgEndWhile}
 \State \Return $\mathbf{q}_k$
 \EndFunction
 \end{algorithmic}
