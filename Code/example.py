@@ -734,32 +734,33 @@ a = -np.sqrt(5)
 init = np.zeros(nb*(nt+1))-40
 
 
-showOuterIterationPlots = True
+showOuterIterationPlots = False
 showInnerIterationPlots = False
-showPlots = True
+showPlots = False
 inspectDNNStructures = False
 N = 100
-eps = 1e-2
+eps = 1e-14
 eps_LBFGSB = 1e-7
 k_1 = 1000
 beta_1 = 1
-beta_2 = 0.1
+beta_2 = 0.001
 r = 0.5
 nu_1 = 10
-var = [0.1]
+var = [0.01]
 assert len(var) == len(q_shape)
-correlationCoeff = 0.9
+correlationCoeff = 0.99
 
 
 # optimized control functional using the AML EnOpt minimizer
 delta_init = 100
-eps_o = 1e-2
-eps_i = 1e-12
+eps_o = 1e-14
+eps_i = 1e-14
 k_1_o = k_1
 k_1_i = k_1
 k_tr = 5
 # V_DNN: neurons per hidden layer, activation function (like torch.tanh), number of restarts, number of epochs, early stop, trainFrac, learning rate
-V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
+# V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
+V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 10, 1000, 15, 0.8, 1e-2]
 addDNNStruct = [[nb*(nt+1), 20, 20, 1], [nb*(nt+1), 25, 25, 1], [nb*(nt+1), 30, 30, 1], [nb*(nt+1), 35, 35, 1], [nb*(nt+1), 50, 50, 1], [nb*(nt+1), 100, 100, 1], [nb*(nt+1), 250, 250, 1], [nb*(nt+1), 500, 500, 1], [nb*(nt+1), 1000, 1000, 1]]
 
 
@@ -777,7 +778,7 @@ def evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCo
     FOMEvaluationsTotal = FOMEvaluationsEnd-FOMEvaluationsStart
     for i in range(nb):
         plt.plot(np.linspace(0, T, num=nt+1), q[i*(nt+1):(i+1)*(nt+1)], label=r'$\mathbf{q}$')
-        plt.title('FOM-EnOpt output, shape functional {}'.format(i))
+        plt.title('FOM-EnOpt output: shape functional {}'.format(i+1))
         plt.xlabel('Time')
         plt.ylabel('Control variable')
         plt.legend()
@@ -818,7 +819,7 @@ def evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, 
     trainingTimeTotal = (trainingTimeEnd-trainingTimeStart)/60
     for i in range(nb):
         plt.plot(np.linspace(0, T, num=nt+1), q[i*(nt+1):(i+1)*(nt+1)], label=r'$\mathbf{q}$')
-        plt.title('ROM-EnOpt output, shape functional {}'.format(i))
+        plt.title('AML-EnOpt output: shape functional {}'.format(i+1))
         plt.xlabel('Time')
         plt.ylabel('Control variable')
         plt.legend()
@@ -890,7 +891,7 @@ def compareEnOpt(init, N, eps, eps_o, eps_i, eps_LBFGSB, k_1, k_1_o, k_1_i, V_DN
         errAML = uBarh-uAML
         supErrAML = np.max(errAML.sup_norm())
         relSupErrAML = np.max(errAML.sup_norm())/np.max(u.sup_norm())
-        print('Analytical FOM objective functional values: {}'.format(J(qAnalytical, q_shape, a, T, grid_intervals, nt)[0]))
+        print('Analytical FOM objective functional value: {}'.format(J(qAnalytical, q_shape, a, T, grid_intervals, nt)[0]))
         print('FOM-EnOpt sup-norm error of the state variable: {}'.format(supErr))
         print('FOM-EnOpt relative sup-norm error of the state variable: {}'.format(relSupErr))
         print('AML-EnOpt sup-norm error of the state variable: {}'.format(supErrAML))
@@ -994,7 +995,9 @@ def compareEnOpt(init, N, eps, eps_o, eps_i, eps_LBFGSB, k_1, k_1_o, k_1_i, V_DN
         plt.legend()
         plt.show()
         print('FOM-EnOpt error: {}'.format(q-qAnalytical))
+        print('Average absolute FOM-EnOpt error: {}'.format(np.sum(np.abs(q-qAnalytical))/len(q)))
         print('AML-EnOpt error: {}'.format(qAML-qAnalytical))
+        print('Average absolute AML-EnOpt error: {}'.format(np.sum(np.abs(qAML-qAnalytical))/len(qAML)))
         plt.plot(t, qLBFGSB-qAnalytical, label='L-BFGS-B')
         plt.title('Difference between the L-BFGS-B and analytical solutions')
         plt.xlabel('Time')
@@ -1002,6 +1005,7 @@ def compareEnOpt(init, N, eps, eps_o, eps_i, eps_LBFGSB, k_1, k_1_o, k_1_i, V_DN
         plt.legend()
         plt.show()
         print('L-BFGS-B error: {}'.format(qLBFGSB-qAnalytical))
+        print('Average absolute L-BFGS-B error: {}'.format(np.sum(np.abs(qLBFGSB-qAnalytical))/len(qLBFGSB)))
     FOM_LBFGSB_diff = q-qLBFGSB
     RON_LBFGSB_diff = qAML-qLBFGSB
     for i in range(nb):
@@ -1012,8 +1016,10 @@ def compareEnOpt(init, N, eps, eps_o, eps_i, eps_LBFGSB, k_1, k_1_o, k_1_i, V_DN
         plt.ylabel('Control variable diff.')
         plt.legend()
         plt.show()
-        print('FOM-EnOpt L-BFGS-B error, shape functional {}: {}'.format(i, q-qLBFGSB))
-        print('AML-EnOpt L-BFGS-B error, shape functional {}: {}'.format(i, qAML-qLBFGSB))
+        print('FOM-EnOpt L-BFGS-B error, shape functional {}: {}'.format(i+1, q-qLBFGSB))
+        print('Average absolute FOM-EnOpt L-BFGS-B error, shape functional {}: {}'.format(i, np.sum(np.abs(q-qLBFGSB))/len(q)))
+        print('AML-EnOpt L-BFGS-B error, shape functional {}: {}'.format(i+1, qAML-qLBFGSB))
+        print('Average absolute AML-EnOpt L-BFGS-B error, shape functional {}: {}'.format(i, np.sum(np.abs(qAML-qLBFGSB))/len(qAML)))
     return q, method, FOMValues, outerIterationsTotal, FOMEvaluationsTotal, runTimeTotal, qAML, methodAML, FOMValuesAML, surrogateValuesAML, outerIterationsTotalAML, innerIterationsTotalAML, FOMEvaluationsTotalAML, surrogateEvaluationsTotalAML, surrogateEvalAML, surrogateTrainAML, trainingTimeTotalAML, runTimeTotalAML, qLBFGSB, FOMValueLBFGSB, runTimeTotalLBFGSB
 
 

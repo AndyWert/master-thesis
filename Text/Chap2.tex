@@ -80,7 +80,7 @@ From now on, the optimal control problem that we examine is:
 \end{equation}
 
 \section{Finite element discretization}
-In order to solve the optimization problem \eqref{redProb} numerically, the discretization of our model is now discussed. We begin with the presentation of the discretization in space with a n-D continuous Galerkin method. Then, we look at the discretization in time, which is done with a 1D continuous Galerkin method. From now on, we will also discuss some implementation details, so, in this chapter, how we handle the calculation of the objective function $j$. To solve the partial equations of \eqref{weakEq}, we use the Python package pyMOR.
+In order to solve the optimization problem \eqref{redProb} numerically, the discretization of our model is now discussed. We use finite elements methods \cite{doi:10.1137/1.9780898717440, articleMeidner} for this. At first, the discretization in space with a n-D continuous Galerkin method is presented. Then, we look at the discretization in time, which is done with a 1D continuous Galerkin method. From now on, we will also discuss some implementation details, so, in this chapter, how we handle the calculation of the objective functional $j$. To solve the partial equations of \eqref{weakEq}, we use the Python package pyMOR.
 
 \subsection{\label{SubsectionDiscretizationInSpace}Discretization in space}
 The discretization in space is shown on a 2-dimensional rectangular space $\Omega\subset\mathbb{R}^2$ with linear finite elements. We assume to have a vertex set $\mathcal{V}=(x_1,\dotsc,x_{N_\mathcal{V}})\in(\mathbb{R}^2)^{N_\mathcal{V}}$ with a convex hull that is equal  to $\bar{\Omega}$ and $x_i\neq x_j$ for all $i\neq j$ in $\{1,\dotsc,N_\mathcal{V}\}$. Let $\hat{T}=\{(x,y)\in[0,1]^2\mid y \leq 1-x\}$ be the reference triangle. Then,
@@ -162,18 +162,18 @@ where $v_m(x)=v(t_m,x)$.
 
 
 \subsection{Crank-Nicolson scheme}
-Now, we solve the weak state equations \eqref{weakEq} for the state $u\in X_{k,h}$, the control $q\in Q_d$, and $f\in Q$ numerically. Let $U_{m,i}:=u_m(x_i)$ for $m=0,\dotsc,N_t$ and $i=1,\dotsc,N_\mathcal{V}$. We set
+Now we solve the weak state equations \eqref{weakEq} for the state $u\in X_{k,h}$, the control $q\in Q_d$, and $f\in Q$ numerically. Let $u_m=u(t_m, \cdot)$ and $U_{m,i}:=u_m(x_i)$ for $m=0,\dotsc,N_t$ and $i=1,\dotsc,N_\mathcal{V}$. We set
 \begin{displaymath}
 \mathbf{U}_m=\begin{pmatrix} U_{m,1} \\ \vdots \\ U_{m,N_\mathcal{V}} \end{pmatrix}
 \end{displaymath}
 for $m=0,\dotsc,N_t$. The initial discretized state vector $\mathbf{U}_0$ is already given by the values of $u_0$. Next, we want to solve the weak state equations for $\mathbf{U}_m$ at the other time steps $m=1,\dotsc,N_t$, so that we can set $u_m=\sum_{i=1}^{N_\mathcal{V}}U_{m,i}\phi_i$ according to equation \eqref{discretizedUSum}.
 
-For $m=1,\dotsc,N_t$, we get with the Crank-Nicolson scheme that for all $v\in V_h$:
+For this, we find solutions of the Crank-Nicolson scheme \cite{articleMeidner}, so that for $m=1,\dotsc,N_t$ and for all $v\in V_h$:
 \begin{eqnarray*}
 (u_m,v) + \frac{T}{2N_t}(\nabla u_m, \nabla v) & = &(u_{m-1},v) - \frac{T}{2N_t}(\nabla u_{m-1}, \nabla v)\\
 && + \frac{T}{2N_t}(f_{m-1} + q_{m-1}, v) + \frac{T}{2N_t}(f_m + q_m, v),
 \end{eqnarray*}
-where $u_m=u(t_m, \cdot)$, $f_m=f(t_m, \cdot)$ and $q_m=q(t_m,\cdot)$. To solve the above equation, while considering the homogeneous Dirichlet boundary conditions, we define the matrix $\tilde{\mathbf{M}}_n\in\mathbb{R}^{N_\mathcal{V}\times N_\mathcal{V}}$ as
+where $f_m=f(t_m, \cdot)$ and $q_m=q(t_m,\cdot)$. To solve the above equation, while considering the homogeneous Dirichlet boundary conditions, we define the matrix $\tilde{\mathbf{M}}_n\in\mathbb{R}^{N_\mathcal{V}\times N_\mathcal{V}}$ as
 %where $u_m$ is a time discretization of $u$ at the time step $t_m$, while $f_m=f(t_m, \cdot)$ and $q_m=q(t_m,\cdot)$. To solve the above equation, we define the matrix $\tilde{\mathbf{M}}_n\in\mathbb{R}^{N_\mathcal{V}\times N_\mathcal{V}}$ as
 \begin{displaymath}
 \left(\tilde{\mathbf{M}}_n\right)_{i,j}=\begin{cases}
@@ -197,7 +197,7 @@ so that $(u_m,v)=\mathbf{U}_m^T\tilde{\mathbf{M}}_n\mathbf{V}$ and $(\nabla u_m,
 In the pyMOR implementation, vectors $\mathbf{F}_m$ for $m=0,\dotsc,N_t$ are defined such that $\mathbf{V}^T\mathbf{F}_m\approx(f_m + q_m, v)$ for all $v\in \mathbf{V}_h$ and $\left(\mathbf{F}_m\right)_i=0$ if the $i$-th entry in the vertex set $\mathcal{V}$ lies on the boundary of $\Omega$. By using these vectors, we get the equation
 \begin{equation}
 \label{crank_nicolson}
-\left(\tilde{\mathbf{M}}_n^T + \frac{T}{2N_t} \tilde{\mathbf{L}}_n^T\right) \mathbf{U}_m = \tilde{\mathbf{M}}_n^T\mathbf{U}_{m-1} - \frac{T}{2N_t} \tilde{\mathbf{L}}_n^T \mathbf{U}_{m-1} + \frac{T}{2N_t} \mathbf{F}_{m-1} + \frac{T}{2N_t} \mathbf{F}_m,
+\left(\tilde{\mathbf{M}}_n^T + \frac{T}{2N_t} \tilde{\mathbf{L}}_n^T\right) \mathbf{U}_m = \left(\tilde{\mathbf{M}}_n^T - \frac{T}{2N_t} \tilde{\mathbf{L}}_n^T\right) \mathbf{U}_{m-1} + \frac{T}{2N_t} \mathbf{F}_{m-1} + \frac{T}{2N_t} \mathbf{F}_m,
 \end{equation}
 which is solved after $\mathbf{U}_m$ with algorithms from the Python package SciPy.
 
@@ -207,9 +207,9 @@ For fixed $\hat{u},f\in Q$, we define $u=u(q)$ for all $q\in Q_d$, so that it sa
 j(q) \approx& \frac{1}{2}\sum_{m=1}^{N_t}\int_{t_{m-1}}^{t_m}&\bigg(\left(m-t\frac{N_t}{T}\right) \left(u_{m-1}-\hat{u}_{m-1}\right)+\left(t\frac{N_t}{T}-m+1\right) \left(u_{m}-\hat{u}_{m}\right),\\
 &&\left(m-t\frac{N_t}{T}\right) \left(u_{m-1}-\hat{u}_{m-1}\right)+\left(t\frac{N_t}{T}-m+1\right) \left(u_{m}-\hat{u}_{m}\right)\bigg)\,\mathrm{d}t\\
 &+ \frac{\alpha}{2}\sum_{m=1}^{N_t}\int_{t_{m-1}}^{t_m}&\bigg(\left(m-t\frac{N_t}{T}\right) q_{m-1}+\left(t\frac{N_t}{T}-m+1\right) q_{m},\\
-&&\left(m-t\frac{N_t}{T}\right) q_{m-1}+\left(t\frac{N_t}{T}-m+1\right) q_{m}\bigg)\,\mathrm{d}t.
+&&\left(m-t\frac{N_t}{T}\right) q_{m-1}+\left(t\frac{N_t}{T}-m+1\right) q_{m}\bigg)\,\mathrm{d}t,
 \end{eqnarray*}
-Integration by substitution yields
+where $\hat{u}_m=\hat{u}(t_m, \cdot)$. Integration by substitution yields
 \begin{eqnarray*}
 j(q) \approx& \frac{T}{6N_t}\sum_{m=1}^{N_t}&\left(u_{m-1}-\hat{u}_{m-1},u_{m-1}-\hat{u}_{m-1}\right) + \left(u_{m-1}-\hat{u}_{m-1},u_{m}-\hat{u}_{m}\right)\\
 &&+ \left(u_{m}-\hat{u}_{m},u_{m}-\hat{u}_{m}\right)\\
@@ -244,7 +244,7 @@ Each control variable that is written in this form can be represented by a vecto
 \begin{displaymath}
 \mathbf{q}=\left[q_1^0,q_1^1,\dotsc,q_1^{N_t},\dotsc,q_{N_b}^0,q_{N_b}^1\dotsc,q_{N_b}^{N_t}\right]^T\in\mathcal{D},
 \end{displaymath} 
-where $\mathcal{D}:=\mathbb{R}^{N_\mathbf{q}}$ is the domain of the control vector with $N_\mathbf{q} = (N_t+1)\cdot N_b$. Hence, we write
+where $\mathcal{D}:=\mathbb{R}^{N_\mathbf{q}}$ with $N_\mathbf{q} = (N_t+1)\cdot N_b$ is the domain of the control vector. Hence, we write
 \begin{equation}
 \label{FOMFunctionalEvaluationDef}
 j(\mathbf{q}):=j(q)
@@ -255,9 +255,16 @@ for each $q$ that is defined like in \eqref{discrContrVar}. In the remaining cha
 \operatorname*{minimize}_{\mathbf{q}\in\mathcal{D}}j(\mathbf{q}).
 \end{equation}
 
-In this thesis, we refer to evaluations of the functional $j$ in \eqref{FOMFunctionalEvaluationDef} as full order model (FOM) functional evaluations. The optimization problem in \eqref{FOMOptimizationProblemDef} is called the FOM optimization problem.
-
-In the next chapters, we present algorithms that solve the FOM optimization problem. Thus, the FOM functional is also the objective functional.
+In this thesis, we refer to evaluations of the functional $j$ in \eqref{FOMFunctionalEvaluationDef} with
+\begin{equation*}
+\begin{aligned}
+j(q)=\frac{T}{6N_t}\sum_{m=1}^{N_t}&\left(\mathbf{U}_{m-1}-\hat{\mathbf{U}}_{m-1}\right)\mathbf{M}_n\left(\mathbf{U}_{m-1}-\hat{\mathbf{U}}_{m-1}\right)\\
+&+ \left(\mathbf{U}_{m-1}-\hat{\mathbf{U}}_{m-1}\right)\mathbf{M}_n\left(\mathbf{U}_{m}-\hat{\mathbf{U}}_{m}\right)\\
+&+ \left(\mathbf{U}_{m}-\hat{\mathbf{U}}_{m}\right)\mathbf{M}_n\left(\mathbf{U}_{m}-\hat{\mathbf{U}}_{m}\right)\\
++ \frac{\alpha T}{6N_t}\sum_{m=1}^{N_t}&\mathbf{Q}_{m-1}\mathbf{M}_n\mathbf{Q}_{m-1} + \mathbf{Q}_{m-1}\mathbf{M}_n\mathbf{Q}_{m} + \mathbf{Q}_{m}\mathbf{M}_n\mathbf{Q}_{m},
+\end{aligned}
+\end{equation*}
+as full order model (FOM) functional evaluations. The optimization problem in \eqref{FOMOptimizationProblemDef} is called the FOM optimization problem. In the next chapters, we present algorithms that solve the FOM optimization problem. Thus, the FOM functional is also the objective functional.
 
 
 
