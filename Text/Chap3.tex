@@ -16,16 +16,16 @@ We start at an initialization $\mathbf{q}_0$,  which is updated iteratively with
 \end{displaymath}
 where $k=0,1,2,\dotsc$ denotes the iteration of the optimization. The step size $\beta_k$, with $0<\beta_k\leq1$, is computed by using a line search procedure. We mentioned in the introduction that we use a sample around the iterate $\mathbf{q}_k$ to calculate the next iterate $\mathbf{q}_{k+1}$. The matrix $\mathbf{C}_k\in\mathbb{R}^{N_\mathbf{q}\times N_\mathbf{q}}$ denotes the covariance matrix of this sample set at the $k$-th iteration. The vector $\mathbf{G}_k\in\mathbb{R}^{N_\mathbf{q}}$ is the gradient of $F$ at the iterate $\mathbf{q}_k$. So in this definition, the step direction $\mathbf{d}_k$ is approximately the gradient of the objective functional, preconditioned with the covariance matrix $\mathbf{C}_k$ and normalized by dividing by the maximum norm of itself. Since we do not have access to the gradient of $F$, we use an estimator of $\mathbf{C}_k\mathbf{G}_k/\|\mathbf{C}_k\mathbf{G}_k\|_\infty$ as the step direction. A more detailed description of the EnOpt algorithm is shown next.\\
 
-We define the initial covariance matrix $\mathbf{C}_0$ so that the covariance between controls of different shape functionals $\phi_i,\phi_j\in\Phi$ from \eqref{basisFuncionsList} is zero, so for $i,j=1,\dotsc,N_b$ with $i\neq j$:
+We define the initial covariance matrix $\mathbf{C}_0$ so that the covariance between controls of different shape functionals $\phi_i,\phi_j\in\Phi$ from \eqref{basisFuncionsList} is zero. That means, we have for $i,j=1,\dotsc,N_b$ with $i\neq j$:
 \begin{equation*}
 \mathrm{Cov}(q_i^m,q_j^n)=0,\text{ for all }m,n\in\{0,\dotsc,N_t\}.
 \end{equation*}
-We expect controls of the same shape functional $\phi_j\in\Phi$ to correlate. Based on that, we set the controls for $j=1,\dotsc,N_b$ and $m=0,\dotsc,N_t$ as
+We expect controls of the same shape functional $\phi_j\in\Phi$ to correlate. Based on that, we set the controls for $j=1,\dotsc,N_b$ and $m=0,\dotsc,N_t$ like in \cite{Keil2022-dj} as
 \begin{equation}
 \label{defineInitialCovariance}
 \mathrm{Cov}(q_j^m,q_j^{m+h})=\sigma_j^2\rho^h\left(\frac{1}{1-\rho^2}\right),\text{ for all }h\in\{0,\dotsc,N_t-i\},
 \end{equation}
-where $\sigma_j^2>0$ is the variance for the basis function $\phi_j$ and $\rho\in(-1,1)$ the correlation coefficient. This defines the covariances between all controls since $\mathrm{Cov}(q_j^m,q_j^{m+h})=\mathrm{Cov}(q_j^{m+h},q_j^m)$. By adjusting the variance and correlation coefficient, we can influence how the controls of the same shape functional depend on each other.
+where $\sigma_j^2>0$ is the variance for the basis functional $\phi_j$ and $\rho\in(-1,1)$ the correlation coefficient. This defines the covariances between all controls since $\mathrm{Cov}(q_j^m,q_j^{m+h})=\mathrm{Cov}(q_j^{m+h},q_j^m)$. By adjusting the variance and correlation coefficient, we can influence how the controls of the same shape functional depend on each other.
 
 For example, if $\rho$ is close to 1, then the covariance of the controls is large, resulting in them to show a similar behaviour. That means, if a control variable of a shape functional at time step $m$ is large, then the control variables of this shape functional also tend to be large at time steps close to $m$. Analogously, if a control variable of a shape functional at time step $m$ is small, then the control variables of this shape functional at time steps close to $m$ have a tendency to be small, too.
 

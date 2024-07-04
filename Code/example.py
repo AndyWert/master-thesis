@@ -14,6 +14,11 @@ FOMEvaluations = 0
 surrogateEvaluations = 0
 innerIterations = 0
 
+showOuterIterationPlots = False
+showInnerIterationPlots = False
+showPlots = False
+inspectDNNStructures = False
+
 
 class CrankNicolsonTimeStepper(TimeStepper):
     """Crank-Nicolson time-stepper.
@@ -718,50 +723,152 @@ def ROM_EnOpt(q_0, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_
     return q, -np.array(FOMValues), -np.array(surrogateValuesOuterIteration), surrogateEval, surrogateTrain
 
 
-#q_shape = [ExpressionFunction('1', dim_domain=2)]
-#for i in np.arange(1, 2):
-#    for j in np.arange(1, 2):
-#        q_shape.append(ExpressionFunction('cos(2*pi*n*x[0])*cos(2*pi*m*x[1])', dim_domain=2, values={'n': i, 'm': j}))
-#        q_shape.append(ExpressionFunction('cos(2*pi*n*x[0])*sin(2*pi*m*x[1])', dim_domain=2, values={'n': i, 'm': j}))
-#        q_shape.append(ExpressionFunction('sin(2*pi*n*x[0])*cos(2*pi*m*x[1])', dim_domain=2, values={'n': i, 'm': j}))
-#        q_shape.append(ExpressionFunction('sin(2*pi*n*x[0])*sin(2*pi*m*x[1])', dim_domain=2, values={'n': i, 'm': j}))
-q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
-T = 0.1
-nt = 50
-nb = len(q_shape)
-grid_intervals = 50
-a = -np.sqrt(5)
-init = np.zeros(nb*(nt+1))-40
+def AML_EnOptNoTR(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, T, nt, nb):
+    global trainingTime
+    # initialize the surrogate functional
+    surrogateValue = 0
+    surrogateEval = []
+    surrogateTrain = []
+    N_q = len(q_0)
+    F_k = F(q_0)
+    FOMValues = [F_k]
+    surrogateValuesOuterIteration = []
+    F_k_next = F_k
+    q_k_tilde, T_k, C_k, F_k_tilde = optStep(F, q_0, N, 0, [], None, F_k, beta_1, beta_2, r, eps_o, nu_1, var, correlationCoeff, nt, nb)
+    t = np.linspace(0, T, num=nt+1)
+    if showPlots:
+        for i in range(nb):
+            plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label=r'$\tilde{\mathbf{q}}_k$')
+            plt.title('AML-EnOpt: shape functional {}, iteration {}'.format(i+1, 0))
+            plt.xlabel('Time')
+            plt.ylabel('Control variable')
+            plt.legend()
+            plt.show()
+    k = 1
+    q_k = q_0
+    q_k_next = q_k.copy()
+    failures_iter = []
+    failures = 0
+    while (F_k_tilde > F_k+eps_o and k < k_1_o):
+        T_k_x = np.zeros((N, N_q))
+        for i in range(N):
+            T_k_x[i, :] = T_k[i][0]
+        minIn = np.zeros(N_q)
+        maxIn = np.zeros(N_q)
+        for i in range(N_q):
+            minIn[i] = np.min(T_k_x[:, i])
+            maxIn[i] = np.max(T_k_x[:, i])
+
+        startTraining = time.time()
+        F_ML_k, DNN_eval, DNN_train_loss, val_iteration = constructDNN(T_k, V_DNN, minIn, maxIn)
+        endTraining = time.time()
+        trainingTime = trainingTime + (endTraining - startTraining)
+        q_k_next, surrogateValuesInnerIteration = enOpt(F_ML_k, q_k, N, eps_i, k_1_i, beta_1, beta_2, r, nu_1, var, correlationCoeff, T, nt, nb, Cov=C_k, FOM=False)
+        F_k_next = F(q_k_next)
+        surrogateValue = surrogateValuesInnerIteration[-1]
+
+        surrogateEval.append(DNN_eval)
+        surrogateTrain.append(DNN_train_loss)
+        FOMValues.append(F_k_next)
+        surrogateValuesOuterIteration.append(surrogateValue)
+        failures_iter.append(failures)
+        if showOuterIterationPlots:
+            for i in range(nb):
+                plt.plot(t, q_k_next[i*(nt+1):(i+1)*(nt+1)], label=r'$\mathbf{q}^\mathrm{next}_k$')
+                plt.title('AML-EnOpt: shape functional {}, iteration {}'.format(i+1, k))
+                plt.xlabel('Time')
+                plt.ylabel('Control variable')
+                plt.legend()
+                plt.show()
+        if showPlots:
+            for i in range(nb):
+                for j in range(len(T_k)):
+                    plt.plot(t, T_k[j][0][i*(nt+1):(i+1)*(nt+1)])
+                plt.title('Samples: shape functional {}, outer iteration {} '.format(i+1, k))
+                plt.xlabel('Time')
+                plt.ylabel('Control variable')
+                plt.show()
+            T_k_min_q = T_k[0][0].copy()
+            T_k_min_dist = LA.norm(T_k_min_q-q_k)
+            T_k_max_q = T_k[0][0].copy()
+            T_k_max_dist = LA.norm(T_k_max_q-q_k)
+            for i in range(len(T_k)):
+                dist = LA.norm(T_k[i][0]-q_k)
+                if dist < T_k_min_dist:
+                    T_k_min_dist = dist
+                    T_k_min_q = T_k[i][0].copy()
+                if dist > T_k_max_dist:
+                    T_k_max_dist = dist
+                    T_k_max_q = T_k[i][0].copy()
+            for i in range(nb):
+                plt.plot(t, q_k[i*(nt+1):(i+1)*(nt+1)], label=r'$\mathbf{q}_k$')
+                plt.plot(t, T_k_min_q[i*(nt+1):(i+1)*(nt+1)], label=r'$T_k$ min')
+                plt.plot(t, T_k_max_q[i*(nt+1):(i+1)*(nt+1)], label=r'$T_k$ max')
+                plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label=r'$\tilde{\mathbf{q}}_k$')
+                plt.plot(t, q_k_next[i*(nt+1):(i+1)*(nt+1)], label=r'$\mathbf{q}^\mathrm{next}_k$')
+                plt.title('AML-EnOpt: shape functional {}, outer iteration {}'.format(i+1, k))
+                plt.xlabel('Time')
+                plt.ylabel('Control variable')
+                plt.legend()
+                plt.show()
+                plt.plot(t, q_k[i*(nt+1):(i+1)*(nt+1)], label=r'$\mathbf{q}_k$')
+                plt.plot(t, T_k_min_q[i*(nt+1):(i+1)*(nt+1)], label=r'$T_k$ min')
+                plt.plot(t, T_k_max_q[i*(nt+1):(i+1)*(nt+1)], label=r'$T_k$ max')
+                plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label=r'$\tilde{\mathbf{q}}_k$')
+                plt.title('AML-EnOpt: shape functional {}, outer iteration {}'.format(i+1, k))
+                plt.xlabel('Time')
+                plt.ylabel('Control variable')
+                plt.legend()
+                plt.show()
+            names = [r'$T_k$ min', r'$T_k$ max', r'$\tilde{\mathbf{q}}_k$', r'$\mathbf{q}^\mathrm{next}_k$']
+            values = [T_k_min_dist, T_k_max_dist, LA.norm(q_k_tilde-q_k), LA.norm(q_k_next-q_k)]
+            plt.bar(names, values)
+            plt.title(r'$L^2$-distance to $\mathbf{q}_k$,'+' iteration {}'.format(k))
+            plt.xlabel('Control vector')
+            plt.ylabel(r'$L^2$-distance to $\mathbf{q}_k$')
+            plt.show()
+            names = [r'$T_k$ min', r'$T_k$ max', r'$\tilde{\mathbf{q}}_k$']
+            values = [T_k_min_dist, T_k_max_dist, LA.norm(q_k_tilde-q_k)]
+            plt.bar(names, values)
+            plt.title(r'$L^2$-distance to $\mathbf{q}_k$,'+' iteration {}'.format(k))
+            plt.xlabel('Control vector')
+            plt.ylabel(r'$L^2$-distance to $\mathbf{q}_k$')
+            plt.show()
+        q_k_tilde, T_k, C_k, F_k_tilde = optStep(F, q_k_next, N, k, T_k, C_k, F_k_next, beta_1, beta_2, r, eps_o, nu_1, var, correlationCoeff, nt, nb)
+        if showPlots:
+            covList = []
+            for i in range(len(C_k)):
+                covList.append(C_k[i, i])
+            tCov = range(len(C_k))
+            for i in range(nb):
+                plt.bar(tCov[i*(nt+1):(i+1)*(nt+1)], covList[i*(nt+1):(i+1)*(nt+1)])
+                plt.title('Variance: shape functional {}, outer iteration {}'.format(i+1, k))
+                plt.xlabel('Time step')
+                plt.ylabel('Variance')
+                plt.show()
+            for i in range(nb):
+                plt.plot(t, q_k_tilde[i*(nt+1):(i+1)*(nt+1)], label=r'$\tilde{\mathbf{q}}_k$')
+                plt.title('AML-EnOpt: shape functional {}, iteration {}'.format(i+1, k))
+                plt.xlabel('Time')
+                plt.ylabel('Control variable')
+                plt.legend()
+                plt.show()
+        F_k = F_k_next
+        q_k = q_k_next.copy()
+        k = k+1
+    if showPlots:
+        plt.plot(np.arange(1, len(failures_iter)+1), failures_iter)
+        plt.title('Number of cumulated failures of FOM objective functional value improvements')
+        plt.xlabel('Iteration')
+        plt.ylabel('Cumulated failures')
+        plt.show()
+    print('FOM objective functional value improvement failures: {}'.format(failures))
+    return q_k, FOMValues, surrogateValuesOuterIteration, surrogateEval, surrogateTrain
 
 
-showOuterIterationPlots = False
-showInnerIterationPlots = False
-showPlots = False
-inspectDNNStructures = False
-N = 100
-eps = 1e-14
-eps_LBFGSB = 1e-7
-k_1 = 1000
-beta_1 = 1
-beta_2 = 0.001
-r = 0.5
-nu_1 = 10
-var = [0.01]
-assert len(var) == len(q_shape)
-correlationCoeff = 0.99
-
-
-# optimized control functional using the AML EnOpt minimizer
-delta_init = 100
-eps_o = 1e-14
-eps_i = 1e-14
-k_1_o = k_1
-k_1_i = k_1
-k_tr = 5
-# V_DNN: neurons per hidden layer, activation function (like torch.tanh), number of restarts, number of epochs, early stop, trainFrac, learning rate
-# V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
-V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 10, 1000, 15, 0.8, 1e-2]
-addDNNStruct = [[nb*(nt+1), 20, 20, 1], [nb*(nt+1), 25, 25, 1], [nb*(nt+1), 30, 30, 1], [nb*(nt+1), 35, 35, 1], [nb*(nt+1), 50, 50, 1], [nb*(nt+1), 100, 100, 1], [nb*(nt+1), 250, 250, 1], [nb*(nt+1), 500, 500, 1], [nb*(nt+1), 1000, 1000, 1]]
+def ROM_EnOptNoTR(q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape):
+    q, FOMValues, surrogateValuesOuterIteration, surrogateEval, surrogateTrain = AML_EnOpt(lambda mu: -J(mu, q_shape, a, T, grid_intervals, nt)[0], q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, T, nt, len(q_shape))
+    return q, -np.array(FOMValues), -np.array(surrogateValuesOuterIteration), surrogateEval, surrogateTrain
 
 
 def evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape):
@@ -840,7 +947,7 @@ def evalROM_EnOpt(init, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, 
     return q, method, FOMValues, surrogateValues, outerIterationsTotal, innerIterationsTotal, FOMEvaluationsTotal, surrogateEvaluationsTotal, surrogateEval, surrogateTrain, trainingTimeTotal, runTimeTotal
 
 
-def compareEnOpt(init, N, eps, eps_o, eps_i, eps_LBFGSB, k_1, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape, analytical=True):
+def compareEnOpt(init, N, eps, eps_o, eps_i, eps_LBFGSB, k_1, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape, analytical=True):
     nb = len(q_shape)
     t = np.linspace(0, T, nt+1)
     q, method, FOMValues, outerIterationsTotal, FOMEvaluationsTotal, runTimeTotal = evalFOM_EnOpt(init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
@@ -931,7 +1038,7 @@ def compareEnOpt(init, N, eps, eps_o, eps_i, eps_LBFGSB, k_1, k_1_o, k_1_i, V_DN
         plt.ylabel('Functional value')
         plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15))
         plt.show()
-        if len(FOMValuesAML)>5:
+        if len(FOMValuesAML) > 5:
             plt.plot(np.arange(len(surrogateValuesAML)-4, len(surrogateValuesAML)+1), surrogateValuesAML[(len(surrogateValuesAML)-5):], label='AML-EnOpt: surr. functional value', c='tab:orange')
             plt.plot(np.arange(len(FOMValuesAML)-5, len(FOMValuesAML)), FOMValuesAML[(len(FOMValuesAML)-5):], label='AML-EnOpt: obj. functional value', c='tab:green')
             plt.title('Comparison of the functional values, last iterations')
@@ -1017,13 +1124,13 @@ def compareEnOpt(init, N, eps, eps_o, eps_i, eps_LBFGSB, k_1, k_1_o, k_1_i, V_DN
         plt.legend()
         plt.show()
         print('FOM-EnOpt L-BFGS-B error, shape functional {}: {}'.format(i+1, q-qLBFGSB))
-        print('Average absolute FOM-EnOpt L-BFGS-B error, shape functional {}: {}'.format(i, np.sum(np.abs(q-qLBFGSB))/len(q)))
+        print('Average absolute FOM-EnOpt L-BFGS-B error, shape functional {}: {}'.format(i+1, np.sum(np.abs(q-qLBFGSB))/len(q)))
         print('AML-EnOpt L-BFGS-B error, shape functional {}: {}'.format(i+1, qAML-qLBFGSB))
-        print('Average absolute AML-EnOpt L-BFGS-B error, shape functional {}: {}'.format(i, np.sum(np.abs(qAML-qLBFGSB))/len(qAML)))
+        print('Average absolute AML-EnOpt L-BFGS-B error, shape functional {}: {}'.format(i+1, np.sum(np.abs(qAML-qLBFGSB))/len(qAML)))
     return q, method, FOMValues, outerIterationsTotal, FOMEvaluationsTotal, runTimeTotal, qAML, methodAML, FOMValuesAML, surrogateValuesAML, outerIterationsTotalAML, innerIterationsTotalAML, FOMEvaluationsTotalAML, surrogateEvaluationsTotalAML, surrogateEvalAML, surrogateTrainAML, trainingTimeTotalAML, runTimeTotalAML, qLBFGSB, FOMValueLBFGSB, runTimeTotalLBFGSB
 
 
-def compare_AML_EnOpt_DNN(addDNNStruct, init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape):
+def compare_AML_EnOpt_DNN(addDNNStruct, init, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape):
     DNNStruct = [V_DNN[0]]
     DNNStruct.extend(addDNNStruct)
     q = []
@@ -1135,7 +1242,7 @@ def testFOM_EnOpt(rep, init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlat
 
 
 # performance test that runs the ROM_EnOpt algorithm rep times
-def testROM_EnOpt(rep, init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape):
+def testROM_EnOpt(rep, init, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape):
     global showOuterIterationPlots
     global showInnerIterationPlots
     global showPlots
@@ -1192,3 +1299,291 @@ def testROM_EnOpt(rep, init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, delta_init, b
     showInnerIterationPlots = showInnerIterationPlotsSave
     showPlots = showPlotsSave
     inspectDNNStructures = inspectDNNStructuresSave
+
+
+def result1():
+    global showOuterIterationPlots
+    global showInnerIterationPlots
+    global showPlots
+    global inspectDNNStructures
+
+    q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
+    T = 0.1
+    nt = 10
+    nb = len(q_shape)
+    grid_intervals = 50
+    a = -np.sqrt(5)
+    init = np.zeros(nb*(nt+1))-40
+
+    showOuterIterationPlots = True
+    showInnerIterationPlots = False
+    showPlots = True
+    inspectDNNStructures = False
+    N = 100
+    eps = 1e-8
+    eps_LBFGSB = 1e-7
+    k_1 = 1000
+    beta_1 = 1
+    beta_2 = 0.1
+    r = 0.5
+    nu_1 = 10
+    var = [0.1]
+    assert len(var) == len(q_shape)
+    correlationCoeff = 0.9
+
+    delta_init = 100
+    eps_o = 1e-8
+    eps_i = 1e-12
+    k_1_o = k_1
+    k_1_i = k_1
+    k_tr = 5
+    V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
+    compareEnOpt(init, N, eps, eps_o, eps_i, eps_LBFGSB, k_1, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape, analytical=True)
+
+
+def result2():
+    q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
+    T = 0.1
+    nt = 10
+    nb = len(q_shape)
+    grid_intervals = 50
+    a = -np.sqrt(5)
+    init = np.zeros(nb*(nt+1))-40
+
+    N = 100
+    eps = 1e-8
+    k_1 = 1000
+    beta_1 = 1
+    beta_2 = 0.1
+    r = 0.5
+    nu_1 = 10
+    var = [0.1]
+    assert len(var) == len(q_shape)
+    correlationCoeff = 0.9
+
+    testFOM_EnOpt(3, init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
+
+
+def result3():
+    q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
+    T = 0.1
+    nt = 10
+    nb = len(q_shape)
+    grid_intervals = 50
+    a = -np.sqrt(5)
+    init = np.zeros(nb*(nt+1))-40
+
+    N = 100
+    beta_1 = 1
+    beta_2 = 0.1
+    r = 0.5
+    nu_1 = 10
+    var = [0.1]
+    assert len(var) == len(q_shape)
+    correlationCoeff = 0.9
+
+    delta_init = 100
+    eps_o = 1e-8
+    eps_i = 1e-12
+    k_1_o = 1000
+    k_1_i = 1000
+    k_tr = 5
+    V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
+
+    testROM_EnOpt(3, init, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
+
+
+def result4():
+    global showOuterIterationPlots
+    global showInnerIterationPlots
+    global showPlots
+    global inspectDNNStructures
+
+    q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
+    T = 0.1
+    nt = 10
+    nb = len(q_shape)
+    grid_intervals = 50
+    a = -np.sqrt(5)
+    init = np.zeros(nb*(nt+1))-40
+
+    showOuterIterationPlots = False
+    showInnerIterationPlots = False
+    showPlots = False
+    inspectDNNStructures = False
+    N = 100
+    k_1 = 1000
+    beta_1 = 1
+    beta_2 = 0.1
+    r = 0.5
+    nu_1 = 10
+    var = [0.1]
+    assert len(var) == len(q_shape)
+    correlationCoeff = 0.9
+
+    delta_init = 100
+    eps_o = 1e-8
+    eps_i = 1e-12
+    k_1_o = k_1
+    k_1_i = k_1
+    k_tr = 5
+    V_DNN = [[nb*(nt+1), 15, 15, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
+    addDNNStruct = [[nb*(nt+1), 20, 20, 1], [nb*(nt+1), 25, 25, 1], [nb*(nt+1), 30, 30, 1], [nb*(nt+1), 35, 35, 1], [nb*(nt+1), 50, 50, 1], [nb*(nt+1), 100, 100, 1], [nb*(nt+1), 250, 250, 1], [nb*(nt+1), 500, 500, 1], [nb*(nt+1), 1000, 1000, 1]]
+    compare_AML_EnOpt_DNN(addDNNStruct, init, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
+
+
+def result5():
+    global showOuterIterationPlots
+    global showInnerIterationPlots
+    global showPlots
+    global inspectDNNStructures
+
+    q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
+    T = 0.1
+    nt = 10
+    nb = len(q_shape)
+    grid_intervals = 50
+    a = -np.sqrt(5)
+    init = np.zeros(nb*(nt+1))-40
+
+    showOuterIterationPlots = True
+    showInnerIterationPlots = False
+    showPlots = False
+    inspectDNNStructures = False
+    N = 100
+    k_1 = 1000
+    beta_1 = 1
+    beta_2 = 0.1
+    r = 0.5
+    nu_1 = 10
+    var = [0.1]
+    assert len(var) == len(q_shape)
+    correlationCoeff = 0.9
+
+    eps_o = 1e-8
+    eps_i = 1e-12
+    k_1_o = k_1
+    k_1_i = k_1
+    V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
+    ROM_EnOptNoTR(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
+
+
+def result6():
+    global showOuterIterationPlots
+    global showInnerIterationPlots
+    global showPlots
+    global inspectDNNStructures
+
+    q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
+    T = 0.1
+    nt = 10
+    nb = len(q_shape)
+    grid_intervals = 50
+    a = -np.sqrt(5)
+    init = np.zeros(nb*(nt+1))
+
+    showOuterIterationPlots = True
+    showInnerIterationPlots = False
+    showPlots = True
+    inspectDNNStructures = False
+    N = 100
+    eps = 1e-8
+    eps_LBFGSB = 1e-7
+    k_1 = 1000
+    beta_1 = 1
+    beta_2 = 0.1
+    r = 0.5
+    nu_1 = 10
+    var = [0.1]
+    assert len(var) == len(q_shape)
+    correlationCoeff = 0.9
+
+    delta_init = 100
+    eps_o = 1e-8
+    eps_i = 1e-12
+    k_1_o = k_1
+    k_1_i = k_1
+    k_tr = 5
+    V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
+    compareEnOpt(init, N, eps, eps_o, eps_i, eps_LBFGSB, k_1, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape, analytical=True)
+
+
+def result7():
+    global showOuterIterationPlots
+    global showInnerIterationPlots
+    global showPlots
+    global inspectDNNStructures
+
+    q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
+    T = 0.1
+    nt = 10
+    nb = len(q_shape)
+    grid_intervals = 50
+    a = -np.sqrt(5)
+    init = np.zeros(nb*(nt+1))-90
+
+    showOuterIterationPlots = True
+    showInnerIterationPlots = False
+    showPlots = True
+    inspectDNNStructures = False
+    N = 100
+    eps = 1e-8
+    eps_LBFGSB = 1e-7
+    k_1 = 1000
+    beta_1 = 1
+    beta_2 = 0.1
+    r = 0.5
+    nu_1 = 10
+    var = [0.1]
+    assert len(var) == len(q_shape)
+    correlationCoeff = 0.9
+
+    delta_init = 100
+    eps_o = 1e-8
+    eps_i = 1e-12
+    k_1_o = k_1
+    k_1_i = k_1
+    k_tr = 5
+    V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
+    compareEnOpt(init, N, eps, eps_o, eps_i, eps_LBFGSB, k_1, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape, analytical=True)
+
+
+def result8():
+    global showOuterIterationPlots
+    global showInnerIterationPlots
+    global showPlots
+    global inspectDNNStructures
+
+    q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
+    T = 0.1
+    nt = 50
+    nb = len(q_shape)
+    grid_intervals = 50
+    a = -np.sqrt(5)
+    init = np.zeros(nb*(nt+1))-40
+
+    showOuterIterationPlots = False
+    showInnerIterationPlots = False
+    showPlots = False
+    inspectDNNStructures = False
+    N = 100
+    eps = 1e-14
+    eps_LBFGSB = 1e-7
+    k_1 = 1000
+    beta_1 = 1
+    beta_2 = 0.001
+    r = 0.5
+    nu_1 = 10
+    var = [0.01]
+    assert len(var) == len(q_shape)
+    correlationCoeff = 0.99
+
+    delta_init = 100
+    eps_o = 1e-14
+    eps_i = 1e-14
+    k_1_o = k_1
+    k_1_i = k_1
+    k_tr = 5
+    V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 10, 1000, 15, 0.8, 1e-2]
+    compareEnOpt(init, N, eps, eps_o, eps_i, eps_LBFGSB, k_1, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape, analytical=True)
+    
