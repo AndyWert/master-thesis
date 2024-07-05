@@ -867,7 +867,7 @@ def AML_EnOptNoTR(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, 
 
 
 def ROM_EnOptNoTR(q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape):
-    q, FOMValues, surrogateValuesOuterIteration, surrogateEval, surrogateTrain = AML_EnOpt(lambda mu: -J(mu, q_shape, a, T, grid_intervals, nt)[0], q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, T, nt, len(q_shape))
+    q, FOMValues, surrogateValuesOuterIteration, surrogateEval, surrogateTrain = AML_EnOptNoTR(lambda mu: -J(mu, q_shape, a, T, grid_intervals, nt)[0], q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, T, nt, len(q_shape))
     return q, -np.array(FOMValues), -np.array(surrogateValuesOuterIteration), surrogateEval, surrogateTrain
 
 
@@ -1307,90 +1307,20 @@ def result1():
     global showPlots
     global inspectDNNStructures
 
-    q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
-    T = 0.1
-    nt = 10
-    nb = len(q_shape)
-    grid_intervals = 50
-    a = -np.sqrt(5)
-    init = np.zeros(nb*(nt+1))-40
-
     showOuterIterationPlots = True
     showInnerIterationPlots = False
     showPlots = True
     inspectDNNStructures = False
-    N = 100
-    eps = 1e-8
-    eps_LBFGSB = 1e-7
-    k_1 = 1000
-    beta_1 = 1
-    beta_2 = 0.1
-    r = 0.5
-    nu_1 = 10
-    var = [0.1]
-    assert len(var) == len(q_shape)
-    correlationCoeff = 0.9
 
-    delta_init = 100
-    eps_o = 1e-8
-    eps_i = 1e-12
-    k_1_o = k_1
-    k_1_i = k_1
-    k_tr = 5
-    V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
-    compareEnOpt(init, N, eps, eps_o, eps_i, eps_LBFGSB, k_1, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape, analytical=True)
+    compareEnOpt(np.zeros(11)-40, 100, 1e-8, 1e-8, 1e-12, 1e-7, 1000, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)], analytical=True)
 
 
 def result2():
-    q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
-    T = 0.1
-    nt = 10
-    nb = len(q_shape)
-    grid_intervals = 50
-    a = -np.sqrt(5)
-    init = np.zeros(nb*(nt+1))-40
-
-    N = 100
-    eps = 1e-8
-    k_1 = 1000
-    beta_1 = 1
-    beta_2 = 0.1
-    r = 0.5
-    nu_1 = 10
-    var = [0.1]
-    assert len(var) == len(q_shape)
-    correlationCoeff = 0.9
-
-    testFOM_EnOpt(3, init, N, eps, k_1, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
+    testFOM_EnOpt(3, np.zeros(11)-40, 100, 1e-8, 1000, 1, 0.1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
 
 
 def result3():
-    q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
-    T = 0.1
-    nt = 10
-    nb = len(q_shape)
-    grid_intervals = 50
-    a = -np.sqrt(5)
-    init = np.zeros(nb*(nt+1))-40
-
-    N = 100
-    beta_1 = 1
-    beta_2 = 0.1
-    r = 0.5
-    nu_1 = 10
-    var = [0.1]
-    assert len(var) == len(q_shape)
-    correlationCoeff = 0.9
-
-    delta_init = 100
-    eps_o = 1e-8
-    eps_i = 1e-12
-    k_1_o = 1000
-    k_1_i = 1000
-    k_tr = 5
-    V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
-
-    testROM_EnOpt(3, init, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
+    testROM_EnOpt(3, np.zeros(11)-40, 100, 1e-8, 1e-12, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
 
 
 def result4():
@@ -1399,37 +1329,12 @@ def result4():
     global showPlots
     global inspectDNNStructures
 
-    q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
-    T = 0.1
-    nt = 10
-    nb = len(q_shape)
-    grid_intervals = 50
-    a = -np.sqrt(5)
-    init = np.zeros(nb*(nt+1))-40
-
     showOuterIterationPlots = False
     showInnerIterationPlots = False
     showPlots = False
     inspectDNNStructures = False
-    N = 100
-    k_1 = 1000
-    beta_1 = 1
-    beta_2 = 0.1
-    r = 0.5
-    nu_1 = 10
-    var = [0.1]
-    assert len(var) == len(q_shape)
-    correlationCoeff = 0.9
 
-    delta_init = 100
-    eps_o = 1e-8
-    eps_i = 1e-12
-    k_1_o = k_1
-    k_1_i = k_1
-    k_tr = 5
-    V_DNN = [[nb*(nt+1), 15, 15, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
-    addDNNStruct = [[nb*(nt+1), 20, 20, 1], [nb*(nt+1), 25, 25, 1], [nb*(nt+1), 30, 30, 1], [nb*(nt+1), 35, 35, 1], [nb*(nt+1), 50, 50, 1], [nb*(nt+1), 100, 100, 1], [nb*(nt+1), 250, 250, 1], [nb*(nt+1), 500, 500, 1], [nb*(nt+1), 1000, 1000, 1]]
-    compare_AML_EnOpt_DNN(addDNNStruct, init, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
+    compare_AML_EnOpt_DNN([[11, 20, 20, 1], [11, 25, 25, 1], [11, 30, 30, 1], [11, 35, 35, 1], [11, 50, 50, 1], [11, 100, 100, 1], [11, 250, 250, 1], [11, 500, 500, 1], [11, 1000, 1000, 1]], np.zeros(11)-40, 100, 1e-8, 1e-12, 1000, 1000, 5, [[11, 15, 15, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
 
 
 def result5():
@@ -1438,34 +1343,12 @@ def result5():
     global showPlots
     global inspectDNNStructures
 
-    q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
-    T = 0.1
-    nt = 10
-    nb = len(q_shape)
-    grid_intervals = 50
-    a = -np.sqrt(5)
-    init = np.zeros(nb*(nt+1))-40
-
     showOuterIterationPlots = True
     showInnerIterationPlots = False
     showPlots = False
     inspectDNNStructures = False
-    N = 100
-    k_1 = 1000
-    beta_1 = 1
-    beta_2 = 0.1
-    r = 0.5
-    nu_1 = 10
-    var = [0.1]
-    assert len(var) == len(q_shape)
-    correlationCoeff = 0.9
 
-    eps_o = 1e-8
-    eps_i = 1e-12
-    k_1_o = k_1
-    k_1_i = k_1
-    V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
-    ROM_EnOptNoTR(init, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape)
+    ROM_EnOptNoTR(np.zeros(11)-40, 100, 1e-8, 1e-12, 1000, 1000, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 1, 0.1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
 
 
 def result6():
@@ -1474,38 +1357,12 @@ def result6():
     global showPlots
     global inspectDNNStructures
 
-    q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
-    T = 0.1
-    nt = 10
-    nb = len(q_shape)
-    grid_intervals = 50
-    a = -np.sqrt(5)
-    init = np.zeros(nb*(nt+1))
-
     showOuterIterationPlots = True
     showInnerIterationPlots = False
     showPlots = True
     inspectDNNStructures = False
-    N = 100
-    eps = 1e-8
-    eps_LBFGSB = 1e-7
-    k_1 = 1000
-    beta_1 = 1
-    beta_2 = 0.1
-    r = 0.5
-    nu_1 = 10
-    var = [0.1]
-    assert len(var) == len(q_shape)
-    correlationCoeff = 0.9
 
-    delta_init = 100
-    eps_o = 1e-8
-    eps_i = 1e-12
-    k_1_o = k_1
-    k_1_i = k_1
-    k_tr = 5
-    V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
-    compareEnOpt(init, N, eps, eps_o, eps_i, eps_LBFGSB, k_1, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape, analytical=True)
+    compareEnOpt(np.zeros(11), 100, 1e-8, 1e-8, 1e-12, 1e-7, 1000, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)], analytical=True)
 
 
 def result7():
@@ -1514,38 +1371,12 @@ def result7():
     global showPlots
     global inspectDNNStructures
 
-    q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
-    T = 0.1
-    nt = 10
-    nb = len(q_shape)
-    grid_intervals = 50
-    a = -np.sqrt(5)
-    init = np.zeros(nb*(nt+1))-90
-
     showOuterIterationPlots = True
     showInnerIterationPlots = False
     showPlots = True
     inspectDNNStructures = False
-    N = 100
-    eps = 1e-8
-    eps_LBFGSB = 1e-7
-    k_1 = 1000
-    beta_1 = 1
-    beta_2 = 0.1
-    r = 0.5
-    nu_1 = 10
-    var = [0.1]
-    assert len(var) == len(q_shape)
-    correlationCoeff = 0.9
 
-    delta_init = 100
-    eps_o = 1e-8
-    eps_i = 1e-12
-    k_1_o = k_1
-    k_1_i = k_1
-    k_tr = 5
-    V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2]
-    compareEnOpt(init, N, eps, eps_o, eps_i, eps_LBFGSB, k_1, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape, analytical=True)
+    compareEnOpt(np.zeros(11)-90, 100, 1e-8, 1e-8, 1e-12, 1e-7, 1000, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)], analytical=True)
 
 
 def result8():
@@ -1554,36 +1385,9 @@ def result8():
     global showPlots
     global inspectDNNStructures
 
-    q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
-    T = 0.1
-    nt = 50
-    nb = len(q_shape)
-    grid_intervals = 50
-    a = -np.sqrt(5)
-    init = np.zeros(nb*(nt+1))-40
-
     showOuterIterationPlots = False
     showInnerIterationPlots = False
     showPlots = False
     inspectDNNStructures = False
-    N = 100
-    eps = 1e-14
-    eps_LBFGSB = 1e-7
-    k_1 = 1000
-    beta_1 = 1
-    beta_2 = 0.001
-    r = 0.5
-    nu_1 = 10
-    var = [0.01]
-    assert len(var) == len(q_shape)
-    correlationCoeff = 0.99
 
-    delta_init = 100
-    eps_o = 1e-14
-    eps_i = 1e-14
-    k_1_o = k_1
-    k_1_i = k_1
-    k_tr = 5
-    V_DNN = [[nb*(nt+1), 25, 25, 1], torch.tanh, 10, 1000, 15, 0.8, 1e-2]
-    compareEnOpt(init, N, eps, eps_o, eps_i, eps_LBFGSB, k_1, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, a, T, grid_intervals, nt, q_shape, analytical=True)
-    
+    compareEnOpt(np.zeros(51)-40, 100, 1e-14, 1e-14, 1e-14, 1e-7, 1000, 1000, 1000, 5, [[51, 25, 25, 1], torch.tanh, 10, 1000, 15, 0.8, 1e-2], 100, 1, 0.001, 0.5, 10, [0.01], 0.99, -np.sqrt(5), 0.1, 50, 50, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)], analytical=True)

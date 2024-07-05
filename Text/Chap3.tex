@@ -49,7 +49,18 @@ To compute the step direction $\mathbf{d}_k$ at iteration step $k$, we sample $\
 \label{CqkF}
 \mathbf{C}_F^k:=\frac{1}{N-1}\sum_{m=1}^N(\mathbf{q}_{k,m}-\mathbf{q}_k)(F(\mathbf{q}_{k,m})-F(\mathbf{q}_k)).
 \end{equation}
-Now we set the step direction as $\mathbf{d}_k=\frac{\mathbf{C}_F^k}{\|\mathbf{C}_F^k\|_\infty}$. This is valid since $\mathbf{C}_F^k$ is an estimation of $\mathbf{C}_k\mathbf{G}_k$, which can by shown like in \cite{OGUNTOLA2021109165}. Here, we begin with the Taylor expansion around $\mathbf{q}_k$ and get for some $\mathbf{q}\in\mathcal{D}$
+Now we set the step direction as $\mathbf{d}_k=\frac{\mathbf{C}_F^k}{\|\mathbf{C}_F^k\|_\infty}$. This is valid by the next proposition.
+
+\begin{prop}
+\label{propCovMat}
+Let $\mathbf{C}_F^k$ be defined as in \eqref{CqkF}, where the vectors $\mathbf{q}_{k,m}$ for $m=1,\dotsc,N$ are sampled from a multivariate Gaussian distribution with the mean $\mathbf{q}_k$ and the covariance $\mathbf{C}_k$. Then it holds that
+\begin{equation*}
+\mathbf{C}_F^k\approx\mathbf{C}_k\mathbf{G}_k,
+\end{equation*}
+where $\mathbf{G}_k$ is the gradient of $F$ at $\mathbf{q}_k$.
+\end{prop}
+\begin{proof}
+The proof goes according to \cite{OGUNTOLA2021109165}. We begin with the Taylor expansion around $\mathbf{q}_k$ and get for some $\mathbf{q}\in\mathcal{D}$
 \begin{eqnarray*}
 &&F(\mathbf{q})=F(\mathbf{q}_k)+(\mathbf{q}-\mathbf{q}_k)^T\nabla F(\mathbf{q}_k)+O(\|\mathbf{q}-\mathbf{q}_k\|^2)\\
 &\implies&F(\mathbf{q})-F(\mathbf{q}_k)=(\mathbf{q}-\mathbf{q}_k)^T\mathbf{G}_k+O(\|\mathbf{q}-\mathbf{q}_k\|^2).
@@ -65,9 +76,10 @@ where $O(\|\mathbf{q}_{k,m}-\mathbf{q}_k\|^3)$ are the remaining terms containin
 &\approx&\left(\frac{1}{N-1}\sum_{m=1}^N(\mathbf{q}_{k,m}-\mathbf{q}_k)(\mathbf{q}_{k,m}-\mathbf{q}_k)^T\right)\mathbf{G}_k\\
 &\implies&\mathbf{C}_F^k\approx\mathbf{C}_k\mathbf{G}_k,
 \end{eqnarray*}
-since $\frac{1}{N-1}\sum_{m=1}^N(\mathbf{q}_{k,m}-\mathbf{q}_k)(\mathbf{q}_{k,m}-\mathbf{q}_k)^T$ is itself an approximation of $\mathbf{C}_k$.\\
+since $\frac{1}{N-1}\sum_{m=1}^N(\mathbf{q}_{k,m}-\mathbf{q}_k)(\mathbf{q}_{k,m}-\mathbf{q}_k)^T$ is itself an approximation of $\mathbf{C}_k$.
+\end{proof}
 
-By using the samples $\{\mathbf{q}_{k-1,m}\}_{m=1}^N$ and the covariance matrix $\mathbf{C}_{k-1}$ from the last iteration, we update $\mathbf{C}_{k-1}$, like in \cite{Stordal2016-cj}, by setting
+Using the samples $\{\mathbf{q}_{k-1,m}\}_{m=1}^N$ and the covariance matrix $\mathbf{C}_{k-1}$ from the last iteration, we update $\mathbf{C}_{k-1}$ as suggested in \cite{Stordal2016-cj} by setting
 \begin{equation}
 \label{updateCov}
 \mathbf{C}_k=\mathbf{C}_{k-1}+\tilde{\beta}_k\tilde{\mathbf{d}}_k\text{ with}
@@ -78,13 +90,13 @@ By using the samples $\{\mathbf{q}_{k-1,m}\}_{m=1}^N$ and the covariance matrix 
 \end{equation}
 where $\tilde{\beta}_k$ is a step size that is chosen so that no entries of the diagonal of $\mathbf{C}_k$ are negative. How we set $\tilde{\beta}_k$ is shown below at the implementation of the entire EnOpt algorithm. We expect to get better samples in the next iteration due to the updated covariance matrix. Therefore, we call this procedure the adaptive EnOpt algorithm.
 
-Now that we have described the optimization steps of this algorithm, we iterate until $F(\mathbf{q}_k)\leq F(\mathbf{q}_{k-1})+\varepsilon$, where $\varepsilon>0$.\\
+Now that we have explained the optimization steps of this algorithm, we iterate until $F(\mathbf{q}_k)\leq F(\mathbf{q}_{k-1})+\varepsilon$, where $\varepsilon>0$.\\
 
-Next, we describe our implementation of the EnOpt algorithm. The EnOpt algorithm takes the objective function $\textproc{F}:\mathbb{R}^{N_\mathbf{q}}\to\mathbb{R}$, our initial iterate $\mathbf{q}_0\in\mathcal{D}$, the sample size $N\in\mathbb{N}$, the tolerance $\varepsilon>0$, the maximum number of iterations $k^*\in\mathbb{N}$, the initial step size $\beta_1>0$ for the computation of the next iterate, the initial step size $\beta_2>0$ for the update of the covariance matrix, the step size contraction $r\in(0,1)$, the maximum number of step size trials $\nu^*\in\mathbb{N}$, the variance $\sigma^2\in\mathbb{R}^{N_b}$ with positive elements, the correlation coefficient $\rho\in(-1,1)$, the number of time steps $N_t\in\mathbb{N}$, the number of basis functions $N_b\in\mathbb{N}$, a projection $\textproc{pr}$ and an initial covariance $\mathbf{C}_\mathrm{init}\in\mathbb{R}^{N_\mathbf{q}\times N_\mathbf{q}}$. $\textproc{pr}$ is set to the identity function $\mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}$ and $\mathbf{C}_\mathrm{init}$ is set to $\mathrm{None}$ if they are not specified.
+Next, we describe our implementation of the EnOpt algorithm. The EnOpt algorithm takes the objective function $\textproc{F}:\mathbb{R}^{N_\mathbf{q}}\to\mathbb{R}$, our initial iterate $\mathbf{q}_0\in\mathcal{D}$, the sample size $N\in\mathbb{N}$, the tolerance $\varepsilon>0$, the maximum number of iterations $k^*\in\mathbb{N}$, the initial step size $\beta_1>0$ for the computation of the next iterate, the initial step size $\beta_2>0$ for the update of the covariance matrix, the step size contraction $r\in(0,1)$, the maximum number of step size trials $\nu^*\in\mathbb{N}$, the variance $\sigma^2\in\mathbb{R}^{N_b}$ with positive elements, the correlation coefficient $\rho\in(-1,1)$, the number of time steps $N_t\in\mathbb{N}$, the number of basis functions $N_b\in\mathbb{N}$, a projection $\textproc{pr}$ and an initial covariance $\mathbf{C}_\mathrm{init}\in\mathbb{R}^{N_\mathbf{q}\times N_\mathbf{q}}$. $\textproc{pr}$ is set to the identity function $\mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}$, where $\mathbf{lambda}$ signals that this is a lambda function from Python, and $\mathbf{C}_\mathrm{init}$ is set to $\mathrm{None}$ if they are not specified.
 
 $\textproc{pr}$ is used to project the inputs onto a given set and $\mathbf{C}_\mathrm{init}$ is an alternative definition for the initialization of the covariance. In this chapter we do not need to specify these inputs, however $\textproc{pr}$ could be used if we had an optimization problem where the iterates were restricted to a certain spatial domain, which is here not the case.
 
-The implementation in pseudo code is shown below:
+The implementation in pseudo code that is shown below corresponds to Algorithm $1$ in \cite{Keil2022-dj}. We have added some implementation details.
 
 %\begin{algorithm}[H]%\footnotesize
 %\caption{EnOpt algorithm}
@@ -118,11 +130,11 @@ The implementation in pseudo code is shown below:
 \end{algorithmic}
 \end{algorithm}
 
-We begin by initializing $F^\mathrm{prev}_{k}$ as $\Call{F}{\mathbf{q}_0}$. The next iterate $\mathbf{q}_k$, along with the sample $T_k$, the covariance $\mathbf{C}_k$ and the functional value of $\mathbf{q}_k$, denoted by $F_k$, are computed by calling the initial optimization step $\textproc{OptStep}$, which is shown in algorithm \ref{OptStep}.
+We begin by initializing $F^\mathrm{prev}_{k}$ as $\Call{F}{\mathbf{q}_0}$. The next iterate $\mathbf{q}_k$, along with the sample $T_k$, the covariance $\mathbf{C}_k$ and the functional value of $\mathbf{q}_k$, denoted by $F_k$, are computed by calling the initial optimization step $\textproc{OptStep}$, which is shown in Algorithm \ref{OptStep}.
 
 After we initialized $k$ as $1$, we enter a while-loop until the stop criterion is satisfied. That is, we stop the loop when the functional value $F_k$ of the current iterate is no longer significantly larger than the functional value $F^\mathrm{prev}_k$ of the last iterate, so when $F_k\leq F^\mathrm{prev}_k+\varepsilon$. There is also a limit $k^*$ to the number of loop repetitions, so when that is reached, we also stop the while-loop. In each optimization loop, $F^\mathrm{prev}_{k}$ is set to the functional value of the last iterate and $\mathbf{q}_k,T_k,\mathbf{C}_k$ and $F_k$ are updated by calling $\textproc{OptStep}$ again. After we leave the while-loop, the last iterate $\mathbf{q}_k$ is returned.
 
-The next algorithms use some functions from Python such as $\textproc{len}$ for the length of a list or an array, as well as functions from the Python package NumPy, which are identified by starting with '$\mathrm{np.}$'.
+The next algorithms use some functions from Python such as $\textproc{len}$ for the length of a list or an array, as well as functions from the Python package NumPy, which are identified by starting with '$\mathrm{np.}$'. The OptStep algorithm corresponds mostly to Algorithm $2$ in \cite{Keil2022-dj}. A change is that our algorithm can take an initial covariance matrix. Therefore the lines \ref{alg2differ1} to \ref{alg2differ2} differ with respect to the algorithm from \cite{Keil2022-dj}. Other differences are that the samples in line \ref{OptStepFOMCall1} are projected with $\textproc{pr}$ and the existence of the if-statement in line \ref{alg2differ3}.
 
 %\begin{algorithm}[H]%\footnotesize
 %\caption{OptStep algorithm}
@@ -150,11 +162,11 @@ The next algorithms use some functions from Python such as $\textproc{len}$ for 
 \State $N_\mathbf{q}\gets\Call{len}{\mathbf{q}_k}$
 \State $\mathbf{C}^\mathrm{next}_k \gets \mathrm{np.}\Call{zeros}{(N_\mathbf{q}, N_\mathbf{q})}$
 \If{$k=0$}
-\If{$\mathbf{C}_k$\text{ is }$\mathrm{None}$}
+\If{$\mathbf{C}_k$\text{ is }$\mathrm{None}$}\label{alg2differ1}
 \State $\mathbf{C}^\mathrm{next}_k \gets \Call{initCov}{\protect\Call{len}{\mathbf{q}_k}, \sigma^2, \rho, N_t, N_b}$
 \Else
 \State $\mathbf{C}^\mathrm{next}_k \gets \mathbf{C}_k.\Call{copy}{\:}$
-\EndIf
+\EndIf\label{alg2differ2}
 \Else
 \State $\mathbf{C}^\mathrm{next}_k \gets \Call{updateCov}{\mathbf{q}_k, T_k, \mathbf{C}_k, F_k ,\beta_2}$
 \EndIf
@@ -167,7 +179,7 @@ The next algorithms use some functions from Python such as $\textproc{len}$ for 
 \State $\mathbf{C}^k_F \gets 1/(N-1)\cdot\mathbf{C}^k_F$
 \State $\mathbf{d}_k \gets \mathrm{np.}\Call{zeros}{N_\mathbf{q}}$
 \State $\mathbf{q}^\mathrm{next}_{k}, F^\mathrm{next}_k \gets \mathrm{np.}\Call{copy}{\mathbf{q}_k},F_k$
-\If{{\bfseries not }$\mathrm{np.}\Call{all}{\mathbf{C}^k_F==0}$}
+\If{{\bfseries not }$\mathrm{np.}\Call{all}{\mathbf{C}^k_F==0}$}\label{alg2differ3}
 \State $\mathbf{d}_k \gets \mathbf{C}^k_F/\mathrm{np.}\Call{max}{\mathrm{np.}\protect\Call{abs}{\mathbf{C}^k_F}}$
 \State \label{OptStepFOMCall2}$\mathbf{q}^\mathrm{next}_{k}, F^\mathrm{next}_k \gets \Call{LineSearch}{\textproc{F},\mathbf{q}_k,F_k,\mathbf{d}_k,\beta_1,r,\varepsilon,\nu^*,\textproc{pr}}$
 \EndIf
@@ -178,13 +190,13 @@ The next algorithms use some functions from Python such as $\textproc{len}$ for 
 
 We start the $\textproc{OptStep}$ algorithm by updating the covariance matrix $\mathbf{C}_k$ or, if $k$ is zero, initializing it. In the case that $k$ is zero, we first check if there is a predefined covariance matrix $\mathbf{C}_k$. When there is one, $\mathbf{C}^\mathrm{next}_k$ is set to that matrix. Otherwise, we define $\mathbf{C}^\mathrm{next}_k$ by calling the function $\textproc{initCov}$, which sets the matrix like it is described in \eqref{initCov}.
 
-If $k$ is not zero, we get the updated covariance matrix by calling $\textproc{updateCov}$, which is described in \eqref{updateCov} and algorithm \ref{updateCovAlg}.
+If $k$ is not zero, we get the updated covariance matrix by calling $\textproc{updateCov}$, which is described in \eqref{updateCov} and Algorithm \ref{updateCovAlg}.
 
-The covariance matrix $\mathbf{C}^\mathrm{next}_k$ is now used to get a Gaussian distributed sample with $N$ elements around $\mathbf{q}_k$. The projected samples $\Call{pr}{\mathrm{sample}[j]}$ and their respective function values $\Call{F}{\protect\Call{pr}{\mathrm{sample}[j]}}$ for $j=0,\dotsc,N-1$ are stored in the list $T^\mathrm{next}_k$. The definition is here abbreviated as $[\Call{pr}{\mathrm{sample}[j]},\Call{F}{\protect\Call{pr}{\mathrm{sample}[j]}}]_{j=0}^{N-1}$. In the code, this is done with an iteration through a for-loop.
+The covariance matrix $\mathbf{C}^\mathrm{next}_k$ is now used to get a Gaussian distributed sample with $N$ elements around $\mathbf{q}_k$. The projected samples $\Call{pr}{\mathrm{sample}[j]}$ and their respective functional values $\Call{F}{\protect\Call{pr}{\mathrm{sample}[j]}}$ for $j=0,\dotsc,N-1$ are stored in the list $T^\mathrm{next}_k$. The definition is here abbreviated as $[\Call{pr}{\mathrm{sample}[j]},\Call{F}{\protect\Call{pr}{\mathrm{sample}[j]}}]_{j=0}^{N-1}$. In the code, this is done with an iteration through a for-loop.
 
 After that, we set $\mathbf{C}^k_F$ like it is defined in \eqref{CqkF}. Then we check if $\mathbf{C}^k_F$ is equal to the zero vector. That can happen if the functional F is constant on the sample set. In that case, we let the next iterate $\mathbf{q}^\mathrm{next}_k$ and the corresponding functional value $F_k$ unchanged.
 
-Otherwise, we set $\mathbf{d}_k$ to $\mathbf{C}^k_F$ divided by its maximum norm $\mathrm{np.}\Call{max}{\mathrm{np.}\protect\Call{abs}{\mathbf{C}^k_F}}=\|\mathbf{C}^k_F\|_\infty$. The next iterate $\mathbf{q}^\mathrm{next}_{k}$ and its functional value $F^\mathrm{next}_k$ is now computed with the line search algorithm $\textproc{LineSearch}$, that is shown in algorithm \ref{LineSearchAlg}.
+Otherwise, we set $\mathbf{d}_k$ to $\mathbf{C}^k_F$ divided by its maximum norm $\mathrm{np.}\Call{max}{\mathrm{np.}\protect\Call{abs}{\mathbf{C}^k_F}}=\|\mathbf{C}^k_F\|_\infty$. The next iterate $\mathbf{q}^\mathrm{next}_{k}$ and its functional value $F^\mathrm{next}_k$ is now computed with the line search algorithm $\textproc{LineSearch}$, that is shown in Algorithm \ref{LineSearchAlg}.
 
 We return $\mathbf{q}^\mathrm{next}_k,T^\mathrm{next}_k,\mathbf{C}^\mathrm{next}_k$ and $F^\mathrm{next}_k$.
 
@@ -249,9 +261,11 @@ We return $\mathbf{q}^\mathrm{next}_k,T^\mathrm{next}_k,\mathbf{C}^\mathrm{next}
 \end{algorithmic}
 \end{algorithm}
 
-For the update of the covariance matrix, we calculate the step direction $\mathbf{d}^\mathrm{cov}_k$ like in \ref{updateCovDirection} first. Then we want to make sure that the updated covariance matrix has only positive values on its diagonal.
+For the update of the covariance matrix, we calculate the step direction $\mathbf{d}^\mathrm{cov}_k$ as in \ref{updateCovDirection} first. Then we want to make sure that the updated covariance matrix has only positive values on its diagonal.
 
-For this purpose, $\mathbf{C}_\mathrm{diag}$ and $\mathbf{d}_\mathrm{diag}$ are defined from line \ref{CDiagDDiagBegin} to line \ref{CDiagDDiagEnd} as vectors whose elements are the diagonal values of $\mathbf{C}_k$ and $\mathbf{d}^\mathrm{cov}_k$ respectively. Then, the step size $\beta^\mathrm{iter}_2$, initialized as $\beta_2$, is halfed until $\mathrm{np.}\Call{min}{\mathbf{C}_\mathrm{diag}+\beta^\mathrm{iter}_2*\mathbf{d}_\mathrm{diag}}$ is positive. Finally, the matrix $\mathbf{C}_k+\beta^\mathrm{iter}_2*\mathbf{d}^\mathrm{cov}_k$, like in \eqref{updateCov}, is returned.
+For this purpose, $\mathbf{C}_\mathrm{diag}$ and $\mathbf{d}_\mathrm{diag}$ are defined from line \ref{CDiagDDiagBegin} to line \ref{CDiagDDiagEnd} as vectors whose elements are the diagonal values of $\mathbf{C}_k$ and $\mathbf{d}^\mathrm{cov}_k$ respectively. Then, the step size $\beta^\mathrm{iter}_2$, initialized as $\beta_2$, is halfed until $\mathrm{np.}\Call{min}{\mathbf{C}_\mathrm{diag}+\beta^\mathrm{iter}_2*\mathbf{d}_\mathrm{diag}}$ is positive. Finally, the matrix $\mathbf{C}_k+\beta^\mathrm{iter}_2*\mathbf{d}^\mathrm{cov}_k$, as in \eqref{updateCov}, is returned.
+
+The next algorithm corresponds to Algorithm 3 in \cite{Keil2022-dj} with some added implementation details.
 
 %\begin{algorithm}[H]%\footnotesize
 %\caption{Line search}
@@ -290,9 +304,9 @@ For this purpose, $\mathbf{C}_\mathrm{diag}$ and $\mathbf{d}_\mathrm{diag}$ are 
 
 At the start of the line search algorithm, we initialize the step size $\beta^\mathrm{iter}_1$ as $\beta_1$. Then we repeatedly calculate $\mathbf{q}^\mathrm{next}_k = \Call{pr}{\mathbf{q}_k+\beta^\mathrm{iter}_1\mathbf{d}_k}$ and $F^\mathrm{next}_k = \Call{F}{\mathbf{q}^\mathrm{next}_k}$ with simultaneous reduction of $\beta^\mathrm{iter}_1$ by multiplication with $r$ in a while-loop until either $F^\mathrm{next}_k-F_k>\varepsilon$ or $\nu\geq\nu^*$. After the termination of the while-loop, $\mathbf{q}^\mathrm{next}_k$ and $F^\mathrm{next}_k$ are returned.
 
-The cause for stopping the while-loop also shows when $\mathbf{q}^\mathrm{next}_k$ is the last iterate of the EnOpt algorithm, as the EnOpt algorithm stops when the function value of the next iteration is not greater than the function value of the last iteration plus $\varepsilon$, i.e. when $F^\mathrm{next}_k\leq F_k+\varepsilon$. Hence, if the while-loop in algorithm \ref{LineSearchAlg} terminates because $\nu\geq\nu^*$ while $F^\mathrm{next}_k-F_k\leq\varepsilon$ still holds, then we know already that the while-loop in algorithm \ref{EnOptAlg} will also stop after this iteration.\\
+The cause for stopping the while-loop also shows when $\mathbf{q}^\mathrm{next}_k$ is the last iterate of the EnOpt algorithm, as the EnOpt algorithm stops when the function value of the next iteration is not greater than the function value of the last iteration plus $\varepsilon$, i.e. when $F^\mathrm{next}_k\leq F_k+\varepsilon$. Hence, if the while-loop in Algorithm \ref{LineSearchAlg} terminates because $\nu\geq\nu^*$ while $F^\mathrm{next}_k-F_k\leq\varepsilon$ still holds, then we know already that the while-loop in Algorithm \ref{EnOptAlg} will also stop after this iteration.\\
 
-Now we use the adaptive EnOpt algorithm to optimize our FOM objective functional $j$ from \eqref{FOMFunctionalEvaluationDef}. Since this is a maximization procedure and $j$ should be minimized, we apply $-j$, denoted by $-\textproc{j}$, to the EnOpt algorithm, which gives us algorithm \ref{FOM-EnOpt}. We call this the FOM-EnOpt algorithm because the FOM functional $j$ is applied to the EnOpt algorithm \ref{EnOptAlg}.
+Now we use the adaptive EnOpt algorithm to optimize our FOM objective functional $j$ from \eqref{FOMFunctionalEvaluationDef}. Since this is a maximization procedure and $j$ should be minimized, we apply $-j$, denoted by $-\textproc{j}$, to the EnOpt algorithm, which gives us Algorithm \ref{FOM-EnOpt}. We call this the FOM-EnOpt algorithm because the FOM functional $j$ is applied to the EnOpt algorithm \ref{EnOptAlg}. It is defined similar to Algorithm 4 in \cite{Keil2022-dj}.
 
 %\begin{algorithm}[H]%\footnotesize
 %\caption{FOM-EnOpt algorithm}
@@ -313,6 +327,6 @@ Now we use the adaptive EnOpt algorithm to optimize our FOM objective functional
 
 $\mathbf{q}_\mathrm{base}$ is here a list that consists of the shape functions, so $\Phi$ in \eqref{basisFuncionsList}. There are some more inputs that $\textproc{FOM-EnOpt}$ requires, but we omit these as they are only needed for the calculation of $\textproc{j}$.\\
 
-Before we move on to the Adaptive-ML-EnOpt method, we want to discuss the computational effort of running the FOM-EnOpt algorithm. Most computations during the FOM-EnOpt procedure require only basic operations. The most expensive calculations are calls of the FOM functional $j$. In algorithm \ref{EnOptAlg}, the only computation of the FOM objective functional value is in line \ref{EnOptAlgFOMCall}. The other objective functional values get returned by calls of the optimization step procedure which is algorithm \ref{OptStep}. Here, the FOM functional value is calculated $N$ times in line \ref{OptStepFOMCall1} and also possibly multiple times in line \ref{OptStepFOMCall2} when the line search procedure, algorithm \ref{LineSearchAlg}, is called. In algorithm \ref{LineSearchAlg}, the functional value of $j$ is calculated once in line \ref{LineSearchAlgFOMCall1} and up to $\nu^*$ times in line \ref{LineSearchAlgFOMCall2}. Updating the covariance matrix in algorithm \ref{updateCovAlg} does not require any FOM computations since all necessary objective functional values are already contained in $T_k$.
+Before we move on to the Adaptive-ML-EnOpt method, we want to discuss the computational effort of running the FOM-EnOpt algorithm. Most computations during the FOM-EnOpt procedure require only basic operations. The most expensive calculations are calls of the FOM functional $j$. In Algorithm \ref{EnOptAlg}, the only computation of the FOM objective functional value is in line \ref{EnOptAlgFOMCall}. The other objective functional values get returned by calls of the optimization step procedure which is Algorithm \ref{OptStep}. Here, the FOM functional value is calculated $N$ times in line \ref{OptStepFOMCall1} and also possibly multiple times in line \ref{OptStepFOMCall2} when the line search procedure, Algorithm \ref{LineSearchAlg}, is called. In Algorithm \ref{LineSearchAlg}, the functional value of $j$ is calculated once in line \ref{LineSearchAlgFOMCall1} and up to $\nu^*$ times in line \ref{LineSearchAlgFOMCall2}. Updating the covariance matrix in Algorithm \ref{updateCovAlg} does not require any FOM computations since all necessary objective functional values are already contained in $T_k$.
 
 We note that calls of the OptStep algorithm on the FOM functional $j$ are expensive. In the next chapter, we introduce an algorithm that replaces most of these calls by computations of the EnOpt algorithm on a surrogate functional. This surrogate is a machine learning-based approximation of $j$ around the current iterate.
