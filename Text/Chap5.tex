@@ -495,14 +495,14 @@ A poor choice of these values may have even more serious consequences for the FO
 
 We conclude that $\sigma^2_1$ and $\rho$ should be chosen carefully and dependent on each other. If we increase $\rho$ to get smoother iterates, we might have to decrease $\sigma^2_1$ so that the area which contains our samples is not too large. Also, the covariance matrix adaption step size $\beta_2$ should be large enough that the samples deviate not too much when the iterates get close to the optimum but not too large since that might result in variances close to zero when the iterate is not close to the optimum. Hence, it might require some testing to find values that suit the available optimization problem.\\
 
-Unlike the Adaptive-ML-EnOpt algorithm in \cite{Keil2022-dj}, we need to employ a trust-region method. If we proceed without it, we get the results of Figure \ref{noTRResults}. The method seems to work up to the eighth iteration, but the machine learning-based surrogate suggests in the ninth outer iteration that there is an optimum near a point that is far from the actual optimum. This point is shown in the bottom plot of Figure \ref{noTRResults}. Some entries of the resulting control vector exceed even the value of $600$, although they should be below zero.\\
+Unlike the Adaptive-ML-EnOpt algorithm in \cite{Keil2022-dj}, we need to employ a trust-region method. If we proceed without it, we get similar results as in Figure \ref{noTRResults}. The method seems to work up to the second iteration, but the machine learning-based surrogates suggest in the following outer iterations that there is an optimum near a point that is far from the actual optimum. This results in an iterate that is shown at the bottom of Figure \ref{noTRResults} after five iterations. This iterate is clearly further away from the optimum than the iterate after $2$ iterations.\\
 
 \begin{figure}
 \centering
 %\textbf{Your title}\par\medskip
-\includegraphics{Plots/noTRIteration8.png}
-\includegraphics{Plots/noTRIteration9.png}
-\caption{\label{noTRResults}An example of iterates after the eighth and ninth outer iteration of an AML-EnOpt procedure if the trust-region method is not applied}
+\includegraphics{Plots/noTRIteration2.png}
+\includegraphics{Plots/noTRIteration5.png}
+\caption{\label{noTRResults}An example of iterates after the second and fifth outer iteration of an AML-EnOpt procedure if the trust-region method is not applied}
 \end{figure}
 
 Now we compare how both algorithms get to their respective solution. During the FOM-EnOpt procedure, the iterates form a curve with a smooth shape early on. Going on, this curve changes only slightly after each iteration, mainly due to vertical stretching. With the Adaptive-ML-EnOpt method, the iterates are relatively close to the optimal point after a few iterations. Therefore, most iterations change the values of the iterates only slightly. To demonstrate this, the plots of the iterates after the fifth outer iteration are shown in Figure \ref{FOMROMEnIptIter5}. We see here that the curve of the FOM-EnOpt procedure has a much smoother shape than that of the Adaptive-ML-EnOpt method. However, the values of the FOM method iterate lie in a range between approximately $-39$ and $-35$ and are far from the optimum while their counterparts take a minimum below $-70$ and a maximum of around $0$.\\

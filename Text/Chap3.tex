@@ -14,7 +14,7 @@ We start at an initialization $\mathbf{q}_0$,  which is updated iteratively with
 \begin{displaymath}
 \mathbf{d}_k\approx\frac{\mathbf{C}_k\mathbf{G}_k}{\|\mathbf{C}_k\mathbf{G}_k\|_\infty},
 \end{displaymath}
-where $k=0,1,2,\dotsc$ denotes the iteration of the optimization. The step size $\beta_k$, with $0<\beta_k\leq1$, is computed by using a line search procedure. We mentioned in the introduction that we use a sample around the iterate $\mathbf{q}_k$ to calculate the next iterate $\mathbf{q}_{k+1}$. The matrix $\mathbf{C}_k\in\mathbb{R}^{N_\mathbf{q}\times N_\mathbf{q}}$ denotes the covariance matrix of this sample set at the $k$-th iteration. The vector $\mathbf{G}_k\in\mathbb{R}^{N_\mathbf{q}}$ is the gradient of $F$ at the iterate $\mathbf{q}_k$. So in this definition, the step direction $\mathbf{d}_k$ is approximately the gradient of the objective functional, preconditioned with the covariance matrix $\mathbf{C}_k$ and normalized by dividing by the maximum norm of itself. Since we do not have access to the gradient of $F$, we use an estimator of $\mathbf{C}_k\mathbf{G}_k/\|\mathbf{C}_k\mathbf{G}_k\|_\infty$ as the step direction. A more detailed description of the EnOpt algorithm is shown next.\\
+where $k=0,1,2,\dotsc$ denotes the iteration of the optimization. The step size $\beta_k$, with $0<\beta_k\leq1$, is computed by using a line search procedure. We mentioned in the introduction that we use a sample around the iterate $\mathbf{q}_k$ to calculate the next iterate $\mathbf{q}_{k+1}$. The matrix $\mathbf{C}_k\in\mathbb{R}^{N_\mathbf{q}\times N_\mathbf{q}}$ denotes the covariance matrix of this sample set at the $k$-th iteration. Let $\mathbf{E}_k$ be the expectation with respect to to a multivariate Gaussian distribution with the mean $\mathbf{q}_k$ and the covariance $\mathbf{C}_k$. The vector $\mathbf{G}_k\in\mathbb{R}^{N_\mathbf{q}}$ is here defined as $\mathbf{G}_k=\nabla_{\mathbf{q}_k}\mathbf{E}_k[F(X)]$, where $\nabla_{\mathbf{q}_k}$ denotes the gradient with respect to the mean $\mathbf{q}_k$ of the Gaussian distribution. So in this definition, the step direction $\mathbf{d}_k$ is approximately $\mathbf{G}_k$, preconditioned with the covariance matrix $\mathbf{C}_k$ and normalized by dividing by the maximum norm of itself. Since we do not have access to the gradient of $\mathbf{E}_k[F(X)]$ with respect to $\mathbf{q}_k$, we use an estimator of $\mathbf{C}_k\mathbf{G}_k/\|\mathbf{C}_k\mathbf{G}_k\|_\infty$ as the step direction. A more detailed description of the EnOpt algorithm is shown next.\\
 
 We define the initial covariance matrix $\mathbf{C}_0$ so that the covariance between controls of different shape functionals $\phi_i,\phi_j\in\Phi$ from \eqref{basisFuncionsList} is zero. That means, we have for $i,j=1,\dotsc,N_b$ with $i\neq j$:
 \begin{equation*}
@@ -49,35 +49,81 @@ To compute the step direction $\mathbf{d}_k$ at iteration step $k$, we sample $\
 \label{CqkF}
 \mathbf{C}_F^k:=\frac{1}{N-1}\sum_{m=1}^N(\mathbf{q}_{k,m}-\mathbf{q}_k)(F(\mathbf{q}_{k,m})-F(\mathbf{q}_k)).
 \end{equation}
-Now we set the step direction as $\mathbf{d}_k=\frac{\mathbf{C}_F^k}{\|\mathbf{C}_F^k\|_\infty}$. This is valid by the next proposition.
-
-\begin{prop}
-\label{propCovMat}
-Let $\mathbf{C}_F^k$ be defined as in \eqref{CqkF}, where the vectors $\mathbf{q}_{k,m}$ for $m=1,\dotsc,N$ are sampled from a multivariate Gaussian distribution with the mean $\mathbf{q}_k$ and the covariance $\mathbf{C}_k$. Then it holds that
+Now we set the step direction as $\mathbf{d}_k=\frac{\mathbf{C}_F^k}{\|\mathbf{C}_F^k\|_\infty}$. This step direction converges under certain conditions almost surely against $\frac{\mathbf{C}_k\mathbf{G}_k}{\|\mathbf{C}_k\mathbf{G}_k\|_\infty}$ for an increasing sample size. The following lemma and its corresponding proof is based on Lemma 1 in \cite{Stordal2016-cj}.
+\begin{lem}
+Assume $\mathbf{q}\in\mathbb{R}^n$ with $n=N_\mathbf{q}$. Let
 \begin{equation*}
-\mathbf{C}_F^k\approx\mathbf{C}_k\mathbf{G}_k,
+\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k)=(2\pi)^{-n/2}\operatorname{det}(\mathbf{C}_k)^{-1/2}\operatorname{exp}\left(-\frac{1}{2}(\mathbf{q}-\mathbf{q}_k)^T\mathbf{C}^{-1}_k(\mathbf{q}-\mathbf{q}_k)\right)
 \end{equation*}
-where $\mathbf{G}_k$ is the gradient of $F$ at $\mathbf{q}_k$.
-\end{prop}
+denote the multivariate Gaussian density with mean $\mathbf{q}_k$ and covariance matrix $\mathbf{C}_k$. If
+\begin{equation}
+\label{lemmaCFKCondition}
+\int_{\mathbb{R}^n}\left|(F(\mathbf{q})-F(\mathbf{q}_k))(\mathbf{q}-\mathbf{q}_k)\right|\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k)\,\mathrm{d}\mathbf{q}<\infty,
+\end{equation}
+\begin{equation}
+\label{lemmaCFKCondition2}
+\int_{\mathbb{R}^n}|F(\mathbf{q})\mathbf{C}^{-1}_k(\mathbf{q}-\mathbf{q}_k)|\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k)\,\mathrm{d}\mathbf{q}<\infty,
+\end{equation}
+and
+\begin{equation}
+\label{lemmaCFKCondition3}
+\int_{\mathbb{R}^n}|F(\mathbf{q})|\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k)\,\mathrm{d}\mathbf{q}<\infty,
+\end{equation}
+then $\mathbf{C}_F^k$ from Equation \eqref{CqkF} converges almost surely to
+\begin{equation*}
+\mathbf{C}_k\nabla_{\mathbf{q}_k}\int_{\mathbb{R}^n}F(\mathbf{q})\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k)\,\mathrm{d}\mathbf{q}.
+\end{equation*}
+\end{lem}
 \begin{proof}
-The proof goes according to \cite{OGUNTOLA2021109165}. We begin with the Taylor expansion around $\mathbf{q}_k$ and get for some $\mathbf{q}\in\mathcal{D}$
+Let $Y^k_m=(\mathbf{q}_{k,m}-\mathbf{q}_k)(F(\mathbf{q}_{k,m})-F(\mathbf{q}_k))$. Then $\{Y^k_m\}_{m=1}^N$ is an i.i.d. sample from $\mathcal{N}(\mathbf{q}_k, \mathbf{C}_k)$. Also, it holds that $\mathbf{E}_k[|Y^k_m|]<\infty$ by \eqref{lemmaCFKCondition}. Now, the strong law of large numbers yields
 \begin{eqnarray*}
-&&F(\mathbf{q})=F(\mathbf{q}_k)+(\mathbf{q}-\mathbf{q}_k)^T\nabla F(\mathbf{q}_k)+O(\|\mathbf{q}-\mathbf{q}_k\|^2)\\
-&\implies&F(\mathbf{q})-F(\mathbf{q}_k)=(\mathbf{q}-\mathbf{q}_k)^T\mathbf{G}_k+O(\|\mathbf{q}-\mathbf{q}_k\|^2).
+&&\frac{1}{N-1}\sum_{m=1}^NY^k_m\\
+&\xrightarrow{\mathbf{a.s.}}&\int_{\mathbb{R}^n}(F(\mathbf{q})-F(\mathbf{q}_k))(\mathbf{q}-\mathbf{q}_k)\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k)\,\mathrm{d}\mathbf{q}\\
+&=&\int_{\mathbb{R}^n}F(\mathbf{q})(\mathbf{q}-\mathbf{q}_k)\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k)\,\mathrm{d}\mathbf{q}\\
+&=&\mathbf{C}_k\int_{\mathbb{R}^n}F(\mathbf{q})\mathbf{C}^{-1}_k(\mathbf{q}-\mathbf{q}_k)\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k)\,\mathrm{d}\mathbf{q}\\
+&=&\mathbf{C}_k\int_{\mathbb{R}^n}F(\mathbf{q})\nabla_{\mathbf{q}_k}\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k)\,\mathrm{d}\mathbf{q},
 \end{eqnarray*}
-Multiplying both sides by $(\mathbf{q}-\mathbf{q}_k)$ and setting $\mathbf{q}=\mathbf{q}_{k,m}$ yields
+where the last equation follows from
 \begin{eqnarray*}
-&&(\mathbf{q}_{k,m}-\mathbf{q}_k)(F(\mathbf{q}_{k,m})-F(\mathbf{q}_k))\\
-&=&(\mathbf{q}_{k,m}-\mathbf{q}_k)(\mathbf{q}_{k,m}-\mathbf{q}_k)^T\mathbf{G}_k+O(\|\mathbf{q}_{k,m}-\mathbf{q}_k\|^3),
+\mathbf{C}^{-1}_k(\mathbf{q}-\mathbf{q}_k)&=&\nabla_{\mathbf{q}_k}\log(\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k)),\\
+\left(\nabla_{\mathbf{q}_k}\log(\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k))\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k)\right)&=&\nabla_{\mathbf{q}_k}\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k).
 \end{eqnarray*}
-where $O(\|\mathbf{q}_{k,m}-\mathbf{q}_k\|^3)$ are the remaining terms containing order $\geq3$ of $(\mathbf{q}_{k,m}-\mathbf{q}_k)$. Neglecting $O(\|\mathbf{q}_{k,m}-\mathbf{q}_k\|^3)$ gives by summation over all samples and multiplication of both sides with $\frac{1}{N-1}$:
-\begin{eqnarray*}
-&&\frac{1}{N-1}\sum_{m=1}^N(\mathbf{q}_{k,m}-\mathbf{q}_k)(F(\mathbf{q}_{k,m})-F(\mathbf{q}_k))\\
-&\approx&\left(\frac{1}{N-1}\sum_{m=1}^N(\mathbf{q}_{k,m}-\mathbf{q}_k)(\mathbf{q}_{k,m}-\mathbf{q}_k)^T\right)\mathbf{G}_k\\
-&\implies&\mathbf{C}_F^k\approx\mathbf{C}_k\mathbf{G}_k,
-\end{eqnarray*}
-since $\frac{1}{N-1}\sum_{m=1}^N(\mathbf{q}_{k,m}-\mathbf{q}_k)(\mathbf{q}_{k,m}-\mathbf{q}_k)^T$ is itself an approximation of $\mathbf{C}_k$.
+\eqref{lemmaCFKCondition2} and \eqref{lemmaCFKCondition3} yield now
+\begin{equation*}
+\mathbf{C}_k\int_{\mathbb{R}^n}F(\mathbf{q})\nabla_{\mathbf{q}_k}\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k)\,\mathrm{d}\mathbf{q}=\mathbf{C}_k\nabla_{\mathbf{q}_k}\int_{\mathbb{R}^n}F(\mathbf{q})\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k)\,\mathrm{d}\mathbf{q}
+\end{equation*}
+with the Leibniz integral rule, see for example Theorem 2.27 in \cite{Folland_undated-pd}.
 \end{proof}
+
+
+
+%\begin{prop}
+%\label{propCovMat}
+%Let $\mathbf{C}_F^k$ be defined as in \eqref{CqkF}, where the vectors $\mathbf{q}_{k,m}$ for $m=1,\dotsc,N$ are sampled from a multivariate Gaussian distribution with the mean $\mathbf{q}_k$ and the covariance $\mathbf{C}_k$. Then it holds that
+%\begin{equation*}
+%\mathbf{C}_F^k\approx\mathbf{C}_k\mathbf{G}_k,
+%\end{equation*}
+%where $\mathbf{G}_k$ is the gradient of $F$ at $\mathbf{q}_k$.
+%\end{prop}
+%\begin{proof}
+%The proof goes according to \cite{OGUNTOLA2021109165}. We begin with the Taylor expansion around $\mathbf{q}_k$ and get for some $\mathbf{q}\in\mathcal{D}$
+%\begin{eqnarray*}
+%&&F(\mathbf{q})=F(\mathbf{q}_k)+(\mathbf{q}-\mathbf{q}_k)^T\nabla F(\mathbf{q}_k)+O(\|\mathbf{q}-\mathbf{q}_k\|^2)\\
+%&\implies&F(\mathbf{q})-F(\mathbf{q}_k)=(\mathbf{q}-\mathbf{q}_k)^T\mathbf{G}_k+O(\|\mathbf{q}-\mathbf{q}_k\|^2).
+%\end{eqnarray*}
+%Multiplying both sides by $(\mathbf{q}-\mathbf{q}_k)$ and setting $\mathbf{q}=\mathbf{q}_{k,m}$ yields
+%\begin{eqnarray*}
+%&&(\mathbf{q}_{k,m}-\mathbf{q}_k)(F(\mathbf{q}_{k,m})-F(\mathbf{q}_k))\\
+%&=&(\mathbf{q}_{k,m}-\mathbf{q}_k)(\mathbf{q}_{k,m}-\mathbf{q}_k)^T\mathbf{G}_k+O(\|\mathbf{q}_{k,m}-\mathbf{q}_k\|^3),
+%\end{eqnarray*}
+%where $O(\|\mathbf{q}_{k,m}-\mathbf{q}_k\|^3)$ are the remaining terms containing order $\geq3$ of $(\mathbf{q}_{k,m}-\mathbf{q}_k)$. Neglecting $O(\|\mathbf{q}_{k,m}-\mathbf{q}_k\|^3)$ gives by summation over all samples and multiplication of both sides with $\frac{1}{N-1}$:
+%\begin{eqnarray*}
+%&&\frac{1}{N-1}\sum_{m=1}^N(\mathbf{q}_{k,m}-\mathbf{q}_k)(F(\mathbf{q}_{k,m})-F(\mathbf{q}_k))\\
+%&\approx&\left(\frac{1}{N-1}\sum_{m=1}^N(\mathbf{q}_{k,m}-\mathbf{q}_k)(\mathbf{q}_{k,m}-\mathbf{q}_k)^T\right)\mathbf{G}_k\\
+%&\implies&\mathbf{C}_F^k\approx\mathbf{C}_k\mathbf{G}_k,
+%\end{eqnarray*}
+%since $\frac{1}{N-1}\sum_{m=1}^N(\mathbf{q}_{k,m}-\mathbf{q}_k)(\mathbf{q}_{k,m}-\mathbf{q}_k)^T$ is itself an approximation of $\mathbf{C}_k$.
+%\end{proof}
 
 Using the samples $\{\mathbf{q}_{k-1,m}\}_{m=1}^N$ and the covariance matrix $\mathbf{C}_{k-1}$ from the last iteration, we update $\mathbf{C}_{k-1}$ as suggested in \cite{Stordal2016-cj} by setting
 \begin{equation}
@@ -88,7 +134,7 @@ Using the samples $\{\mathbf{q}_{k-1,m}\}_{m=1}^N$ and the covariance matrix $\m
 \label{updateCovDirection}
 \tilde{\mathbf{d}}_k=N^{-1}\sum_{m=1}^N(F(\mathbf{q}_{k-1,m})-F(\mathbf{q}_k))((\mathbf{q}_{k-1,m}-\mathbf{q}_k)(\mathbf{q}_{k-1,m}-\mathbf{q}_k)^T-\mathbf{C}_{k-1}),
 \end{equation}
-where $\tilde{\beta}_k$ is a step size that is chosen so that no entries of the diagonal of $\mathbf{C}_k$ are negative. How we set $\tilde{\beta}_k$ is shown below at the implementation of the entire EnOpt algorithm. We expect to get better samples in the next iteration due to the updated covariance matrix. Therefore, we call this procedure the adaptive EnOpt algorithm.
+where $\tilde{\beta}_k$ is a step size that is chosen so that no entries of the diagonal of $\mathbf{C}_k$ are negative. How we set $\tilde{\beta}_k$ is shown below at the implementation of the entire EnOpt algorithm. The idea behind this is to update the expected value of $F$ also with respect to the covariance matrix. We expect to get better samples in the next iteration due to the updated covariance matrix. Therefore, we call this procedure the adaptive EnOpt algorithm.
 
 Now that we have explained the optimization steps of this algorithm, we iterate until $F(\mathbf{q}_k)\leq F(\mathbf{q}_{k-1})+\varepsilon$, where $\varepsilon>0$.\\
 

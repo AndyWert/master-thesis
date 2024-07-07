@@ -1391,3 +1391,16 @@ def result8():
     inspectDNNStructures = False
 
     compareEnOpt(np.zeros(51)-40, 100, 1e-14, 1e-14, 1e-14, 1e-7, 1000, 1000, 1000, 5, [[51, 25, 25, 1], torch.tanh, 10, 1000, 15, 0.8, 1e-2], 100, 1, 0.001, 0.5, 10, [0.01], 0.99, -np.sqrt(5), 0.1, 50, 50, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)], analytical=True)
+
+def test():
+    global showOuterIterationPlots
+    global showInnerIterationPlots
+    global showPlots
+    global inspectDNNStructures
+
+    showOuterIterationPlots = True
+    showInnerIterationPlots = False
+    showPlots = True
+    inspectDNNStructures = False
+
+    compareEnOpt(np.zeros(66)-40, 100, 1e-8, 1e-8, 1e-12, 1e-7, 1000, 1000, 1000, 5, [[66, 25, 25, 1], torch.tanh, 10, 1000, 15, 0.8, 1e-2], 100, 1, 0.001, 0.5, 10, [0.01, 0.01, 0.01, 0.01, 0.01, 0.01], 0.99, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('1', dim_domain=2), ExpressionFunction('x[0]', dim_domain=2), ExpressionFunction('x[1]', dim_domain=2), ExpressionFunction('x[0]**2', dim_domain=2), ExpressionFunction('x[1]**2', dim_domain=2), ExpressionFunction('x[0]*x[1]', dim_domain=2)], analytical=True)
