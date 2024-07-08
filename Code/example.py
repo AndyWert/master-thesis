@@ -14,7 +14,7 @@ FOMEvaluations = 0
 surrogateEvaluations = 0
 innerIterations = 0
 
-showOuterIterationPlots = False
+showOuterIterationPlots = True
 showInnerIterationPlots = False
 showPlots = False
 inspectDNNStructures = False
@@ -1314,11 +1314,19 @@ def result1():
 
     compareEnOpt(np.zeros(11)-40, 100, 1e-8, 1e-8, 1e-12, 1e-7, 1000, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)], analytical=True)
 
-
+# evalFOM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1000, 1, 0.1, 0.5, 10, [10], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
+# evalFOM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1000, 1, 0.1, 0.5, 10, [0.001], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
+# evalFOM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1000, 1, 0.1, 0.5, 10, [0.1], 0.9999, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
+# evalFOM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1000, 1, 0.1, 0.5, 10, [0.1], 0.1, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
+# evalFOM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1000, 1, 1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
 def result2():
     testFOM_EnOpt(3, np.zeros(11)-40, 100, 1e-8, 1000, 1, 0.1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
 
-
+# evalROM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1e-12, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [10], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
+# evalROM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1e-12, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [0.001], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
+# evalROM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1e-12, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [0.1], 0.9999, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
+# evalROM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1e-12, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [0.1], 0.1, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
+# evalROM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1e-12, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
 def result3():
     testROM_EnOpt(3, np.zeros(11)-40, 100, 1e-8, 1e-12, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
 

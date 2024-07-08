@@ -132,7 +132,7 @@ Now we want to calculate $\int_\Omega u \cdot v \,\mathrm{d}x$ and $\int_\Omega 
 \begin{displaymath}
 \mathbf{U}=\begin{pmatrix} U_1 \\ \vdots \\ U_{N_\mathcal{V}} \end{pmatrix}\text{ and }\mathbf{V}=\begin{pmatrix} V_1 \\ \vdots \\ V_{N_\mathcal{V}} \end{pmatrix},
 \end{displaymath}
-where $U_i=u(x_i)$, $V_i=v(x_i)$ for $i=1,\dotsc,N_\mathcal{V}$ as in \eqref{discretizedUSum}. Then we have, based on the representation of elements in $V_h$ from equation \eqref{discretizedUSum}, that
+where $U_i=u(x_i)$, $V_i=v(x_i)$ for $i=1,\dotsc,N_\mathcal{V}$ as in \eqref{discretizedUSum}. Then we have, based on the representation of elements in $V_h$ from Equation \eqref{discretizedUSum}, that
 \begin{displaymath}
 \int_\Omega u \cdot v \,\mathrm{d}x=\mathbf{U}^T\mathbf{M}_n\mathbf{V}\text{ and }\int_\Omega \nabla v \cdot \nabla u \,\mathrm{d}x=\mathbf{U}^T\mathbf{L}_n\mathbf{V}.
 \end{displaymath}
@@ -166,7 +166,7 @@ Now we solve the weak state equations \eqref{weakEq} for the state $u\in X_{k,h}
 \begin{displaymath}
 \mathbf{U}_m=\begin{pmatrix} U_{m,1} \\ \vdots \\ U_{m,N_\mathcal{V}} \end{pmatrix}
 \end{displaymath}
-for $m=0,\dotsc,N_t$. The initial discretized state vector $\mathbf{U}_0$ is already given by the values of $u_0$. Next, we want to solve the weak state equations for $\mathbf{U}_m$ at the other time steps $m=1,\dotsc,N_t$, so that we can set $u_m=\sum_{i=1}^{N_\mathcal{V}}U_{m,i}\phi_i$ according to equation \eqref{discretizedUSum}.
+for $m=0,\dotsc,N_t$. The initial discretized state vector $\mathbf{U}_0$ is already given by the values of $u_0$. Next, we want to solve the weak state equations for $\mathbf{U}_m$ at the other time steps $m=1,\dotsc,N_t$, so that we can set $u_m=\sum_{i=1}^{N_\mathcal{V}}U_{m,i}\phi_i$ according to Equation \eqref{discretizedUSum}.
 
 For this, we find solutions of the Crank-Nicolson scheme \cite{articleMeidner}, so that for $m=1,\dotsc,N_t$ and for all $v\in V_h$:
 \begin{eqnarray*}
