@@ -6,7 +6,7 @@ from pymor.algorithms.timestepping import TimeStepper
 from numpy import linalg as LA
 import time
 
-plt.style.use('style.mplstyle')
+# plt.style.use('style.mplstyle')
 
 # global values
 trainingTime = 0
@@ -14,7 +14,7 @@ FOMEvaluations = 0
 surrogateEvaluations = 0
 innerIterations = 0
 
-showOuterIterationPlots = True
+showOuterIterationPlots = False
 showInnerIterationPlots = False
 showPlots = False
 inspectDNNStructures = False
@@ -176,8 +176,6 @@ def J(param, q_shape, a, T, grid_intervals=50, nt=10):
     global FOMEvaluations
     FOMEvaluations += 1
     alpha = np.pi**(-4)
-    # setting the control function q
-    # q_shape = [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)]
     nb = len(q_shape)
     assert len(param) == nb*(nt+1)
     q = ExpressionFunction('0', dim_domain=2)
@@ -274,7 +272,6 @@ def optStep(F, q_k, N, k, T_k, C_k, F_k, beta_1, beta_2, r, eps, nu_1, var, corr
     T_k_next = []
     for i in range(N):
         T_k_next.append([proj(sample[i]), F(proj(sample[i]))])
-        # T_k_next.append([sample[i], F(sample[i])])
     C_F = np.zeros(N_q)
     for m in range(N):
         C_F = C_F+(T_k_next[m][0]-q_k)*(T_k_next[m][1]-F_k)
@@ -501,8 +498,6 @@ def constructDNN(sample, V_DNN, minIn, maxIn):
 
 def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_1, beta_2, r, nu_1, var, correlationCoeff, T, nt, nb):
     global trainingTime
-    global addDNNStruct
-    # initialize the surrogate functional
     surrogateValue = 0
     surrogateEval = []
     surrogateTrain = []
@@ -549,6 +544,7 @@ def AML_EnOpt(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, be
             trainingTime = trainingTime + (endTraining - startTraining)
             F_ML_k_q_k = F_ML_k(q_k)
             if inspectDNNStructures:
+                addDNNStruct = [[11, 20, 20, 1], [11, 25, 25, 1], [11, 30, 30, 1], [11, 35, 35, 1], [11, 50, 50, 1], [11, 100, 100, 1], [11, 250, 250, 1], [11, 500, 500, 1], [11, 1000, 1000, 1]]
                 F_ML_k_list = [F_ML_k_q_k-F_k]
                 DNN_eval_list = [DNN_eval]
                 val_iteration_list = []
@@ -725,7 +721,6 @@ def ROM_EnOpt(q_0, N, eps_o, eps_i, k_1_o, k_1_i, k_tr, V_DNN, delta_init, beta_
 
 def AML_EnOptNoTR(F, q_0, N, eps_o, eps_i, k_1_o, k_1_i, V_DNN, beta_1, beta_2, r, nu_1, var, correlationCoeff, T, nt, nb):
     global trainingTime
-    # initialize the surrogate functional
     surrogateValue = 0
     surrogateEval = []
     surrogateTrain = []
@@ -1314,19 +1309,11 @@ def result1():
 
     compareEnOpt(np.zeros(11)-40, 100, 1e-8, 1e-8, 1e-12, 1e-7, 1000, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)], analytical=True)
 
-# evalFOM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1000, 1, 0.1, 0.5, 10, [10], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
-# evalFOM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1000, 1, 0.1, 0.5, 10, [0.001], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
-# evalFOM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1000, 1, 0.1, 0.5, 10, [0.1], 0.9999, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
-# evalFOM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1000, 1, 0.1, 0.5, 10, [0.1], 0.1, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
-# evalFOM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1000, 1, 1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
+
 def result2():
     testFOM_EnOpt(3, np.zeros(11)-40, 100, 1e-8, 1000, 1, 0.1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
 
-# evalROM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1e-12, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [10], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
-# evalROM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1e-12, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [0.001], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
-# q, method, FOMValues, surrogateValues, outerIterationsTotal, innerIterationsTotal, FOMEvaluationsTotal, surrogateEvaluationsTotal, surrogateEval, surrogateTrain, trainingTimeTotal, runTimeTotal=evalROM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1e-12, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [0.1], 0.9999, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
-# q, method, FOMValues, surrogateValues, outerIterationsTotal, innerIterationsTotal, FOMEvaluationsTotal, surrogateEvaluationsTotal, surrogateEval, surrogateTrain, trainingTimeTotal, runTimeTotal=evalROM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1e-12, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [0.1], 0.1, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
-# q, method, FOMValues, surrogateValues, outerIterationsTotal, innerIterationsTotal, FOMEvaluationsTotal, surrogateEvaluationsTotal, surrogateEval, surrogateTrain, trainingTimeTotal, runTimeTotal=evalROM_EnOpt(np.zeros(11)-40, 100, 1e-8, 1e-12, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
+
 def result3():
     testROM_EnOpt(3, np.zeros(11)-40, 100, 1e-8, 1e-12, 1000, 1000, 5, [[11, 25, 25, 1], torch.tanh, 2, 1000, 15, 0.8, 1e-2], 100, 1, 0.1, 0.5, 10, [0.1], 0.9, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)])
 
@@ -1399,16 +1386,3 @@ def result8():
     inspectDNNStructures = False
 
     compareEnOpt(np.zeros(51)-40, 100, 1e-14, 1e-14, 1e-14, 1e-7, 1000, 1000, 1000, 5, [[51, 25, 25, 1], torch.tanh, 10, 1000, 15, 0.8, 1e-2], 100, 1, 0.001, 0.5, 10, [0.01], 0.99, -np.sqrt(5), 0.1, 50, 50, [ExpressionFunction('sin(pi*x[0])*sin(pi*x[1])', dim_domain=2)], analytical=True)
-
-def test():
-    global showOuterIterationPlots
-    global showInnerIterationPlots
-    global showPlots
-    global inspectDNNStructures
-
-    showOuterIterationPlots = True
-    showInnerIterationPlots = False
-    showPlots = True
-    inspectDNNStructures = False
-
-    compareEnOpt(np.zeros(66)-40, 100, 1e-8, 1e-8, 1e-12, 1e-7, 1000, 1000, 1000, 5, [[66, 25, 25, 1], torch.tanh, 10, 1000, 15, 0.8, 1e-2], 100, 1, 0.001, 0.5, 10, [0.01, 0.01, 0.01, 0.01, 0.01, 0.01], 0.99, -np.sqrt(5), 0.1, 50, 10, [ExpressionFunction('1', dim_domain=2), ExpressionFunction('x[0]', dim_domain=2), ExpressionFunction('x[1]', dim_domain=2), ExpressionFunction('x[0]**2', dim_domain=2), ExpressionFunction('x[1]**2', dim_domain=2), ExpressionFunction('x[0]*x[1]', dim_domain=2)], analytical=True)

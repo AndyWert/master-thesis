@@ -70,9 +70,10 @@ For given $f,\hat{u}\in L^2(I,H)$, $u_0\in V$, and $\alpha>0$, the optimal contr
 \end{prop}
 
 Due to the existence and uniqueness results from Proposition \ref{uniqueU}, we define $u(q)$ as the unique solution of \eqref{weakEq} with respect to some $q\in Q$. This enables us to define a reduced cost functional $j:Q\to \mathbb{R}$ that is only dependent on the control $q$ as
-\begin{displaymath}
+\begin{equation}
+\label{definitionAnalyticalSmallJ}
 j(q):=J(q,u(q)).
-\end{displaymath}
+\end{equation}
 From now on, the optimal control problem that we examine is:
 \begin{equation}
 \label{redProb}
@@ -80,7 +81,7 @@ From now on, the optimal control problem that we examine is:
 \end{equation}
 
 \section{Finite element discretization}
-In order to solve the optimization problem \eqref{redProb} numerically, the discretization of our model is now discussed. We use finite elements methods \cite{doi:10.1137/1.9780898717440, articleMeidner} for this. At first, the discretization in space with a n-D continuous Galerkin method is presented. Then, we look at the discretization in time, which is done with a 1D continuous Galerkin method. From now on, we will also discuss some implementation details, so in this chapter how we handle the calculation of the objective function $j$. In our implementation, we apply functions from the Python package pyMOR.
+In order to solve the optimization problem \eqref{redProb} numerically, the discretization of our model is now discussed. We use finite elements methods \cite{doi:10.1137/1.9780898717440, articleMeidner} for this. At first, the discretization in space with a n-D continuous Galerkin method is presented. Then, we look at the discretization in time, which is done with a 1D continuous Galerkin method. From now on, we will also discuss some implementation details, so in this chapter how we handle the calculation of the objective function $j$. In our implementation, we apply functions from the Python package pyMOR \cite{doi:10.1137/15M1026614}.
 
 \subsection{\label{SubsectionDiscretizationInSpace}Discretization in space}
 The discretization in space is shown on a 2-dimensional rectangular space $\Omega\subset\mathbb{R}^2$ with linear finite elements. We assume to have a vertex set $\mathcal{V}=(x_1,\dotsc,x_{N_\mathcal{V}})\in(\mathbb{R}^2)^{N_\mathcal{V}}$ with a convex hull that is equal  to $\bar{\Omega}$ and $x_i\neq x_j$ for all $i\neq j$ in $\{1,\dotsc,N_\mathcal{V}\}$. Let $\hat{T}=\{(x,y)\in[0,1]^2\mid y \leq 1-x\}$ be the reference triangle. Then,
@@ -199,7 +200,7 @@ In the pyMOR implementation, vectors $\mathbf{F}_m$ for $m=0,\dotsc,N_t$ are def
 \label{crank_nicolson}
 \left(\tilde{\mathbf{M}}_n^T + \frac{T}{2N_t} \tilde{\mathbf{L}}_n^T\right) \mathbf{U}_m = \left(\tilde{\mathbf{M}}_n^T - \frac{T}{2N_t} \tilde{\mathbf{L}}_n^T\right) \mathbf{U}_{m-1} + \frac{T}{2N_t} \mathbf{F}_{m-1} + \frac{T}{2N_t} \mathbf{F}_m,
 \end{equation}
-which is solved after $\mathbf{U}_m$ with algorithms from the Python package SciPy.
+which is solved after $\mathbf{U}_m$ with algorithms from the Python package SciPy \cite{2020SciPy-NMeth}.
 
 \subsection{\label{subsectionCalculationOfTheObjectiveFunctionValue}Calculation of the objective functional value}
 For fixed $\hat{u},f\in Q$, we define $u=u(q)$ for all $q\in Q_d$ so that it satisfies \eqref{crank_nicolson}. The functional value $j(q)$ is now calculated in the following way:

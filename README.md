@@ -8,9 +8,13 @@ pymor==2023.2.0 [https://pymor.org/]
 
 scipy==1.11.4 [https://scipy.org/install/]
 
-torch==2.3.0+cu121 [https://pytorch.org/]
+torch==2.3.0+cu121 if CUDA is installed or otherwise torch==2.3.0 [https://pytorch.org/]
 
-The installation of CUDA [https://developer.nvidia.com/cuda-zone] is optional but recommended if available. If CUDA is not installed, another PyTorch version has to be installed from the provided link.
+The installation of CUDA [https://developer.nvidia.com/cuda-zone] is optional but recommended if available.
+
+Please make sure that ipywidgets is up to date, for example by running: pip install -U ipywidgets
+
+The line of code 'plt.style.use('style.mplstyle')' at the beginning of Code/example.py is commented out to avoid errors that lead to the figures not being plotted. One might try to remove '# ' in front of this line to get figures with the same style as in the thesis.
 
 
 To replicate the results of this thesis, the code in Code/example.py has to be ran once. Then the following functions return the specified results:

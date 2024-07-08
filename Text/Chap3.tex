@@ -53,7 +53,7 @@ Now we set the step direction as $\mathbf{d}_k=\frac{\mathbf{C}_F^k}{\|\mathbf{C
 \begin{lem}
 Assume $\mathbf{q}\in\mathbb{R}^n$ with $n=N_\mathbf{q}$. Let
 \begin{equation*}
-\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k)=(2\pi)^{-n/2}\operatorname{det}(\mathbf{C}_k)^{-1/2}\operatorname{exp}\left(-\frac{1}{2}(\mathbf{q}-\mathbf{q}_k)^T\mathbf{C}^{-1}_k(\mathbf{q}-\mathbf{q}_k)\right)
+\Phi(\mathbf{q}\mid \mathbf{q}_k, \mathbf{C}_k)=(2\pi)^{-n/2}\det(\mathbf{C}_k)^{-1/2}\exp\left(-\frac{1}{2}(\mathbf{q}-\mathbf{q}_k)^T\mathbf{C}^{-1}_k(\mathbf{q}-\mathbf{q}_k)\right)
 \end{equation*}
 denote the multivariate Gaussian density with mean $\mathbf{q}_k$ and covariance matrix $\mathbf{C}_k$. If
 \begin{equation}
@@ -134,7 +134,7 @@ Using the samples $\{\mathbf{q}_{k-1,m}\}_{m=1}^N$ and the covariance matrix $\m
 \label{updateCovDirection}
 \tilde{\mathbf{d}}_k=N^{-1}\sum_{m=1}^N(F(\mathbf{q}_{k-1,m})-F(\mathbf{q}_k))((\mathbf{q}_{k-1,m}-\mathbf{q}_k)(\mathbf{q}_{k-1,m}-\mathbf{q}_k)^T-\mathbf{C}_{k-1}),
 \end{equation}
-where $\tilde{\beta}_k$ is a step size that is chosen so that no entries of the diagonal of $\mathbf{C}_k$ are negative. How we set $\tilde{\beta}_k$ is shown below at the implementation of the entire EnOpt algorithm. The idea behind this is to update the expected value of $F$ also with respect to the covariance matrix. We expect to get better samples in the next iteration due to the updated covariance matrix. Therefore, we call this procedure the adaptive EnOpt algorithm.
+where $\tilde{\beta}_k$ is a step size that is chosen so that no entries of the diagonal of $\mathbf{C}_k$ are negative. How we set $\tilde{\beta}_k$ is shown below at the implementation of the entire EnOpt algorithm. The idea behind this is to maximize the expected value of $F$ also with respect to the covariance matrix. We expect to get better samples in the next iteration due to the updated covariance matrix. Therefore, we call this procedure the adaptive EnOpt algorithm.
 
 Now that we have explained the optimization steps of this algorithm, we iterate until $F(\mathbf{q}_k)\leq F(\mathbf{q}_{k-1})+\varepsilon$, where $\varepsilon>0$.\\
 
@@ -162,7 +162,7 @@ The implementation in pseudo code that is shown below corresponds to Algorithm $
 \begin{algorithm}[H]%\footnotesize
 \caption{\label{EnOptAlg}EnOpt algorithm}
 \begin{algorithmic}[1]
-\Function{EnOpt}{$\textproc{F},\mathbf{q}_0,N,\varepsilon,k^*,\beta_1,\beta_2,r,\nu^*,\sigma^2,\rho, N_t, N_b, \textproc{pr} \gets \mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}, \mathbf{C}_\mathrm{init}\gets\mathrm{None}$}
+\Function{EnOpt}{$\textproc{F},\mathbf{q}_0,N,\varepsilon,k^*,\beta_1,\beta_2,r,\nu^*,\sigma^2,\rho, N_t, N_b, \textproc{pr} \gets \mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}, $\par$\mathbf{C}_\mathrm{init}\gets\mathrm{None}$}
 \State \label{EnOptAlgFOMCall}$F^\mathrm{prev}_{k}\gets \Call{F}{\mathbf{q}_0}$
 \State\label{EnOptAlgOptStepCall1} $\mathbf{q}_k,T_k,\mathbf{C}_k,F_k\gets\Call{OptStep}{\textproc{F},\mathbf{q}_0,N,0,[\;],\mathbf{C}_\mathrm{init},F^\mathrm{prev}_{k},\beta_1,\beta_2,r,\varepsilon,\nu^*,\sigma^2,\rho, N_t, N_b, \textproc{pr}}$
 \State $k\gets 1$
@@ -180,7 +180,7 @@ We begin by initializing $F^\mathrm{prev}_{k}$ as $\Call{F}{\mathbf{q}_0}$. The 
 
 After $k$ is initialized as $1$, we enter a while-loop until the stopping criterion is satisfied. That is, we stop the loop when the functional value $F_k$ of the current iterate is no longer significantly larger than the functional value $F^\mathrm{prev}_k$ of the last iterate, so when $F_k\leq F^\mathrm{prev}_k+\varepsilon$. There is also a limit $k^*$ to the number of loop repetitions, so when that is reached, we also leave the while-loop. In each optimization loop, $F^\mathrm{prev}_{k}$ is set to the functional value of the last iterate and $\mathbf{q}_k,T_k,\mathbf{C}_k$ and $F_k$ are updated by calling $\textproc{OptStep}$ again. After we leave the while-loop, the last iterate $\mathbf{q}_k$ is returned.
 
-The next algorithms use some functions from Python such as $\textproc{len}$ for the length of a list or an array, as well as functions from the Python package NumPy which are identified by starting with '$\mathrm{np.}$'. The OptStep algorithm corresponds mostly to Algorithm $2$ in \cite{Keil2022-dj}. A change is that our algorithm can take an initial covariance matrix. Therefore the lines \ref{alg2differ1} to \ref{alg2differ2} differ with respect to the algorithm from \cite{Keil2022-dj}. Other differences are that the samples in line \ref{OptStepFOMCall1} are projected with $\textproc{pr}$ and the existence of the if-statement in line \ref{alg2differ3}.
+The next algorithms use some functions from Python such as $\textproc{len}$ for the length of a list or an array, as well as functions from the Python package NumPy \cite{harris2020array}, which are identified by starting with '$\mathrm{np.}$'. The OptStep algorithm corresponds mostly to Algorithm $2$ in \cite{Keil2022-dj}. A change is that our algorithm can take an initial covariance matrix. Therefore the lines \ref{alg2differ1} to \ref{alg2differ2} differ with respect to the algorithm from \cite{Keil2022-dj}. Other differences are that the samples in line \ref{OptStepFOMCall1} are projected with $\textproc{pr}$ and the existence of the if-statement in line \ref{alg2differ3}.
 
 %\begin{algorithm}[H]%\footnotesize
 %\caption{OptStep algorithm}
@@ -204,7 +204,7 @@ The next algorithms use some functions from Python such as $\textproc{len}$ for 
 \begin{algorithm}[H]%\footnotesize
 \caption{\label{OptStep}OptStep algorithm}
 \begin{algorithmic}[1]
-\Function{OptStep}{$\textproc{F},\mathbf{q}_k,N,k,T_k,\mathbf{C}_k,F_k,\beta_1,\beta_2,r,\varepsilon,\nu^*,\sigma^2,\rho, N_t, N_b, \textproc{pr} \gets \mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}$}
+\Function{OptStep}{$\textproc{F},\mathbf{q}_k,N,k,T_k,\mathbf{C}_k,F_k,\beta_1,\beta_2,r,\varepsilon,\nu^*,\sigma^2,\rho, N_t, N_b, $\par$\textproc{pr} \gets \mathbf{lambda}\:\mathrm{mu}: \mathrm{mu}$}
 \State $N_\mathbf{q}\gets\Call{len}{\mathbf{q}_k}$
 \State $\mathbf{C}^\mathrm{next}_k \gets \mathrm{np.}\Call{zeros}{(N_\mathbf{q}, N_\mathbf{q})}$
 \If{$k=0$}
@@ -282,7 +282,7 @@ After that, we set $\mathbf{C}^k_F$ like it is defined in \eqref{CqkF}. Then we 
 \State $\mathbf{d}^\mathrm{cov}_k \gets \Call{np.zeros}{(N_\mathbf{q}, N_\mathbf{q})}$
 %\State $\mathrm{assert}$ $\mathrm{len}(T_k) == N$
 \For{$m\gets0,\dotsc,N-1$}
-\State $\mathbf{d}^\mathrm{cov}_k \gets \mathbf{d}^\mathrm{cov}_k + (T_k[m][1]-F_k)\cdot((T_k[m][0]-\mathbf{q}_k).\Call{reshape}{(N_\mathbf{q},1)}\cdot(T_k[m][0]-\mathbf{q}_k).\Call{reshape}{(1,N_\mathbf{q})}-\mathbf{C}_k)$
+\State $\mathbf{d}^\mathrm{cov}_k \gets \mathbf{d}^\mathrm{cov}_k + (T_k[m][1]-F_k)\cdot((T_k[m][0]-\mathbf{q}_k).\Call{reshape}{(N_\mathbf{q},1)}$\par$\cdot(T_k[m][0]-\mathbf{q}_k).\Call{reshape}{(1,N_\mathbf{q})}-\mathbf{C}_k)$
 \EndFor
 \State $\mathbf{d}^\mathrm{cov}_k \gets \mathbf{d}^\mathrm{cov}_k/N$
 \State \label{CDiagDDiagBegin} $\mathbf{C}_\mathrm{diag}, \mathbf{d}_\mathrm{diag}\gets\mathrm{np.}\Call{zeros}{N_\mathbf{q}}, \mathrm{np.}\Call{zeros}{N_\mathbf{q}}$
@@ -333,7 +333,7 @@ The next algorithm corresponds to Algorithm 3 in \cite{Keil2022-dj} with some ad
 \State \label{LineSearchAlgFOMCall2}$F^\mathrm{next}_k \gets \Call{F}{\mathbf{q}^\mathrm{next}_k}$
 \State $\nu \gets \nu+1$
 \EndWhile
-\Return $\mathbf{q}^\mathrm{next}_k, F^\mathrm{next}_k$
+\State\Return $\mathbf{q}^\mathrm{next}_k, F^\mathrm{next}_k$
 \EndFunction
 \end{algorithmic}
 \end{algorithm}
