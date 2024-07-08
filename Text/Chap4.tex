@@ -76,7 +76,7 @@ In addition, some functions are imported from the Python package PyTorch. These 
 \State $\mathrm{minimalValidationLoss} \gets \Call{testDNN}{\mathrm{DNN}, x_\mathrm{val}, y_\mathrm{val}, \textproc{loss\_fn}}$
 %\State \text{save the current parameters of the DNN}%$\mathrm{torch.save}(\mathrm{DNN.state\_dict}(), \mathrm{'checkpoint.pth'})$
 \State $\mathrm{torch.}\Call{save}{\textproc{DNN.}\protect\Call{state\_dict}{\:}, \mathrm{'checkpoint.pth'}}$
-\For{$\mathrm{epoch}=1,\dotsc,\mathrm{epochs}$}
+\For{$\mathrm{epoch}\gets1,\dotsc,\mathrm{epochs}$}
 %\State \text{do one training step with the }$\mathrm{optimizer}$
 \State\label{startTrainStep} $\textproc{DNN.}\Call{train}{\:}$
 \Function{closure}{\:}
@@ -178,7 +178,7 @@ To summarize this, we now present the construction of a DNN as pseudo code in Al
 %\State \text{scale inputs and outputs like described and save them as }$\mathrm{normSample}$\text{ and }$\mathrm{normVal}$
 \State $\mathrm{normSample} \gets \mathrm{np.}\Call{zeros}{\protect\Call{len}{\mathrm{sample}}, \protect\Call{len}{\mathrm{sample}[0][0]}}$
 \State $\mathrm{normVal} \gets \mathrm{np.}\Call{zeros}{\protect\Call{len}{\mathrm{sample}}}$
-\For{$i = 0,\dotsc,\Call{len}{\mathrm{sample}}-1$}
+\For{$i \gets 0,\dotsc,\Call{len}{\mathrm{sample}}-1$}
 \State $\mathrm{normSample}[i, :] \gets \mathrm{sample}[i][0]$
 \State $\mathrm{normVal}[i] \gets \mathrm{sample}[i][1]$
 \EndFor
@@ -202,7 +202,7 @@ To summarize this, we now present the construction of a DNN as pseudo code in Al
 \State $\mathrm{optimizer} \gets \mathrm{torch.optim.}\Call{LBFGS}{\protect\Call{DNN.parameters}{\:}, \mathrm{lr}\gets\mathrm{learning\_rate}, \mathrm{line\_search\_fn}\gets\mathrm{'strong\_wolfe'}}$
 \State $\Call{trainDNN}{\textproc{DNN}, x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{val}, y_\mathrm{val}, \textproc{loss\_fn}, \mathrm{optimizer}, \mathrm{epochs}, \mathrm{earlyStop}}$
 \State\label{defEvalDNN} $\mathrm{evalDNN} \gets \Call{testDNN}{\textproc{DNN}, x_\mathrm{val}, y_\mathrm{val}, \textproc{loss\_fn}}$
-\For{$i=1,\dotsc,\mathrm{restarts}$}
+\For{$i\gets1,\dotsc,\mathrm{restarts}$}
 \State $\textproc{DNN}_i \gets \Call{FullyConnectedNN}{\mathrm{DNNStructure}, \textproc{activation\_function}\gets\textproc{activFunc}}$
 \State $\mathrm{optimizer} \gets \mathrm{torch.optim.}\Call{LBFGS}{\protect\Call{DNN$_i$.parameters}{\:}, \mathrm{lr}\gets\mathrm{learning\_rate}, \mathrm{line\_search\_fn}\gets\mathrm{'strong\_wolfe'}}$
 \State $\Call{trainDNN}{\mathrm{DNN}_i, x_\mathrm{train}, y_\mathrm{train}, x_\mathrm{val}, y_\mathrm{val}, \textproc{loss\_fn}, \mathrm{optimizer}, \mathrm{epochs}, \mathrm{earlyStop}}$
@@ -264,7 +264,7 @@ We describe now the Adaptive-ML-EnOpt algorithm with pseudo code. This algorithm
 \While{\label{F_k_tilde_check}$\tilde{F}_k>F_k+\varepsilon_o$\text{ and }$k<k_o^*$}
 %\State $\text{compute }\mathrm{minIn}\text{ and }\mathrm{maxIn}$
 \State\label{minMaxInAlg1} $T^x_k \gets \mathrm{np.}\Call{zeros}{(N, N_\mathbf{q})}$
-\For{$i=0,\dotsc,N-1$}
+\For{$i\gets0,\dotsc,N-1$}
 \State $T^x_k[i,:] \gets T_k[i][0]$
 \EndFor
 \State $\mathrm{minIn} \gets \mathrm{np.}\Call{zeros}{N_\mathbf{q}}$

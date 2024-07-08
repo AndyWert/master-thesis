@@ -3,7 +3,7 @@
 \section{Introduction to the problem}
 Our optimization problem is based on the problem that is presented in \cite{doi:10.1137/070694016}. We consider a state variable $u$ and a control variable $q$, defined on $(0,T)\times\Omega$ with $T\in\mathbb{R}$ and $\Omega\subset\mathbb{R}^n$.
 
-The goal of this thesis is to minimize the function
+The goal of this thesis is to minimize the functional
 \begin{subequations}
 \label{conProb}
 \begin{gather}
@@ -47,7 +47,7 @@ With the weak state equations \eqref{weakEq}, we define the weak formulation of 
 \text{Minimize }J(q,u):=\frac{1}{2}\|u-\hat{u}\|_I^2+\frac{\alpha}{2}\|q\|_I^2\text{ subject to \eqref{weakEq} and }(q,u)\in Q\times X.
 \end{equation}
 
-Now we cite two results of the problems \eqref{weakEq} and \eqref{weakProb} form \cite{doi:10.1137/070694016}.
+Now we cite two results of the problems \eqref{weakEq} and \eqref{weakProb} from \cite{doi:10.1137/070694016}.
 
 \begin{prop}[\cite{doi:10.1137/070694016}]
 \label{uniqueU}
@@ -80,7 +80,7 @@ From now on, the optimal control problem that we examine is:
 \end{equation}
 
 \section{Finite element discretization}
-In order to solve the optimization problem \eqref{redProb} numerically, the discretization of our model is now discussed. We use finite elements methods \cite{doi:10.1137/1.9780898717440, articleMeidner} for this. At first, the discretization in space with a n-D continuous Galerkin method is presented. Then, we look at the discretization in time, which is done with a 1D continuous Galerkin method. From now on, we will also discuss some implementation details, so, in this chapter, how we handle the calculation of the objective functional $j$. To solve the partial equations of \eqref{weakEq}, we use the Python package pyMOR.
+In order to solve the optimization problem \eqref{redProb} numerically, the discretization of our model is now discussed. We use finite elements methods \cite{doi:10.1137/1.9780898717440, articleMeidner} for this. At first, the discretization in space with a n-D continuous Galerkin method is presented. Then, we look at the discretization in time, which is done with a 1D continuous Galerkin method. From now on, we will also discuss some implementation details, so in this chapter how we handle the calculation of the objective function $j$. In our implementation, we apply functions from the Python package pyMOR.
 
 \subsection{\label{SubsectionDiscretizationInSpace}Discretization in space}
 The discretization in space is shown on a 2-dimensional rectangular space $\Omega\subset\mathbb{R}^2$ with linear finite elements. We assume to have a vertex set $\mathcal{V}=(x_1,\dotsc,x_{N_\mathcal{V}})\in(\mathbb{R}^2)^{N_\mathcal{V}}$ with a convex hull that is equal  to $\bar{\Omega}$ and $x_i\neq x_j$ for all $i\neq j$ in $\{1,\dotsc,N_\mathcal{V}\}$. Let $\hat{T}=\{(x,y)\in[0,1]^2\mid y \leq 1-x\}$ be the reference triangle. Then,
@@ -91,7 +91,7 @@ is a transformation from the reference triangle $\hat{T}$ to some other triangle
 
 We define now a mesh $\mathcal{T}=\{T_l\}$ which consists of triangles $T_l=\theta_l(\hat{T})$, where $T_l\cap T_m$ for $T_l,T_m\in\mathcal{T}$ is either a common side, a common corner, or empty, and where $\bar{\Omega}=\cup_{T_l\in\mathcal{T}}T_l$. We also assume that every vertex in $\mathcal{V}$ is a corner of at least one triangle of $\mathcal{T}$.\\
 
-In the pyMOR implementation, we discretize a rectangular domain by specifying the number of grid intervals first. Then, the domain is subdivided into smaller rectangles of the same size, so that the number of rectangles along the $x$- and the $y$-axis is equal to the predefined number of grid intervals. Each smaller rectangular unit is then partitioned into four equally sized triangles by adding a vertex into the center of the rectangle which is connected with the corners of the unit. The vertex set of the whole domain is now given by the union of the corners of all triangles. As an example, if a domain $\Omega = [a, a]$ with $a>0$ is given and we set the number of grid intervals to two, then our mesh would look like that:
+With pyMOR functions, we discretize a rectangular domain by specifying the number of grid intervals first. Then, the domain is subdivided into smaller rectangles of the same size, so that the number of rectangles along the $x$- and the $y$-axis is equal to the predefined number of grid intervals. Each smaller rectangular unit is then partitioned into four equally sized triangles by adding a vertex into the center of the rectangle which is connected with the corners of the unit. The vertex set of the whole domain is now given by the union of the corners of all triangles. As an example, if a domain $\Omega = [a, a]$ with $a>0$ is given and we set the number of grid intervals to two, then our mesh would look like that:
 \begin{figure}
     \centering
     %\textbf{Your title}\par\medskip
@@ -121,7 +121,7 @@ as the finite element space of our state variables with
 \end{displaymath}
 for all $T_l\in\mathcal{T}$ and $i=1,\dotsc,N_\mathcal{V}$.
 
-By construction, every $u\in V_h$ is uniquely defined by
+By construction, every $u\in V_h$ is uniquely defined as
 \begin{equation}
 \label{discretizedUSum}
 u=\sum_{i=1}^{N_\mathcal{V}}U_i\phi_i
@@ -132,7 +132,7 @@ Now we want to calculate $\int_\Omega u \cdot v \,\mathrm{d}x$ and $\int_\Omega 
 \begin{displaymath}
 \mathbf{U}=\begin{pmatrix} U_1 \\ \vdots \\ U_{N_\mathcal{V}} \end{pmatrix}\text{ and }\mathbf{V}=\begin{pmatrix} V_1 \\ \vdots \\ V_{N_\mathcal{V}} \end{pmatrix},
 \end{displaymath}
-where $U_i=u(x_i)$, $V_i=v(x_i)$ for $i=1,\dotsc,N_\mathcal{V}$ as in \eqref{discretizedUSum}. Then we have, based on the representation of elements in $V_h$ from Equation \eqref{discretizedUSum}, that
+where $U_i=u(x_i)$, and $V_i=v(x_i)$ for $i=1,\dotsc,N_\mathcal{V}$ as in \eqref{discretizedUSum}. Then we have, based on the representation of elements in $V_h$ from Equation \eqref{discretizedUSum}, that
 \begin{displaymath}
 \int_\Omega u \cdot v \,\mathrm{d}x=\mathbf{U}^T\mathbf{M}_n\mathbf{V}\text{ and }\int_\Omega \nabla v \cdot \nabla u \,\mathrm{d}x=\mathbf{U}^T\mathbf{L}_n\mathbf{V}.
 \end{displaymath}
@@ -153,7 +153,7 @@ Similarly, we define the time-discretized space of our control variables as
 Q_d:=\{v\in C(\bar{I},H)\mid v |_{I_m}\in\mathcal{P}_1(I_m,H),m=1,2,\dotsc,N_t\}\supset X_{k,h}.
 \end{displaymath}
 
-By using the Lagrange basis of $\mathcal{P}_1(I_m,\mathbb{R})$, we can write every function $v \in Q_d$ as
+By using the Lagrange basis of $\mathcal{P}_1(I_m,\mathbb{R})$, we can write every functional $v \in Q_d$ as
 \begin{equation}
 \label{discretizeVariableInTime}
 v(t,x)=\left(m-t\frac{N_t}{T}\right) v_{m-1}(x)+\left(t\frac{N_t}{T}-m+1\right) v_m(x)\text{ for }t\in I_m,
@@ -162,7 +162,7 @@ where $v_m(x)=v(t_m,x)$.
 
 
 \subsection{Crank-Nicolson scheme}
-Now we solve the weak state equations \eqref{weakEq} for the state $u\in X_{k,h}$, the control $q\in Q_d$, and $f\in Q$ numerically. Let $u_m=u(t_m, \cdot)$ and $U_{m,i}:=u_m(x_i)$ for $m=0,\dotsc,N_t$ and $i=1,\dotsc,N_\mathcal{V}$. We set
+Now we solve the weak state equations \eqref{weakEq} for the state $u\in X_{k,h}$, the control $q\in Q_d$, and $f\in Q$ numerically. Let $u_m=u(t_m, \cdot)$ and $U_{m,i}=u_m(x_i)$ for $m=0,\dotsc,N_t$ and $i=1,\dotsc,N_\mathcal{V}$. We set
 \begin{displaymath}
 \mathbf{U}_m=\begin{pmatrix} U_{m,1} \\ \vdots \\ U_{m,N_\mathcal{V}} \end{pmatrix}
 \end{displaymath}
@@ -201,8 +201,8 @@ In the pyMOR implementation, vectors $\mathbf{F}_m$ for $m=0,\dotsc,N_t$ are def
 \end{equation}
 which is solved after $\mathbf{U}_m$ with algorithms from the Python package SciPy.
 
-\subsection{\label{subsectionCalculationOfTheObjectiveFunctionValue}Calculation of the objective function value}
-For fixed $\hat{u},f\in Q$, we define $u=u(q)$ for all $q\in Q_d$, so that it satisfies \eqref{crank_nicolson}. We calculate $j(q)$ now in the following way:
+\subsection{\label{subsectionCalculationOfTheObjectiveFunctionValue}Calculation of the objective functional value}
+For fixed $\hat{u},f\in Q$, we define $u=u(q)$ for all $q\in Q_d$ so that it satisfies \eqref{crank_nicolson}. The functional value $j(q)$ is now calculated in the following way:
 \begin{eqnarray*}
 j(q) \approx& \frac{1}{2}\sum_{m=1}^{N_t}\int_{t_{m-1}}^{t_m}&\bigg(\left(m-t\frac{N_t}{T}\right) \left(u_{m-1}-\hat{u}_{m-1}\right)+\left(t\frac{N_t}{T}-m+1\right) \left(u_{m}-\hat{u}_{m}\right),\\
 &&\left(m-t\frac{N_t}{T}\right) \left(u_{m-1}-\hat{u}_{m-1}\right)+\left(t\frac{N_t}{T}-m+1\right) \left(u_{m}-\hat{u}_{m}\right)\bigg)\,\mathrm{d}t\\
@@ -223,7 +223,7 @@ where $\hat{\mathbf{U}}_m=\left(\hat{u}(t_m, x_i)\right)_{i=1,\dotsc,N_\mathcal{
 
 \section{Optimization of the control variable}
 
-To optimize the control variable, we write every $q\in Q_d$, by using a fixed set of $N_b\in\mathbb{N}$ shape functionals
+In our optimization procedure, we search for a control variable among all elements $q\in Q_d$ which are defined by using a fixed set of $N_b\in\mathbb{N}$ shape functionals
 \begin{equation}
 \label{basisFuncionsList}
 \Phi=\{\phi_1,\dotsc,\phi_{N_b}\}
@@ -240,11 +240,11 @@ q_i^{m-1}\left(m-t\frac{N_t}{T}\right) + q_i^m\left(t\frac{N_t}{T}-m+1\right) & 
 q_i^0 & \text{ if $t=0$.}
 \end{cases}
 \end{displaymath}
-Each control variable that is written in this form can be represented by a vector
+Each control variable that is written in this form can be represented by a control vector
 \begin{displaymath}
 \mathbf{q}=\left[q_1^0,q_1^1,\dotsc,q_1^{N_t},\dotsc,q_{N_b}^0,q_{N_b}^1\dotsc,q_{N_b}^{N_t}\right]^T\in\mathcal{D},
 \end{displaymath} 
-where $\mathcal{D}:=\mathbb{R}^{N_\mathbf{q}}$ with $N_\mathbf{q} = (N_t+1)\cdot N_b$ is the domain of the control vector. Hence, we write
+where $\mathcal{D}:=\mathbb{R}^{N_\mathbf{q}}$ with $N_\mathbf{q} = (N_t+1)\cdot N_b$ is the domain of this vector. Hence, we write
 \begin{equation}
 \label{FOMFunctionalEvaluationDef}
 j(\mathbf{q}):=j(q)
